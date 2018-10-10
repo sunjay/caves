@@ -2,10 +2,14 @@
 extern crate specs_derive;
 #[macro_use]
 extern crate shred_derive;
+#[macro_use]
+extern crate lazy_static;
 
 extern crate sdl2;
 extern crate specs;
 extern crate shred;
+extern crate rand;
+extern crate base64;
 
 mod systems;
 mod components;
@@ -42,12 +46,20 @@ use components::{
 use resources::{FramesElapsed, GameKeys};
 use texture_manager::TextureManager;
 use renderer::Renderer;
-use map::Map;
+use map::MapGenerator;
 
 fn main() -> Result<(), String> {
     let fps = 60.0;
 
-    let map = Map::generate();
+    let map = MapGenerator {
+        levels: 10,
+        rows: 40,
+        cols: 40,
+        rooms: 6,
+        room_width: (3, 15).into(),
+        room_height: (3, 15).into(),
+        room_margin: 3,
+    }.generate();
 
     let mut renderer = Renderer::init(320, 240)?;
     let texture_creator = renderer.texture_creator();
@@ -58,7 +70,7 @@ fn main() -> Result<(), String> {
     let mut world = World::new();
 
     world.add_resource(FramesElapsed(1));
-    world.add_resource(map.clone());
+    // world.add_resource(map.clone());
     world.add_resource(GameKeys::from(event_pump.keyboard_state()));
 
     let mut dispatcher = DispatcherBuilder::new()
@@ -72,7 +84,7 @@ fn main() -> Result<(), String> {
     Renderer::setup(&mut world.res);
 
     // Add the character
-    let character_center = map.level_start();
+    let character_center = sdl2::rect::Point::new(0, 0); //TODO
     //let character_texture = textures.create_png_texture("assets/character.png")?;
     //let character_animation = [
     //    // The position on the texture of the character

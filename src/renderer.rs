@@ -23,11 +23,11 @@ use specs::{
 
 use texture_manager::TextureManager;
 use components::{Position, Sprite, CameraFocus};
-use map::Map;
+use map::FloorMap;
 
 #[derive(SystemData)]
 struct RenderData<'a> {
-    map: ReadExpect<'a, Map>,
+    map: ReadExpect<'a, FloorMap>,
     camera_focuses: ReadStorage<'a, CameraFocus>,
     positions: ReadStorage<'a, Position>,
     sprites: ReadStorage<'a, Sprite>,
