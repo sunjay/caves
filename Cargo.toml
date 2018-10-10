@@ -4,3 +4,12 @@ version = "0.1.0"
 authors = ["Sunjay Varma <varma.sunjay@gmail.com>"]
 
 [dependencies]
+specs = "*"
+specs-derive = "*"
+shred = "*"
+shred-derive = "*"
+
+[dependencies.sdl2]
+version = "*"
+default-features = false
+features = ["image"]
