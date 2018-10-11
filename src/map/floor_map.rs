@@ -71,6 +71,63 @@ impl Default for TileWalls {
     }
 }
 
+impl fmt::Display for TileWalls {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::Wall::*;
+        write!(f, "{}", match *self {
+            TileWalls {north: Closed, east: Closed, south: Closed, west: Closed} => {
+                "\u{26ac}" // all closed
+            },
+            TileWalls {north: Open, east: Closed, south: Closed, west: Closed} => {
+                "\u{257d}" // N
+            },
+            TileWalls {north: Closed, east: Open, south: Closed, west: Closed} => {
+                "\u{257e}" // E
+            },
+            TileWalls {north: Closed, east: Closed, south: Open, west: Closed} => {
+                "\u{257f}" // S
+            },
+            TileWalls {north: Closed, east: Closed, south: Closed, west: Open} => {
+                "\u{257c}" // W
+            },
+            TileWalls {north: Open, east: Open, south: Closed, west: Closed} => {
+                "\u{2514}" // NE
+            },
+            TileWalls {north: Closed, east: Open, south: Open, west: Closed} => {
+                "\u{250C}" // SE
+            },
+            TileWalls {north: Closed, east: Closed, south: Open, west: Open} => {
+                "\u{2510}" // SW
+            },
+            TileWalls {north: Open, east: Closed, south: Closed, west: Open} => {
+                "\u{2518}" // NW
+            },
+            TileWalls {north: Open, east: Closed, south: Open, west: Closed} => {
+                "\u{2502}" // NS
+            },
+            TileWalls {north: Closed, east: Open, south: Closed, west: Open} => {
+                "\u{2500}" // EW
+            },
+            TileWalls {north: Open, east: Open, south: Open, west: Closed} => {
+                "\u{251c}" // NES
+            },
+            TileWalls {north: Closed, east: Open, south: Open, west: Open} => {
+                "\u{252c}" // ESW
+            },
+            TileWalls {north: Open, east: Closed, south: Open, west: Open} => {
+                "\u{2524}" // NSW
+            },
+            TileWalls {north: Open, east: Open, south: Closed, west: Open} => {
+                "\u{2534}" // NEW
+            },
+            TileWalls {north: Open, east: Open, south: Open, west: Open} => {
+                "\u{253c}" // NESW
+            },
+            _ => " ",
+        })
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Tile {
     pub ttype: TileType,
@@ -111,40 +168,15 @@ impl IndexMut<usize> for FloorMap {
 impl fmt::Debug for FloorMap {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use colored::*;
-        use self::Wall::*;
 
         for row in self.rows() {
             for tile in row {
                 match tile {
                     None => write!(f, "{}", " ".on_black())?,
                     Some(tile) => match tile.ttype {
-                        TileType::Passageway => write!(f, "{}", match tile.walls {
-                            TileWalls {north: Closed, east: Closed, south: Closed, west: Closed} => {
-                                "\u{26ac}"
-                            },
-                            TileWalls {north: Open, east: Closed, south: Closed, west: Closed} => {
-                                "\u{25b2}"
-                            },
-                            TileWalls {north: Closed, east: Open, south: Closed, west: Closed} => {
-                                "\u{25b6}"
-                            },
-                            TileWalls {north: Closed, east: Closed, south: Open, west: Closed} => {
-                                "\u{25bc}"
-                            },
-                            TileWalls {north: Closed, east: Closed, south: Closed, west: Open} => {
-                                "\u{25c0}"
-                            },
-                            TileWalls {north: Open, east: Closed, south: Open, west: Closed} => {
-                                "\u{2502}"
-                            },
-                            TileWalls {north: Closed, east: Open, south: Closed, west: Open} => {
-                                "\u{2500}"
-                            },
-                            TileWalls {north: Open, east: Open, south: Open, west: Open} => {
-                                "\u{256c}"
-                            },
-                            _ => "  ",
-                        }.on_green())?,
+                        TileType::Passageway => {
+                            write!(f, "{}", tile.walls.to_string().on_green())?
+                        },
                         TileType::Room(_) => {
                             write!(f, "{}", " ".on_blue())?
                         },
@@ -268,7 +300,7 @@ impl FloorMap {
     /// Returns an iterator of cell positions adjacent to the given cell in the four cardinal
     /// directions. Only returns valid cell positions.
     pub fn adjacent_cells(&self, (row, col): (usize, usize)) -> impl Iterator<Item=(usize, usize)> + '_ {
-        [(-1, 0), (0, -1), (-1, 0), (1, 0)].into_iter().filter_map(move |(row_offset, col_offset)| {
+        [(-1, 0), (0, -1), (1, 0), (0, 1)].into_iter().filter_map(move |(row_offset, col_offset)| {
             let row = row as isize + row_offset;
             let col = col as isize + col_offset;
 

@@ -250,7 +250,7 @@ impl MapGenerator {
             }
             seen.insert(node);
 
-            let mut adjacents: Vec<_> = map.adjacent_cells((row_i, col_i))
+            let mut adjacents: Vec<_> = map.adjacent_cells(node)
                 .filter(|&pt| !seen.contains(&pt) && map.is_empty(pt))
                 .collect();
             rng.shuffle(&mut adjacents);
@@ -258,12 +258,10 @@ impl MapGenerator {
             // This is a depth first search, so we insert the first element and append the rest
             if let Some(adj) = adjacents.next() {
                 open.push_front(adj);
-                println!("parent of {:?} is {:?}", adj, node);
                 parent_map.insert(adj, node);
             }
             for adj in adjacents {
                 open.push_back(adj);
-                println!("parent of {:?} is {:?}", adj, node);
                 parent_map.insert(adj, node);
             }
         }
@@ -275,7 +273,6 @@ impl MapGenerator {
 
         // Place all of the found paths onto the tiles
         for (pt1, pt2) in parent_map {
-            println!("foo: {:?}", (pt1, pt2));
             // Open the walls between these two cells
             map.open_between(pt1, pt2);
         }
