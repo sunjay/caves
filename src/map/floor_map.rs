@@ -390,10 +390,11 @@ impl FloorMap {
         })
     }
 
-    /// Returns an iterator of adjacent cells in the four cardinal directions. Returns up to four
-    /// items depending on how many adjacents there are.
-    pub fn adjacents(&self, (row, col): (usize, usize)) -> impl Iterator<Item=((usize, usize), Option<&Tile>)> {
-        self.adjacent_positions((row, col)).map(move |(row, col)| ((row, col), self[row][col].as_ref()))
+    /// Returns an iterator of adjacent passages that do not have a wall between them and the
+    /// given position.
+    pub fn adjacent_open_passages(&self, (row, col): (usize, usize)) -> impl Iterator<Item=(usize, usize)> + '_ {
+        self.adjacent_positions((row, col))
+            .filter(move |&pt| self.is_passageway(pt) && self.is_open_between((row, col), pt))
     }
 
     /// Executes a depth-first search starting from a given tile

@@ -160,7 +160,7 @@ impl MapGenerator {
         let mut rng = key.to_rng();
         GameMap {
             key,
-            levels: (0..self.levels).map(|level| self.generate_level(&mut rng, level)).collect(),
+            levels: (1..=self.levels).map(|level| self.generate_level(&mut rng, level)).collect(),
         }
     }
 
@@ -277,14 +277,16 @@ impl MapGenerator {
             let mut doors = self.doors;
             while doors > 0 {
                 // Pick a random point on one of the edges of the room
-                let (row, col) = if rng.gen() {
+                let (is_horizontal, row, col) = if rng.gen() {
                     // Random horizontal edge
                     (
+                        true,
                         room.y() as usize + *rng.choose(&[0, room.height()-1]).unwrap() as usize,
                         room.x() as usize + rng.gen_range(0, room.width()) as usize,
                     )
                 } else {
                     (
+                        false,
                         room.y() as usize + rng.gen_range(0, room.height()) as usize,
                         room.x() as usize + *rng.choose(&[0, room.width()-1]).unwrap() as usize,
                     )
@@ -305,6 +307,19 @@ impl MapGenerator {
                 // Already opened this tile
                 if map.is_open_between((row, col), passage) {
                     continue;
+                }
+
+                // Don't put a door on the same side of a room as another door
+                if is_horizontal {
+                    // Search the horizontal edge
+                    if (0..room.width() as usize).any(|col| map.adjacent_open_passages((row, room.x() as usize + col)).next().is_some()) {
+                        continue;
+                    }
+                } else {
+                    // Search the vertical edge
+                    if (0..room.height() as usize).any(|row| map.adjacent_open_passages((room.y() as usize + row, col)).next().is_some()) {
+                        continue;
+                    }
                 }
 
                 map.open_between((row, col), passage);
