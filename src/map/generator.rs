@@ -277,16 +277,14 @@ impl MapGenerator {
             let mut doors = self.doors;
             while doors > 0 {
                 // Pick a random point on one of the edges of the room
-                let (is_horizontal, row, col) = if rng.gen() {
+                let (row, col) = if rng.gen() {
                     // Random horizontal edge
                     (
-                        true,
                         room.y() as usize + *rng.choose(&[0, room.height()-1]).unwrap() as usize,
                         room.x() as usize + rng.gen_range(0, room.width()) as usize,
                     )
                 } else {
                     (
-                        false,
                         room.y() as usize + rng.gen_range(0, room.height()) as usize,
                         room.x() as usize + *rng.choose(&[0, room.width()-1]).unwrap() as usize,
                     )
@@ -312,16 +310,21 @@ impl MapGenerator {
                 // This check only works if we are putting fewer than 4 doors on every room
                 if self.doors <= 4 {
                     // Don't put a door on the same side of a room as another door
-                    if is_horizontal {
-                        // Search the horizontal edge
-                        if (0..room.width() as usize).any(|col| map.adjacent_open_passages((row, room.x() as usize + col)).next().is_some()) {
-                            continue;
-                        }
-                    } else {
-                        // Search the vertical edge
-                        if (0..room.height() as usize).any(|row| map.adjacent_open_passages((room.y() as usize + row, col)).next().is_some()) {
-                            continue;
-                        }
+
+                    // We check for this by scanning horizontally and vertically for any other
+                    // doors. This approach isn't perfect though because in addition to disallowing
+                    // what we don't want, it also makes it impossible for two doors to be directly
+                    // opposite from each other in a room. This is not great, so in the future it
+                    // would be good to improve this to be a more sophisticated check--taking
+                    // taking corners into account properly. (TODO)
+
+                    // Search the horizontal edge
+                    if (0..room.width() as usize).any(|col| map.adjacent_open_passages((row, room.x() as usize + col)).next().is_some()) {
+                        continue;
+                    }
+                    // Search the vertical edge
+                    if (0..room.height() as usize).any(|row| map.adjacent_open_passages((room.y() as usize + row, col)).next().is_some()) {
+                        continue;
                     }
                 }
 
