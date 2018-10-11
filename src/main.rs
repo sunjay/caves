@@ -54,7 +54,7 @@ fn main() -> Result<(), String> {
 
     let map = MapGenerator {
         levels: 10,
-        rows: 40,
+        rows: 20,
         cols: 40,
         rooms: 6,
         room_width: (3, 15).into(),
