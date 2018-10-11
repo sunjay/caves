@@ -1,5 +1,7 @@
 use std::str::FromStr;
 use std::fmt;
+use std::ops::Add;
+use std::collections::{HashSet, VecDeque, HashMap};
 
 use sdl2::rect::Rect;
 use rand::{
@@ -106,6 +108,8 @@ impl FromStr for MapKey {
     }
 }
 
+/// Represents the minimum and maximum boundary for a given type
+/// Both boundaries are inclusive
 pub struct Bounds<T> {
     min: T,
     max: T,
@@ -113,8 +117,11 @@ pub struct Bounds<T> {
 
 impl<T: PartialOrd + SampleUniform + Copy> Bounds<T> {
     fn gen<R: Rng>(&self, rng: &mut R) -> T
-        where Standard: Distribution<T> {
-        rng.gen_range(self.min, self.max)
+        where Standard: Distribution<T>,
+              T: Add<Output=T> + From<u8> {
+        // Need to add 1 for this to be an inclusive range. These fancy type bounds allow for that.
+        // From<u8> was chosen because a lot of types support From<u8>.
+        rng.gen_range(self.min, self.max + 1.into())
     }
 }
 
@@ -137,8 +144,9 @@ pub struct MapGenerator {
     pub room_width: Bounds<u32>,
     /// The minimum and maximum height of a room
     pub room_height: Bounds<u32>,
-    /// The minimum distance between adjacent rooms
-    pub room_margin: u32,
+    /// The width of the passageways between rooms
+    /// Used to calculate the minimum distance between adjacent rooms
+    pub passage_size: u32,
 }
 
 impl MapGenerator {
@@ -155,11 +163,12 @@ impl MapGenerator {
     }
 
     pub fn generate_level(&self, rng: &mut StdRng, level: usize) -> FloorMap {
-        let mut tiles = vec![vec![Tile::default(); self.cols as usize]; self.rows as usize];
+        let mut map = FloorMap::new(self.rows as usize, self.cols as usize);
         let rooms = self.generate_rooms(rng);
-        self.place_rooms(&mut tiles, rooms);
+        self.place_rooms(&mut map, &rooms);
+        self.fill_passages(rng, &mut map);
 
-        println!("{:?}", FloorMap {level: 1, tiles});
+        println!("{:?}", map);
         unimplemented!();
     }
 
@@ -181,12 +190,14 @@ impl MapGenerator {
 
             // Ensure no overlap with any other room
             for other_room in &rooms {
-                // Cannot be adjacent to a room that currently exists
+                // Rooms cannot be directly adjacent to each other, this makes enough room for a
+                // passage to come through
+                let margin = self.passage_size;
                 let other_room = Rect::new(
-                    other_room.x() - self.room_margin as i32,
-                    other_room.y() - self.room_margin as i32,
-                    other_room.width() + self.room_margin * 2,
-                    other_room.height() + self.room_margin * 2,
+                    other_room.x() - margin as i32,
+                    other_room.y() - margin as i32,
+                    other_room.width() + margin * 2,
+                    other_room.height() + margin * 2,
                 );
                 if potential_room.has_intersection(other_room) {
                     continue 'make_rooms;
@@ -203,16 +214,70 @@ impl MapGenerator {
         Vec::new()
     }
 
-    fn place_rooms(&self, tiles: &mut TileGrid, rooms: Vec<Rect>) {
+    fn place_rooms(&self, map: &mut FloorMap, rooms: &[Rect]) {
         for (room_id, room) in rooms.into_iter().enumerate() {
+            let room_id = RoomId(room_id);
             for row_i in room.y()..(room.y() + room.height() as i32) {
                 for col_i in room.x()..(room.x() + room.width() as i32) {
-                    let tile = &mut tiles[row_i as usize][col_i as usize];
-                    debug_assert!(tile.is_empty(), "bug: should not have overlapping rooms");
-
-                    tile.set_room(RoomId(room_id));
+                    map.place_tile((row_i as usize, col_i as usize), TileType::Room(room_id));
+                    //TODO: Need to open walls to all adjacent tiles with the same room ID
                 }
             }
+        }
+    }
+
+    fn fill_passages(&self, rng: &mut StdRng, map: &mut FloorMap) {
+        for row_i in 0..self.rows as usize {
+            for col_i in 0..self.cols as usize {
+                if map.is_empty((row_i, col_i)) {
+                    self.generate_maze(rng, map, (row_i, col_i));
+                }
+            }
+        }
+    }
+
+    fn generate_maze(&self, rng: &mut StdRng, map: &mut FloorMap, (row_i, col_i): (usize, usize)) {
+        assert_eq!(self.passage_size, 1, "only a passage_size of 1 is supported for now");
+
+        let mut parent_map = HashMap::new();
+        let mut seen = HashSet::new();
+        let mut open = VecDeque::new();
+        open.push_front((row_i, col_i));
+
+        while let Some(node) = open.pop_front() {
+            if seen.contains(&node) {
+                continue;
+            }
+            seen.insert(node);
+
+            let mut adjacents: Vec<_> = map.adjacent_cells((row_i, col_i))
+                .filter(|&pt| !seen.contains(&pt) && map.is_empty(pt))
+                .collect();
+            rng.shuffle(&mut adjacents);
+            let mut adjacents = adjacents.into_iter();
+            // This is a depth first search, so we insert the first element and append the rest
+            if let Some(adj) = adjacents.next() {
+                open.push_front(adj);
+                println!("parent of {:?} is {:?}", adj, node);
+                parent_map.insert(adj, node);
+            }
+            for adj in adjacents {
+                open.push_back(adj);
+                println!("parent of {:?} is {:?}", adj, node);
+                parent_map.insert(adj, node);
+            }
+        }
+
+        // Insert new passageway tiles
+        for pt in seen {
+            map.place_tile(pt, TileType::Passageway);
+        }
+
+        // Place all of the found paths onto the tiles
+        for (pt1, pt2) in parent_map {
+            println!("foo: {:?}", (pt1, pt2));
+            // Open the walls between these two cells
+            map.open_between(pt1, pt2);
         }
     }
 }

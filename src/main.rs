@@ -10,6 +10,7 @@ extern crate specs;
 extern crate shred;
 extern crate rand;
 extern crate base64;
+extern crate colored;
 
 mod systems;
 mod components;
@@ -57,8 +58,8 @@ fn main() -> Result<(), String> {
         cols: 40,
         rooms: 6,
         room_width: (3, 15).into(),
-        room_height: (3, 15).into(),
-        room_margin: 3,
+        room_height: (3, 12).into(),
+        passage_size: 1,
     }.generate();
 
     let mut renderer = Renderer::init(320, 240)?;
