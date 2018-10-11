@@ -32,9 +32,11 @@ pub enum TileType {
 #[derive(Debug, Clone)]
 pub enum TileObject {
     /// Stepping on this tile transports you to the next level
-    ToNextLevel,
+    /// Field is the ID of this gate and the ID of the ToPrevLevel tile that this should connect to
+    ToNextLevel(usize),
     /// Stepping on this tile transports you to the previous level
-    ToPrevLevel,
+    /// Field is the ID of this gate and the ID of the ToNextLevel tile that this should connect to
+    ToPrevLevel(usize),
     /// A point where an enemy *may* spawn
     EnemySpawn {
         /// Probability that an enemy will spawn here: 1.0 means that the enemy will definitely
@@ -42,6 +44,17 @@ pub enum TileObject {
         probability: f64,
     },
     Chest(Item),
+}
+
+impl fmt::Display for TileObject {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::TileObject::*;
+        write!(f, "{}", match *self {
+            ToNextLevel(_) => "\u{2191}",
+            ToPrevLevel(_) => "\u{2193}",
+            _ => " ",
+        })
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -160,6 +173,14 @@ impl Tile {
             walls: Default::default(),
         }
     }
+
+    pub fn has_object(&self) -> bool {
+        self.object.is_some()
+    }
+
+    pub fn place_object(&mut self, object: TileObject) {
+        self.object = Some(object);
+    }
 }
 
 pub type Row = [Option<Tile>];
@@ -195,7 +216,8 @@ impl fmt::Debug for FloorMap {
                             write!(f, "{}", tile.walls.to_string().on_green())?
                         },
                         TileType::Room(_) => {
-                            write!(f, "{}", " ".on_blue())?
+                            write!(f, "{}", tile.object.as_ref().map(|o| o.to_string())
+                                .unwrap_or(" ".to_string()).on_blue())?
                         },
                     },
                 }
@@ -357,6 +379,7 @@ impl FloorMap {
         macro_rules! close {
             ($wall1:ident, $wall2:ident) => {
                 {
+                    // Note that walls aren't allowed to be open when there is no tile on the other side
                     self[row1][col1].as_mut().expect("Cannot close a wall to an empty tile").walls.$wall1 = Wall::Closed;
                     self[row2][col2].as_mut().expect("Cannot close a wall to an empty tile").walls.$wall2 = Wall::Closed;
                 }

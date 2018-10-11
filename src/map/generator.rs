@@ -140,8 +140,6 @@ pub struct MapGenerator {
     pub cols: u32,
     /// The number of rooms to generate on each floor
     pub rooms: usize,
-    /// The number of doors to generate on each room
-    pub doors: usize,
     /// The minimum and maximum width of a room
     pub room_width: Bounds<u32>,
     /// The minimum and maximum height of a room
@@ -149,6 +147,12 @@ pub struct MapGenerator {
     /// The width of the passageways between rooms
     /// Used to calculate the minimum distance between adjacent rooms
     pub passage_size: u32,
+    /// The number of doors to generate on each room
+    pub doors: usize,
+    /// The number of tiles that take you to the next level/prev level
+    /// This will create `next_prev_tiles` number of ToNextLevel tiles and
+    /// `next_prev_tiles` number of ToPrevLevel tiles
+    pub next_prev_tiles: usize,
 }
 
 impl MapGenerator {
@@ -168,18 +172,28 @@ impl MapGenerator {
         let mut map = FloorMap::new(self.rows as usize, self.cols as usize);
         let rooms = self.generate_rooms(rng);
         self.place_rooms(&mut map, &rooms);
+        println!("{:?}", map);
         self.fill_passages(rng, &mut map);
         println!("{:?}", map);
         self.connect_rooms_passages(rng, &mut map, &rooms);
         println!("{:?}", map);
         self.reduce_dead_ends(&mut map);
         println!("{:?}", map);
+        if level < self.levels {
+            self.place_to_next_level_tiles(rng, &mut map, &rooms);
+        }
+        if level > 1 {
+            self.place_to_prev_level_tiles(rng, &mut map, &rooms);
+        }
+        println!("{:?}", map);
 
         unimplemented!();
     }
 
-    fn generate_rooms(&self, rng: &mut StdRng) -> Vec<Rect> {
+    fn generate_rooms(&self, rng: &mut StdRng) -> Vec<(RoomId, Rect)> {
         let mut rooms = self.generate_special_rooms(rng);
+
+        let mut next_id = rooms.len();
 
         'make_rooms: while rooms.len() < self.rooms {
             let x = rng.gen_range(0, self.cols);
@@ -195,7 +209,7 @@ impl MapGenerator {
             let potential_room = Rect::new(x as i32, y as i32, width, height);
 
             // Ensure no overlap with any other room
-            for other_room in &rooms {
+            for (_, other_room) in &rooms {
                 // Rooms cannot be directly adjacent to each other, this makes enough room for a
                 // passage to come through
                 let margin = self.passage_size;
@@ -209,20 +223,20 @@ impl MapGenerator {
                     continue 'make_rooms;
                 }
             }
-            rooms.push(potential_room);
+            rooms.push((RoomId(next_id), potential_room));
+            next_id += 1;
         }
 
         rooms
     }
 
-    fn generate_special_rooms(&self, rng: &mut StdRng) -> Vec<Rect> {
+    fn generate_special_rooms(&self, rng: &mut StdRng) -> Vec<(RoomId, Rect)> {
         //TODO: Generate treasure chamber on last level, boss/challenge room, etc.
         Vec::new()
     }
 
-    fn place_rooms(&self, map: &mut FloorMap, rooms: &[Rect]) {
-        for (room_id, room) in rooms.into_iter().enumerate() {
-            let room_id = RoomId(room_id);
+    fn place_rooms(&self, map: &mut FloorMap, rooms: &[(RoomId, Rect)]) {
+        for &(room_id, ref room) in rooms {
             for row_i in room.y()..(room.y() + room.height() as i32) {
                 for col_i in room.x()..(room.x() + room.width() as i32) {
                     map.place_tile((row_i as usize, col_i as usize), TileType::Room(room_id));
@@ -272,8 +286,8 @@ impl MapGenerator {
     }
 
     /// Connects each room to a passage
-    fn connect_rooms_passages(&self, rng: &mut StdRng, map: &mut FloorMap, rooms: &[Rect]) {
-        for (room_id, room) in rooms.iter().enumerate() {
+    fn connect_rooms_passages(&self, rng: &mut StdRng, map: &mut FloorMap, rooms: &[(RoomId, Rect)]) {
+        for &(room_id, ref room) in rooms {
             let mut doors = self.doors;
             while doors > 0 {
                 // Pick a random point on one of the edges of the room
@@ -290,7 +304,7 @@ impl MapGenerator {
                     )
                 };
 
-                debug_assert!(map.is_room_id((row, col), RoomId(room_id)),
+                debug_assert!(map.is_room_id((row, col), room_id),
                     "bug: tried to connect a passage to a room with the wrong ID");
 
                 let adjacents: Vec<_> = map.adjacent_positions((row, col))
@@ -350,5 +364,59 @@ impl MapGenerator {
 
             adjacents.into_iter().filter(|&pt| map.is_dead_end(pt)).collect()
         });
+    }
+
+    fn place_to_next_level_tiles(&self, rng: &mut StdRng, map: &mut FloorMap, rooms: &[(RoomId, Rect)]) {
+        self.place_object_in_rooms(rng, map, rooms, self.next_prev_tiles, TileObject::ToNextLevel);
+    }
+
+    fn place_to_prev_level_tiles(&self, rng: &mut StdRng, map: &mut FloorMap, rooms: &[(RoomId, Rect)]) {
+        self.place_object_in_rooms(rng, map, rooms, self.next_prev_tiles, TileObject::ToPrevLevel);
+    }
+
+    /// Places `nrooms` copies of a TileObject into `nrooms` randomly choosen rooms from rooms
+    fn place_object_in_rooms<OB>(&self, rng: &mut StdRng, map: &mut FloorMap, rooms: &[(RoomId, Rect)], nrooms: usize, mut object: OB)
+        where OB: FnMut(usize) -> TileObject {
+        assert!(rooms.len() >= nrooms,
+            "Not enough rooms to place next/prev level tiles");
+
+        // To do this using choose we would need to allocate anyway, so we might as well just use
+        // shuffle to do all the random choosing at once
+        let mut rooms: Vec<_> = rooms.to_vec();
+        rng.shuffle(&mut rooms);
+
+        for (i, (room_id, room)) in rooms.into_iter().take(nrooms).enumerate() {
+            loop {
+                // Pick a random point on one of the edges of the room
+                let (row, col) = if rng.gen() {
+                    // Random horizontal edge
+                    (
+                        room.y() as usize + *rng.choose(&[0, room.height()-1]).unwrap() as usize,
+                        room.x() as usize + rng.gen_range(0, room.width()) as usize,
+                    )
+                } else {
+                    (
+                        room.y() as usize + rng.gen_range(0, room.height()) as usize,
+                        room.x() as usize + *rng.choose(&[0, room.width()-1]).unwrap() as usize,
+                    )
+                };
+
+                assert!(map.is_room_id((row, col), room_id),
+                    "bug: picked a tile that was not in the room it was supposed to be");
+
+                // Don't put anything beside a doorway
+                if map.adjacent_open_passages((row, col)).next().is_some() {
+                    continue;
+                }
+
+                let tile = map[row][col].as_mut().expect("bug: did not choose a valid room tile");
+                if tile.has_object() {
+                    continue;
+                }
+
+                tile.place_object(object(i));
+                break;
+            }
+        }
     }
 }
