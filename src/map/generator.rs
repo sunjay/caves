@@ -309,16 +309,19 @@ impl MapGenerator {
                     continue;
                 }
 
-                // Don't put a door on the same side of a room as another door
-                if is_horizontal {
-                    // Search the horizontal edge
-                    if (0..room.width() as usize).any(|col| map.adjacent_open_passages((row, room.x() as usize + col)).next().is_some()) {
-                        continue;
-                    }
-                } else {
-                    // Search the vertical edge
-                    if (0..room.height() as usize).any(|row| map.adjacent_open_passages((room.y() as usize + row, col)).next().is_some()) {
-                        continue;
+                // This check only works if we are putting fewer than 4 doors on every room
+                if self.doors <= 4 {
+                    // Don't put a door on the same side of a room as another door
+                    if is_horizontal {
+                        // Search the horizontal edge
+                        if (0..room.width() as usize).any(|col| map.adjacent_open_passages((row, room.x() as usize + col)).next().is_some()) {
+                            continue;
+                        }
+                    } else {
+                        // Search the vertical edge
+                        if (0..room.height() as usize).any(|row| map.adjacent_open_passages((room.y() as usize + row, col)).next().is_some()) {
+                            continue;
+                        }
                     }
                 }
 
