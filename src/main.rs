@@ -57,6 +57,7 @@ fn main() -> Result<(), String> {
         rows: 20,
         cols: 40,
         rooms: 6,
+        doors: 2,
         room_width: (3, 15).into(),
         room_height: (3, 12).into(),
         passage_size: 1,

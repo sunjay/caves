@@ -1,7 +1,7 @@
 use std::str::FromStr;
 use std::fmt;
 use std::ops::Add;
-use std::collections::{HashSet, VecDeque, HashMap};
+use std::collections::HashMap;
 
 use sdl2::rect::Rect;
 use rand::{
@@ -140,6 +140,8 @@ pub struct MapGenerator {
     pub cols: u32,
     /// The number of rooms to generate on each floor
     pub rooms: usize,
+    /// The number of doors to generate on each room
+    pub doors: usize,
     /// The minimum and maximum width of a room
     pub room_width: Bounds<u32>,
     /// The minimum and maximum height of a room
@@ -167,8 +169,12 @@ impl MapGenerator {
         let rooms = self.generate_rooms(rng);
         self.place_rooms(&mut map, &rooms);
         self.fill_passages(rng, &mut map);
-
         println!("{:?}", map);
+        self.connect_rooms_passages(rng, &mut map, &rooms);
+        println!("{:?}", map);
+        self.reduce_dead_ends(&mut map);
+        println!("{:?}", map);
+
         unimplemented!();
     }
 
@@ -240,31 +246,18 @@ impl MapGenerator {
         assert_eq!(self.passage_size, 1, "only a passage_size of 1 is supported for now");
 
         let mut parent_map = HashMap::new();
-        let mut seen = HashSet::new();
-        let mut open = VecDeque::new();
-        open.push_front((row_i, col_i));
-
-        while let Some(node) = open.pop_front() {
-            if seen.contains(&node) {
-                continue;
-            }
-            seen.insert(node);
-
-            let mut adjacents: Vec<_> = map.adjacent_cells(node)
-                .filter(|&pt| !seen.contains(&pt) && map.is_empty(pt))
+        let seen = map.depth_first_search_mut((row_i, col_i), |map, node, adjacents| {
+            let mut adjacents: Vec<_> = adjacents.into_iter()
+                .filter(|&pt| map.is_empty(pt))
                 .collect();
             rng.shuffle(&mut adjacents);
-            let mut adjacents = adjacents.into_iter();
-            // This is a depth first search, so we insert the first element and append the rest
-            if let Some(adj) = adjacents.next() {
-                open.push_front(adj);
+
+            for &adj in &adjacents {
                 parent_map.insert(adj, node);
             }
-            for adj in adjacents {
-                open.push_back(adj);
-                parent_map.insert(adj, node);
-            }
-        }
+
+            adjacents
+        });
 
         // Insert new passageway tiles
         for pt in seen {
@@ -276,5 +269,65 @@ impl MapGenerator {
             // Open the walls between these two cells
             map.open_between(pt1, pt2);
         }
+    }
+
+    /// Connects each room to a passage
+    fn connect_rooms_passages(&self, rng: &mut StdRng, map: &mut FloorMap, rooms: &[Rect]) {
+        for (room_id, room) in rooms.iter().enumerate() {
+            let mut doors = self.doors;
+            while doors > 0 {
+                // Pick a random point on one of the edges of the room
+                let (row, col) = if rng.gen() {
+                    // Random horizontal edge
+                    (
+                        room.y() as usize + *rng.choose(&[0, room.height()-1]).unwrap() as usize,
+                        room.x() as usize + rng.gen_range(0, room.width()) as usize,
+                    )
+                } else {
+                    (
+                        room.y() as usize + rng.gen_range(0, room.height()) as usize,
+                        room.x() as usize + *rng.choose(&[0, room.width()-1]).unwrap() as usize,
+                    )
+                };
+
+                debug_assert!(map.is_room_id((row, col), RoomId(room_id)),
+                    "bug: tried to connect a passage to a room with the wrong ID");
+
+                let adjacents: Vec<_> = map.adjacent_positions((row, col))
+                    .filter(|&pt| map.is_passageway(pt))
+                    .collect();
+                let passage = match rng.choose(&adjacents) {
+                    Some(&pt) => pt,
+                    // No passage adjacent to this room tile
+                    None => continue,
+                };
+
+                // Already opened this tile
+                if map.is_open_between((row, col), passage) {
+                    continue;
+                }
+
+                map.open_between((row, col), passage);
+                doors -= 1;
+            }
+        }
+    }
+
+    fn reduce_dead_ends(&self, map: &mut FloorMap) {
+        for row_i in 0..self.rows as usize {
+            for col_i in 0..self.cols as usize {
+                if map.is_dead_end((row_i, col_i)) {
+                    self.reduce_dead_ends_search(map, (row_i, col_i));
+                }
+            }
+        }
+    }
+
+    fn reduce_dead_ends_search(&self, map: &mut FloorMap, (row_i, col_i): (usize, usize)) {
+        map.depth_first_search_mut((row_i, col_i), |map, node, adjacents| {
+            map.remove_passageway(node);
+
+            adjacents.into_iter().filter(|&pt| map.is_dead_end(pt)).collect()
+        });
     }
 }

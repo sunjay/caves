@@ -1,5 +1,6 @@
 use std::fmt;
 use std::ops::{Index, IndexMut};
+use std::collections::{HashSet, VecDeque};
 
 use sdl2::rect::{Rect};
 
@@ -11,7 +12,7 @@ pub enum Item {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RoomId(pub(in map) usize);
+pub struct RoomId(pub(in super) usize);
 
 impl fmt::Display for RoomId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -128,6 +129,22 @@ impl fmt::Display for TileWalls {
     }
 }
 
+impl TileWalls {
+    /// Returns true if only a single wall is open
+    pub fn is_dead_end(&self) -> bool {
+        use self::Wall::*;
+        match *self {
+            TileWalls {north: Open, east: Closed, south: Closed, west: Closed} |
+            TileWalls {north: Closed, east: Open, south: Closed, west: Closed} |
+            TileWalls {north: Closed, east: Closed, south: Open, west: Closed} |
+            TileWalls {north: Closed, east: Closed, south: Closed, west: Open} => {
+                true
+            },
+            _ => false,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Tile {
     pub ttype: TileType,
@@ -227,6 +244,30 @@ impl FloorMap {
         self[row][col].is_none()
     }
 
+    /// Returns true if the given position is part of the room with the given ID
+    pub fn is_room_id(&self, (row, col): (usize, usize), room_id: RoomId) -> bool {
+        match self[row][col] {
+            Some(Tile {ttype: TileType::Room(id), ..}) => id == room_id,
+            _ => false,
+        }
+    }
+
+    /// Returns true if the given position is a dead end passageway
+    pub fn is_dead_end(&self, (row, col): (usize, usize)) -> bool {
+        match self[row][col] {
+            Some(Tile {ttype: TileType::Passageway, ref walls, ..}) => walls.is_dead_end(),
+            _ => false,
+        }
+    }
+
+    /// Returns true if the given position is passageway
+    pub fn is_passageway(&self, (row, col): (usize, usize)) -> bool {
+        match self[row][col] {
+            Some(Tile {ttype: TileType::Passageway, ..}) => true,
+            _ => false,
+        }
+    }
+
     /// Places a tile with the given type at the given location
     ///
     /// Panics if that location was not previously empty
@@ -236,6 +277,20 @@ impl FloorMap {
         debug_assert!(tile.is_none(),
             "bug: attempt to place tile on a position where a tile was already placed");
         *tile = Some(Tile::with_type(ttype));
+    }
+
+    /// Removes a passageway from the map and closes any walls around it
+    pub(in super) fn remove_passageway(&mut self, (row, col): (usize, usize)) {
+        assert!(self.is_passageway((row, col)), "bug: remove passageway can only be called on a passageway tile");
+        let adjacents: Vec<_> = self.adjacent_positions((row, col))
+            .filter(|&pt| !self.is_empty(pt))
+            .collect();
+
+        for adj in adjacents {
+            self.close_between((row, col), adj);
+        }
+
+        self[row][col] = None;
     }
 
     /// Returns true if there is NO wall between two adjacent cells
@@ -297,9 +352,32 @@ impl FloorMap {
         }
     }
 
+    /// Adds a wall between two adjacent cells
+    pub fn close_between(&mut self, (row1, col1): (usize, usize), (row2, col2): (usize, usize)) {
+        macro_rules! close {
+            ($wall1:ident, $wall2:ident) => {
+                {
+                    self[row1][col1].as_mut().expect("Cannot close a wall to an empty tile").walls.$wall1 = Wall::Closed;
+                    self[row2][col2].as_mut().expect("Cannot close a wall to an empty tile").walls.$wall2 = Wall::Closed;
+                }
+            };
+        }
+        match (row2 as isize - row1 as isize, col2 as isize - col1 as isize) {
+            // second position is north of first position
+            (-1, 0) => close!(north, south),
+            // second position is east of first position
+            (0, 1) => close!(east, west),
+            // second position is south of first position
+            (1, 0) => close!(south, north),
+            // second position is west of first position
+            (0, -1) => close!(west, east),
+            _ => unreachable!("bug: attempt to open a wall between two non-adjacent cells"),
+        }
+    }
+
     /// Returns an iterator of cell positions adjacent to the given cell in the four cardinal
     /// directions. Only returns valid cell positions.
-    pub fn adjacent_cells(&self, (row, col): (usize, usize)) -> impl Iterator<Item=(usize, usize)> + '_ {
+    pub fn adjacent_positions(&self, (row, col): (usize, usize)) -> impl Iterator<Item=(usize, usize)> + '_ {
         [(-1, 0), (0, -1), (1, 0), (0, 1)].into_iter().filter_map(move |(row_offset, col_offset)| {
             let row = row as isize + row_offset;
             let col = col as isize + col_offset;
@@ -315,6 +393,40 @@ impl FloorMap {
     /// Returns an iterator of adjacent cells in the four cardinal directions. Returns up to four
     /// items depending on how many adjacents there are.
     pub fn adjacents(&self, (row, col): (usize, usize)) -> impl Iterator<Item=((usize, usize), Option<&Tile>)> {
-        self.adjacent_cells((row, col)).map(move |(row, col)| ((row, col), self[row][col].as_ref()))
+        self.adjacent_positions((row, col)).map(move |(row, col)| ((row, col), self[row][col].as_ref()))
+    }
+
+    /// Executes a depth-first search starting from a given tile
+    ///
+    /// Takes a closure that is given the next (usize, usize) node to be processed and its
+    /// adjacents. The closure should return the adjacents that you want it to keep searching.
+    ///
+    /// Returns the (usize, usize) positions that were visited
+    pub fn depth_first_search_mut<F>(&mut self, (row, col): (usize, usize), mut next_adjacents: F) -> HashSet<(usize, usize)>
+        where F: FnMut(&mut Self, (usize, usize), Vec<(usize, usize)>) -> Vec<(usize, usize)> {
+
+        let mut seen = HashSet::new();
+        let mut open = VecDeque::new();
+        open.push_front((row, col));
+
+        while let Some(node) = open.pop_front() {
+            if seen.contains(&node) {
+                continue;
+            }
+            seen.insert(node);
+
+            let adjacents = self.adjacent_positions(node).filter(|pt| !seen.contains(pt)).collect();
+            let mut adjacents = next_adjacents(self, node, adjacents).into_iter();
+
+            // This is a depth first search, so we insert the first element and append the rest
+            if let Some(adj) = adjacents.next() {
+                open.push_front(adj);
+            }
+            for adj in adjacents {
+                open.push_back(adj);
+            }
+        }
+
+        seen
     }
 }
