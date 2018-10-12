@@ -12,7 +12,7 @@ pub enum Item {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RoomId(pub(in super) usize);
+pub struct RoomId(usize);
 
 impl fmt::Display for RoomId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -185,21 +185,65 @@ impl Tile {
 
 pub type Row = [Option<Tile>];
 
+/// A room is represented by a 2D span of tiles
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Room {
+    x: usize,
+    y: usize,
+    width: usize,
+    height: usize,
+}
+
+impl Room {
+    pub fn new(x: usize, y: usize, width: usize, height: usize) -> Self {
+        Self {x, y, width, height}
+    }
+
+    pub fn x(self) -> usize { self.x }
+    pub fn y(self) -> usize { self.y }
+    pub fn width(self) -> usize { self.width }
+    pub fn height(self) -> usize { self.height }
+
+    pub fn to_rect(self) -> Rect {
+        Rect::new(self.x as i32, self.y as i32, self.width as u32, self.height as u32)
+    }
+
+    pub fn has_intersection(self, other: Self) -> bool {
+        //TODO: Implement this without relying on sdl2. Perhaps based on:
+        // https://github.com/servo/euclid/blob/7a4f6f77990fafc63d5fe5028df2660488e6749c/src/rect.rs#L124
+        self.to_rect().has_intersection(other.to_rect())
+    }
+
+    /// Expands the room to have an additional margin on all sides
+    pub fn expand(self, margin: usize) -> Self {
+        Self::new(
+            self.x - margin,
+            self.y - margin,
+            self.width + margin * 2,
+            self.height + margin * 2,
+        )
+    }
+}
+
 /// A type that represents the static floor plan of a map
 #[derive(Clone)]
-pub struct FloorMap(Vec<Vec<Option<Tile>>>);
+pub struct FloorMap {
+    tiles: Vec<Vec<Option<Tile>>>,
+    /// The RoomId is the index into this field
+    rooms: Vec<Room>,
+}
 
 impl Index<usize> for FloorMap {
     type Output = Row;
 
     fn index(&self, index: usize) -> &Self::Output {
-        self.0.index(index)
+        self.tiles.index(index)
     }
 }
 
 impl IndexMut<usize> for FloorMap {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        self.0.index_mut(index)
+        self.tiles.index_mut(index)
     }
 }
 
@@ -234,7 +278,10 @@ impl FloorMap {
     /// Create a new FloorMap with the given number of rows and columns
     pub fn new(rows: usize, cols: usize) -> Self {
         assert!(rows > 0 && cols > 0, "Cannot create a grid with zero rows or columns");
-        FloorMap(vec![vec![None; cols]; rows])
+        FloorMap {
+            tiles: vec![vec![None; cols]; rows],
+            rooms: Vec::new(),
+        }
     }
 
     pub fn level_boundary(&self) -> Rect {
@@ -243,17 +290,17 @@ impl FloorMap {
 
     /// Returns the number of rows in this grid
     pub fn rows_len(&self) -> usize {
-        self.0.len()
+        self.tiles.len()
     }
 
     /// Returns the number of columns in this grid
     pub fn cols_len(&self) -> usize {
-        self.0[0].len()
+        self[0].len()
     }
 
     /// Returns an iterator over each row
     pub fn rows(&self) -> impl Iterator<Item=&Row> {
-        self.0.iter().map(|r| r.as_slice())
+        self.tiles.iter().map(|r| r.as_slice())
     }
 
     /// Gets the tile at the given position (or None if empty)
@@ -288,6 +335,17 @@ impl FloorMap {
             Some(Tile {ttype: TileType::Passageway, ..}) => true,
             _ => false,
         }
+    }
+
+    pub fn room(&self, room_id: RoomId) -> &Room {
+        &self.rooms[room_id.0]
+    }
+
+    /// Add a room to the map. Rooms should NOT be overlapping, though this condition is NOT
+    /// checked by this method. Hence why this is private.
+    pub(in super) fn add_room(&mut self, room: Room) -> RoomId {
+        self.rooms.push(room);
+        RoomId(self.rooms.len() - 1)
     }
 
     /// Places a tile with the given type at the given location
