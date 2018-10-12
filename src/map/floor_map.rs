@@ -51,8 +51,8 @@ impl fmt::Display for TileObject {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::TileObject::*;
         write!(f, "{}", match *self {
-            ToNextLevel(_) => "\u{2191}",
-            ToPrevLevel(_) => "\u{2193}",
+            ToNextLevel(_) => "\u{2193}",
+            ToPrevLevel(_) => "\u{2191}",
             _ => " ",
         })
     }
