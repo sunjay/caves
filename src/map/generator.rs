@@ -165,10 +165,15 @@ impl MapGenerator {
 
     pub fn generate_with_key(self, key: MapKey) -> GameMap {
         let mut rng = key.to_rng();
-        GameMap {
+        let map = GameMap {
             key,
             levels: (1..=self.levels).map(|level| self.generate_level(&mut rng, level)).collect(),
+        };
+        for (i, level) in map.levels.iter().enumerate() {
+            println!("=============== Level {} ===============", i+1);
+            println!("{:?}", level);
         }
+        unimplemented!();
     }
 
     pub fn generate_level(&self, rng: &mut StdRng, level: usize) -> FloorMap {
@@ -184,9 +189,7 @@ impl MapGenerator {
         if level > 1 {
             self.place_to_prev_level_tiles(rng, &mut map, &rooms);
         }
-        println!("{:?}", map);
-
-        unimplemented!();
+        map
     }
 
     fn generate_rooms(&self, rng: &mut StdRng, map: &mut FloorMap, level: usize) -> Vec<(RoomId, Room)> {
