@@ -60,6 +60,8 @@ fn main() -> Result<(), String> {
         room_width: (3, 15).into(),
         room_height: (3, 12).into(),
         passage_size: 1,
+        treasure_chamber_width: 7,
+        treasure_chamber_height: 9,
         doors: 2,
         next_prev_tiles: 2,
     }.generate();
