@@ -1,18 +1,19 @@
+mod tile;
+mod tile_walls;
+mod room;
+
+pub use self::tile::*;
+pub use self::tile_walls::*;
+pub use self::room::*;
+
 use std::fmt;
-use std::cmp;
 use std::ops::{Index, IndexMut};
 use std::collections::{HashSet, VecDeque};
 
-use sdl2::rect::{Point, Rect};
+use sdl2::rect::Rect;
 
-use texture_manager::TextureId;
-
-#[derive(Debug, Clone)]
-pub enum Item {
-    TreasureKey,
-    RoomKey,
-    Potion {stength: u32},
-}
+/// A single row of the map's tiles
+pub type Row = [Option<Tile>];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RoomId(usize);
@@ -20,269 +21,6 @@ pub struct RoomId(usize);
 impl fmt::Display for RoomId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.0)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum TileType {
-    /// Tiles that can be used to pass between rooms
-    Passageway,
-    /// Tiles that are part of a given room
-    Room(RoomId),
-}
-
-/// The object or item placed at a particular tile
-#[derive(Debug, Clone)]
-pub enum TileObject {
-    /// Stepping on this tile transports you to the next level
-    /// Field is the ID of this gate and the ID of the ToPrevLevel tile that this should connect to
-    ToNextLevel(usize),
-    /// Stepping on this tile transports you to the previous level
-    /// Field is the ID of this gate and the ID of the ToNextLevel tile that this should connect to
-    ToPrevLevel(usize),
-    /// A point where an enemy *may* spawn
-    EnemySpawn {
-        /// Probability that an enemy will spawn here: 1.0 means that the enemy will definitely
-        /// spawn and 0.0 means that an enemy will not spawn
-        probability: f64,
-    },
-    Chest(Item),
-}
-
-impl fmt::Display for TileObject {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use self::TileObject::*;
-        write!(f, "{}", match *self {
-            ToNextLevel(_) => "\u{2193}",
-            ToPrevLevel(_) => "\u{2191}",
-            _ => " ",
-        })
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Wall {
-    Open,
-    Closed,
-    Locked,
-}
-
-#[derive(Debug, Clone)]
-pub struct TileWalls {
-    pub north: Wall,
-    pub east: Wall,
-    pub south: Wall,
-    pub west: Wall,
-}
-
-impl Default for TileWalls {
-    fn default() -> Self {
-        use self::Wall::*;
-
-        Self {
-            north: Closed,
-            east: Closed,
-            south: Closed,
-            west: Closed,
-        }
-    }
-}
-
-impl fmt::Display for TileWalls {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use self::Wall::*;
-        write!(f, "{}", match *self {
-            TileWalls {north: Closed, east: Closed, south: Closed, west: Closed} => {
-                "\u{26ac}" // all closed
-            },
-            TileWalls {north: Open, east: Closed, south: Closed, west: Closed} => {
-                "\u{257d}" // N
-            },
-            TileWalls {north: Closed, east: Open, south: Closed, west: Closed} => {
-                "\u{257e}" // E
-            },
-            TileWalls {north: Closed, east: Closed, south: Open, west: Closed} => {
-                "\u{257f}" // S
-            },
-            TileWalls {north: Closed, east: Closed, south: Closed, west: Open} => {
-                "\u{257c}" // W
-            },
-            TileWalls {north: Open, east: Open, south: Closed, west: Closed} => {
-                "\u{2514}" // NE
-            },
-            TileWalls {north: Closed, east: Open, south: Open, west: Closed} => {
-                "\u{250C}" // SE
-            },
-            TileWalls {north: Closed, east: Closed, south: Open, west: Open} => {
-                "\u{2510}" // SW
-            },
-            TileWalls {north: Open, east: Closed, south: Closed, west: Open} => {
-                "\u{2518}" // NW
-            },
-            TileWalls {north: Open, east: Closed, south: Open, west: Closed} => {
-                "\u{2502}" // NS
-            },
-            TileWalls {north: Closed, east: Open, south: Closed, west: Open} => {
-                "\u{2500}" // EW
-            },
-            TileWalls {north: Open, east: Open, south: Open, west: Closed} => {
-                "\u{251c}" // NES
-            },
-            TileWalls {north: Closed, east: Open, south: Open, west: Open} => {
-                "\u{252c}" // ESW
-            },
-            TileWalls {north: Open, east: Closed, south: Open, west: Open} => {
-                "\u{2524}" // NSW
-            },
-            TileWalls {north: Open, east: Open, south: Closed, west: Open} => {
-                "\u{2534}" // NEW
-            },
-            TileWalls {north: Open, east: Open, south: Open, west: Open} => {
-                "\u{253c}" // NESW
-            },
-            _ => " ",
-        })
-    }
-}
-
-impl TileWalls {
-    /// Returns true if only a single wall is open
-    pub fn is_dead_end(&self) -> bool {
-        use self::Wall::*;
-        match *self {
-            TileWalls {north: Open, east: Closed, south: Closed, west: Closed} |
-            TileWalls {north: Closed, east: Open, south: Closed, west: Closed} |
-            TileWalls {north: Closed, east: Closed, south: Open, west: Closed} |
-            TileWalls {north: Closed, east: Closed, south: Closed, west: Open} => {
-                true
-            },
-            _ => false,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Tile {
-    pub ttype: TileType,
-    pub object: Option<TileObject>,
-    pub walls: TileWalls,
-    pub texture_id: Option<TextureId>,
-}
-
-impl Tile {
-    fn with_type(ttype: TileType) -> Self {
-        Self {
-            ttype,
-            object: Default::default(),
-            walls: Default::default(),
-            texture_id: Default::default(),
-        }
-    }
-
-    pub fn has_object(&self) -> bool {
-        self.object.is_some()
-    }
-
-    pub fn place_object(&mut self, object: TileObject) {
-        self.object = Some(object);
-    }
-}
-
-pub type Row = [Option<Tile>];
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RoomType {
-    /// A normal room containing enemeies, chests, special tiles, etc. Most rooms have this type.
-    Normal,
-    /// Challenge rooms can appear on any level and provide the player with some reward if they
-    /// overcome all the enemies in that room without dying
-    Challenge,
-    /// The room that the player should spawn in at the start of the game. Should only exist
-    /// on the first level. No ToNextLevel or ToPrevLevel tiles should be in this room.
-    /// Enemies should also not be placed in this room.
-    PlayerStart,
-    /// The goal of the game. Entering this game means the player has won. Should only exist on
-    /// the very last level. No ToNextLevel or ToPrevLevel tiles should be in this room.
-    /// Enemies should also not be placed in this room.
-    TreasureChamber,
-}
-
-/// A room is represented by a 2D span of tiles
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Room {
-    rtype: RoomType,
-    x: usize,
-    y: usize,
-    width: usize,
-    height: usize,
-}
-
-impl Room {
-    /// Create a new normal room
-    pub fn new(x: usize, y: usize, width: usize, height: usize) -> Self {
-        Self::with_type(RoomType::Normal, x, y, width, height)
-    }
-
-    pub fn with_type(rtype: RoomType, x: usize, y: usize, width: usize, height: usize) -> Self {
-        Self {x, y, width, height, rtype}
-    }
-
-    pub fn x(self) -> usize { self.x }
-    pub fn y(self) -> usize { self.y }
-    pub fn width(self) -> usize { self.width }
-    pub fn height(self) -> usize { self.height }
-
-    /// Returns true if a room is allowed to contain ToNextLevel tiles
-    pub fn can_contain_to_next_level(&self) -> bool {
-        match self.rtype {
-            RoomType::Normal => true,
-            _ => false,
-        }
-    }
-
-    /// Returns true if a room is allowed to contain ToPrevLevel tiles
-    pub fn can_contain_to_prev_level(&self) -> bool {
-        // currently the same as the rooms that can contain ToNextLevel
-        self.can_contain_to_next_level()
-    }
-
-    pub fn is_player_start(&self) -> bool {
-        match self.rtype {
-            RoomType::PlayerStart => true,
-            _ => false,
-        }
-    }
-
-    pub fn center(self) -> Point {
-        Point::new(
-            (self.x + self.width / 2) as i32,
-            (self.y + self.height / 2) as i32,
-        )
-    }
-
-    pub fn to_rect(self) -> Rect {
-        Rect::new(self.x as i32, self.y as i32, self.width as u32, self.height as u32)
-    }
-
-    pub fn has_intersection(self, other: Self) -> bool {
-        //TODO: Implement this without relying on sdl2. Perhaps based on:
-        // https://github.com/servo/euclid/blob/7a4f6f77990fafc63d5fe5028df2660488e6749c/src/rect.rs#L124
-        self.to_rect().has_intersection(other.to_rect())
-    }
-
-    /// Expands the room (as much as possible) to have an additional margin on all sides
-    ///
-    /// Will only expand up to the point (0,0). Can expand arbitrarily in the other direction.
-    pub fn expand(self, margin: usize) -> Self {
-        // Avoid integer overflow by only subtracting as much as possible
-        let top_expansion = cmp::min(self.y, margin);
-        let left_expansion = cmp::min(self.x, margin);
-        Self::new(
-            self.x - left_expansion,
-            self.y - top_expansion,
-            self.width + left_expansion + margin,
-            self.height + top_expansion + margin,
-        )
     }
 }
 
@@ -323,7 +61,7 @@ impl fmt::Debug for FloorMap {
                         TileType::Room(id) => {
                             let object = tile.object.as_ref().map(|o| o.to_string().bold())
                                 .unwrap_or_else(|| tile.walls.to_string().black());
-                            write!(f, "{}", match self.room(id).rtype {
+                            write!(f, "{}", match self.room(id).room_type() {
                                 RoomType::Normal => object.on_blue(),
                                 RoomType::Challenge => object.on_red(),
                                 RoomType::PlayerStart => object.on_bright_blue(),
@@ -580,24 +318,5 @@ impl FloorMap {
         }
 
         seen
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn room_expand() {
-        // Expanding a room should not go beyond (0,0) - i.e. it should avoid subtraction with
-        // underflow
-        let room = Room::new(0, 0, 10, 10);
-        assert_eq!(room.expand(2), Room::new(0, 0, 12, 12));
-        let room = Room::new(1, 1, 10, 10);
-        assert_eq!(room.expand(2), Room::new(0, 0, 13, 13));
-        let room = Room::new(2, 2, 10, 10);
-        assert_eq!(room.expand(2), Room::new(0, 0, 14, 14));
-        let room = Room::new(3, 2, 10, 12);
-        assert_eq!(room.expand(2), Room::new(1, 0, 14, 16));
     }
 }
