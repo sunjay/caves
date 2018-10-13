@@ -52,6 +52,12 @@ use map::MapGenerator;
 fn main() -> Result<(), String> {
     let fps = 60.0;
 
+    let mut renderer = Renderer::init(320, 240)?;
+    let texture_creator = renderer.texture_creator();
+    #[allow(unused_mut)] //TODO: remove this when we start using this variable
+    let mut textures = TextureManager::new(&texture_creator);
+    let mut event_pump = renderer.event_pump()?;
+
     let map = MapGenerator {
         levels: 10,
         rows: 20,
@@ -64,13 +70,7 @@ fn main() -> Result<(), String> {
         treasure_chamber_height: 9,
         doors: 2,
         next_prev_tiles: 2,
-    }.generate();
-
-    let mut renderer = Renderer::init(320, 240)?;
-    let texture_creator = renderer.texture_creator();
-    #[allow(unused_mut)] //TODO: remove this when we start using this variable
-    let mut textures = TextureManager::new(&texture_creator);
-    let mut event_pump = renderer.event_pump()?;
+    }.generate(&mut textures);
 
     let mut world = World::new();
 
