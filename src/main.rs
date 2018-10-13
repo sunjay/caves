@@ -54,7 +54,6 @@ fn main() -> Result<(), String> {
 
     let mut renderer = Renderer::init(320, 240)?;
     let texture_creator = renderer.texture_creator();
-    #[allow(unused_mut)] //TODO: remove this when we start using this variable
     let mut textures = TextureManager::new(&texture_creator);
     let mut event_pump = renderer.event_pump()?;
 
@@ -75,7 +74,7 @@ fn main() -> Result<(), String> {
     let mut world = World::new();
 
     world.add_resource(FramesElapsed(1));
-    // world.add_resource(map.clone());
+    world.add_resource(map.clone());
     world.add_resource(GameKeys::from(event_pump.keyboard_state()));
 
     let mut dispatcher = DispatcherBuilder::new()
@@ -89,7 +88,7 @@ fn main() -> Result<(), String> {
     Renderer::setup(&mut world.res);
 
     // Add the character
-    let character_center = sdl2::rect::Point::new(0, 0); //TODO
+    let character_center = map.game_start();
     //let character_texture = textures.create_png_texture("assets/character.png")?;
     //let character_animation = [
     //    // The position on the texture of the character

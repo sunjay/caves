@@ -3,7 +3,7 @@ use std::cmp;
 use std::ops::{Index, IndexMut};
 use std::collections::{HashSet, VecDeque};
 
-use sdl2::rect::{Rect};
+use sdl2::rect::{Point, Rect};
 
 use texture_manager::TextureId;
 
@@ -246,6 +246,20 @@ impl Room {
         self.can_contain_to_next_level()
     }
 
+    pub fn is_player_start(&self) -> bool {
+        match self.rtype {
+            RoomType::PlayerStart => true,
+            _ => false,
+        }
+    }
+
+    pub fn center(self) -> Point {
+        Point::new(
+            (self.x + self.width / 2) as i32,
+            (self.y + self.height / 2) as i32,
+        )
+    }
+
     pub fn to_rect(self) -> Rect {
         Rect::new(self.x as i32, self.y as i32, self.width as u32, self.height as u32)
     }
@@ -387,6 +401,10 @@ impl FloorMap {
             Some(Tile {ttype: TileType::Passageway, ..}) => true,
             _ => false,
         }
+    }
+
+    pub fn rooms(&self) -> impl Iterator<Item=&Room> {
+        self.rooms.iter()
     }
 
     pub fn room(&self, room_id: RoomId) -> &Room {
