@@ -80,7 +80,22 @@ impl MapGenerator {
             for row_i in room.y()..(room.y() + room.height()) {
                 for col_i in room.x()..(room.x() + room.width()) {
                     map.place_tile((row_i, col_i), TileType::Room(room_id));
-                    //TODO: Need to open walls to all adjacent tiles with the same room ID
+                }
+            }
+
+            // Open walls to all adjacent tiles with the same room ID
+            for row_i in room.y()..(room.y() + room.height()) {
+                for col_i in room.x()..(room.x() + room.width()) {
+                    // NOTE: There is room for optimization here because we are actually opening
+                    // walls that will have already been opened on a previous iteration.
+
+                    // Need to collect in order to avoid mutable + immutable borrow
+                    let adjacents = map.adjacent_positions((row_i, col_i))
+                        .filter(|&adj| map.is_room_id(adj, room_id))
+                        .collect::<Vec<_>>();
+                    for adj in adjacents {
+                        map.open_between((row_i, col_i), adj);
+                    }
                 }
             }
         }

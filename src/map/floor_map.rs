@@ -321,8 +321,8 @@ impl fmt::Debug for FloorMap {
                             write!(f, "{}", tile.walls.to_string().on_green())?
                         },
                         TileType::Room(id) => {
-                            let object = tile.object.as_ref().map(|o| o.to_string())
-                                .unwrap_or(" ".to_string());
+                            let object = tile.object.as_ref().map(|o| o.to_string().bold())
+                                .unwrap_or_else(|| tile.walls.to_string().black());
                             write!(f, "{}", match self.room(id).rtype {
                                 RoomType::Normal => object.on_blue(),
                                 RoomType::Challenge => object.on_red(),
@@ -526,7 +526,7 @@ impl FloorMap {
         }
     }
 
-    /// Returns an iterator of cell positions adjacent to the given cell in the four cardinal
+    /// Returns an iterator of tile positions adjacent to the given tile in the four cardinal
     /// directions. Only returns valid cell positions.
     pub fn adjacent_positions(&self, (row, col): (usize, usize)) -> impl Iterator<Item=(usize, usize)> + '_ {
         [(-1, 0), (0, -1), (1, 0), (0, 1)].into_iter().filter_map(move |(row_offset, col_offset)| {
