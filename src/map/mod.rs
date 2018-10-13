@@ -1,10 +1,12 @@
 mod generator;
 mod floor_map;
+mod map_key;
 
 use sdl2::rect::Point;
 
 pub use self::generator::*;
 pub use self::floor_map::*;
+pub use self::map_key::*;
 
 #[derive(Debug, Clone)]
 pub struct GameMap {
