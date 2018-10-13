@@ -452,3 +452,35 @@ impl MapGenerator {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use rand::random;
+
+    #[test]
+    fn unique_map_key_can_decode_itself() {
+        // Generates random MapKeys and checks if they are at least different from their previous
+        // keys. Then ensures that the MapKey can decode its encoded form.
+        let runs = 10000;
+
+        let mut prev_key: MapKey = random();
+        let mut prev_key_encoded = prev_key.to_string();
+        for _ in 0..runs {
+            let key: MapKey = random();
+
+            let encoded = key.to_string();
+            assert_ne!(key, prev_key);
+            assert_ne!(encoded, prev_key_encoded);
+
+            // Encoding and decoding should result in the same key
+            assert_eq!(key, encoded.parse().unwrap());
+            // Should not be the same as the previous key (redundant but important check)
+            assert_ne!(prev_key, encoded.parse().unwrap());
+
+            prev_key = key;
+            prev_key_encoded = encoded;
+        }
+    }
+}
