@@ -16,6 +16,7 @@ use rand::{
  };
 use base64::{self, DecodeError};
 
+use texture_manager::TextureManager;
 use map::*;
 
 lazy_static! {
@@ -159,24 +160,19 @@ pub struct MapGenerator {
 }
 
 impl MapGenerator {
-    pub fn generate(self) -> GameMap {
-        self.generate_with_key(random())
+    pub fn generate(self, textures: &mut TextureManager) -> GameMap {
+        self.generate_with_key(random(), textures)
     }
 
-    pub fn generate_with_key(self, key: MapKey) -> GameMap {
+    pub fn generate_with_key(self, key: MapKey, textures: &mut TextureManager) -> GameMap {
         let mut rng = key.to_rng();
-        let map = GameMap {
+        GameMap {
             key,
-            levels: (1..=self.levels).map(|level| self.generate_level(&mut rng, level)).collect(),
-        };
-        for (i, level) in map.levels.iter().enumerate() {
-            println!("=============== Level {} ===============", i+1);
-            println!("{:?}", level);
+            levels: (1..=self.levels).map(|level| self.generate_level(&mut rng, textures, level)).collect(),
         }
-        unimplemented!();
     }
 
-    pub fn generate_level(&self, rng: &mut StdRng, level: usize) -> FloorMap {
+    pub fn generate_level(&self, rng: &mut StdRng, textures: &mut TextureManager, level: usize) -> FloorMap {
         let mut map = FloorMap::new(self.rows, self.cols);
         let rooms = self.generate_rooms(rng, &mut map, level);
         self.place_rooms(&mut map, &rooms);

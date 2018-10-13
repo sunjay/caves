@@ -5,6 +5,8 @@ use std::collections::{HashSet, VecDeque};
 
 use sdl2::rect::{Rect};
 
+use texture_manager::TextureId;
+
 #[derive(Debug, Clone)]
 pub enum Item {
     TreasureKey,
@@ -164,6 +166,7 @@ pub struct Tile {
     pub ttype: TileType,
     pub object: Option<TileObject>,
     pub walls: TileWalls,
+    pub texture_id: Option<TextureId>,
 }
 
 impl Tile {
@@ -172,6 +175,7 @@ impl Tile {
             ttype,
             object: Default::default(),
             walls: Default::default(),
+            texture_id: Default::default(),
         }
     }
 
