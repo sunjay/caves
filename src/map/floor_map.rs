@@ -235,7 +235,7 @@ impl Room {
     /// Returns true if a room is allowed to contain ToNextLevel tiles
     pub fn can_contain_to_next_level(&self) -> bool {
         match self.rtype {
-            RoomType::Normal | RoomType::Challenge => true,
+            RoomType::Normal => true,
             _ => false,
         }
     }
