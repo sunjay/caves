@@ -102,6 +102,16 @@ pub struct Sprite {
     pub flip_horizontal: bool,
 }
 
+impl Sprite {
+    pub fn update_from_frame(&mut self, frame: &Frame) {
+        *self = Self {
+            texture_id: frame.texture_id,
+            region: frame.region,
+            flip_horizontal: frame.flip_horizontal,
+        };
+    }
+}
+
 /// Used to modify the Sprite component every frame
 #[derive(Debug, Clone, Component)]
 #[storage(HashMapStorage)]

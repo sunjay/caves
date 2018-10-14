@@ -135,10 +135,7 @@ impl<'a> System<'a> for Animator {
             }
 
             // Update the sprite with the current step
-            let Frame {texture_id, region, flip_horizontal, ..} = animation.steps[animation.current_step];
-            sprite.texture_id = texture_id;
-            sprite.region = region;
-            sprite.flip_horizontal = flip_horizontal;
+            sprite.update_from_frame(&animation.steps[animation.current_step]);
         }
     }
 }
