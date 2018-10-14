@@ -118,16 +118,16 @@ impl Renderer {
         let render_top_left = camera_focus - screen_center;
 
         // Need to make sure the camera stays within the level boundary
-        //let level_boundary = map.level_boundary();
+        let level_boundary = map.level_boundary();
 
         // The valid ranges for the top-left corner of the screen
-        //let (min_x, max_x) = (0, level_boundary.x() + level_boundary.width() as i32 - screen_width as i32);
-        //let (min_y, max_y) = (0, level_boundary.y() + level_boundary.height() as i32 - screen_height as i32);
-        //let clamp = |min, x, max| cmp::min(cmp::max(min, x), max);
-        //let render_top_left = Point::new(
-        //    clamp(min_x, render_top_left.x, max_x),
-        //    clamp(min_y, render_top_left.y, max_y),
-        //);
+        let (min_x, max_x) = (0, level_boundary.x() + level_boundary.width() as i32 - screen_width as i32);
+        let (min_y, max_y) = (0, level_boundary.y() + level_boundary.height() as i32 - screen_height as i32);
+        let clamp = |min, x, max| cmp::min(cmp::max(min, x), max);
+        let render_top_left = Point::new(
+           clamp(min_x, render_top_left.x, max_x),
+           clamp(min_y, render_top_left.y, max_y),
+        );
 
         // Get the tiles surrounding the camera focus
         let screen = Rect::from_center(render_top_left + screen_center, screen_width, screen_height);
