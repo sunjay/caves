@@ -125,8 +125,8 @@ impl Renderer {
         let (min_y, max_y) = (0, level_boundary.y() + level_boundary.height() as i32 - screen_height as i32);
         let clamp = |min, x, max| cmp::min(cmp::max(min, x), max);
         let render_top_left = Point::new(
-           clamp(min_x, render_top_left.x, max_x),
-           clamp(min_y, render_top_left.y, max_y),
+            clamp(min_x, render_top_left.x, max_x),
+            clamp(min_y, render_top_left.y, max_y),
         );
 
         // Get the tiles surrounding the camera focus
