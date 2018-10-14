@@ -159,14 +159,15 @@ impl Renderer {
     }
 
     fn render_tiles<'a, I: Iterator<Item=(Point, SpriteImage)>>(&mut self, tiles: I, render_top_left: Point, textures: &TextureManager) -> Result<(), String> {
-       for (point, sprite) in tiles {
+       for (pos, sprite) in tiles {
            let texture = textures.get(sprite.texture_id);
            let source_rect = sprite.region.clone();
            let dest_rect = Rect::new(
-               // Need to subtract the point that represents the top-left corner of the rendered
-               // world so that the world coordinates in point get transformed into screen coordinates
-               point.x() - render_top_left.x(),
-               point.y() - render_top_left.y(),
+               // Need to subtract the position (world coordinates) of this tile from the position
+               // in world coordinates of the top-left corner of the screen so that we are left
+               // with the position of this sprite on the screen in screen coordinates
+               pos.x() - render_top_left.x(),
+               pos.y() - render_top_left.y(),
                sprite.region.width(),
                sprite.region.height()
            );
