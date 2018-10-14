@@ -52,16 +52,33 @@ impl MapGenerator {
 
     pub fn generate_with_key(self, key: MapKey, textures: &mut TextureManager) -> GameMap {
         let mut rng = key.to_rng();
+        let levels: Vec<_> = (1..=self.levels)
+            .map(|level| self.generate_level(&mut rng, textures, level))
+            .collect();
+
+        let game_start = {
+            let first_level = levels.first().expect("bug: should be at least one level");
+
+            let level_start_room = first_level.rooms().find(|room| room.is_player_start())
+            .expect("bug: should have had a player start level on the first level");
+            // Start in the middle of the level start room
+            let (x, y) = level_start_room.center();
+            Point::new(x as i32 * self.tile_size as i32, y as i32 * self.tile_size as i32)
+        };
+
+        let level_boundary = Rect::new(
+            0,
+            0,
+            self.cols as u32 * self.tile_size,
+            self.rows as u32 * self.tile_size,
+        );
+
         GameMap {
             key,
             current_level: 0,
-            level_boundary: Rect::new(
-                0,
-                0,
-                self.cols as u32 * self.tile_size,
-                self.rows as u32 * self.tile_size,
-            ),
-            levels: (1..=self.levels).map(|level| self.generate_level(&mut rng, textures, level)).collect(),
+            level_boundary,
+            game_start,
+            levels,
         }
     }
 

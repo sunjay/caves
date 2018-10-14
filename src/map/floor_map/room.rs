@@ -66,11 +66,8 @@ impl Room {
         }
     }
 
-    pub fn center(self) -> Point {
-        Point::new(
-            (self.x + self.width / 2) as i32,
-            (self.y + self.height / 2) as i32,
-        )
+    pub fn center(self) -> (usize, usize) {
+        (self.x + self.width / 2, self.y + self.height / 2)
     }
 
     pub fn to_rect(self) -> Rect {

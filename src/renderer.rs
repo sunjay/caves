@@ -104,7 +104,8 @@ impl Renderer {
 
         let RenderData {map, positions, sprites, camera_focuses} = world.system_data();
         let mut camera_focuses = (&positions, &camera_focuses).join();
-        let (&Position(camera_focus), _) = camera_focuses.next().expect("Renderer was not told which entity to focus on");
+        let (&Position(camera_focus), _) = camera_focuses.next()
+            .expect("Renderer was not told which entity to focus on");
         assert!(camera_focuses.next().is_none(),
             "Renderer was asked to focus on more than one thing");
 
@@ -128,7 +129,6 @@ impl Renderer {
         );
 
         // Get the tiles surrounding the camera focus
-        #[allow(unused_variables)] //TODO: remove this when we start using this variable
         let screen = Rect::from_center(render_center + screen_center, screen_width, screen_height);
 
         //self.render_tiles(map.background_within(screen), render_center, textures)?;
