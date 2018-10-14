@@ -134,7 +134,7 @@ impl Renderer {
         //self.render_tiles(map.background_within(screen), render_center, textures)?;
         //self.render_tiles(map.background_items_within(screen), render_center, textures)?;
 
-        for (&Position(pos), ref sprite) in (&positions, &sprites).join() {
+        for (&Position(pos), Sprite(ref sprite)) in (&positions, &sprites).join() {
             let pos = pos - render_center;
             let texture = textures.get(sprite.texture_id);
             let source_rect = sprite.region;

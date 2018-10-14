@@ -32,6 +32,8 @@ pub struct FloorMap {
     tiles: Vec<Vec<Option<Tile>>>,
     /// The RoomId is the index into this field
     rooms: Vec<Room>,
+    /// The sprite used to render empty tiles (i.e. when there is no tile)
+    empty_tile_sprite: SpriteImage,
 }
 
 impl Index<usize> for FloorMap {
@@ -82,12 +84,18 @@ impl fmt::Debug for FloorMap {
 
 impl FloorMap {
     /// Create a new FloorMap with the given number of rows and columns
-    pub fn new(rows: usize, cols: usize) -> Self {
+    pub fn new(rows: usize, cols: usize, empty_tile_sprite: SpriteImage) -> Self {
         assert!(rows > 0 && cols > 0, "Cannot create a grid with zero rows or columns");
         FloorMap {
             tiles: vec![vec![None; cols]; rows],
             rooms: Vec::new(),
+            empty_tile_sprite,
         }
+    }
+
+    /// Returns the sprite that should be used to render empty tiles (i.e. when there is no tile)
+    pub fn empty_tile_sprite(&self) -> SpriteImage {
+        self.empty_tile_sprite
     }
 
     /// Returns the number of rows in this grid
@@ -162,12 +170,12 @@ impl FloorMap {
     /// Places a tile with the given type at the given location
     ///
     /// Panics if that location was not previously empty
-    pub fn place_tile(&mut self, TilePos {row, col}: TilePos, ttype: TileType) {
+    pub fn place_tile(&mut self, TilePos {row, col}: TilePos, ttype: TileType, sprite: SpriteImage) {
         let tile = &mut self[row][col];
         // Should not be any other tile here already
         debug_assert!(tile.is_none(),
             "bug: attempt to place tile on a position where a tile was already placed");
-        *tile = Some(Tile::with_type(ttype));
+        *tile = Some(Tile::with_type(ttype, sprite));
     }
 
     /// Removes a passageway from the map and closes any walls around it

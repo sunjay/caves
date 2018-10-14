@@ -12,10 +12,12 @@ pub use self::bounds::*;
 
 use rand::{random, StdRng};
 
-use texture_manager::TextureManager;
+use texture_manager::TextureId;
 use map::*;
 
 pub struct MapGenerator {
+    /// The spritesheet for the map styles
+    pub texture_id: TextureId,
     /// The number of levels to generate
     pub levels: usize,
     /// The number of rows of tiles in the entire world (bound on the size of the map)
@@ -46,14 +48,14 @@ pub struct MapGenerator {
 }
 
 impl MapGenerator {
-    pub fn generate(self, textures: &mut TextureManager) -> GameMap {
-        self.generate_with_key(random(), textures)
+    pub fn generate(self) -> GameMap {
+        self.generate_with_key(random())
     }
 
-    pub fn generate_with_key(self, key: MapKey, textures: &mut TextureManager) -> GameMap {
+    pub fn generate_with_key(self, key: MapKey) -> GameMap {
         let mut rng = key.to_rng();
         let levels: Vec<_> = (1..=self.levels)
-            .map(|level| self.generate_level(&mut rng, textures, level))
+            .map(|level| self.generate_level(&mut rng, level))
             .collect();
 
         let game_start = {
@@ -85,11 +87,14 @@ impl MapGenerator {
         }
     }
 
-    fn generate_level(&self, rng: &mut StdRng, textures: &mut TextureManager, level: usize) -> FloorMap {
-        let mut map = FloorMap::new(self.rows, self.cols);
+    fn generate_level(&self, rng: &mut StdRng, level: usize) -> FloorMap {
+        let default_room_sprite = self.tile_sprite(0, 0);
+        let empty_tile_sprite = self.tile_sprite(0, 3);
+
+        let mut map = FloorMap::new(self.rows, self.cols, empty_tile_sprite);
         let rooms = self.generate_rooms(rng, &mut map, level);
-        self.place_rooms(&mut map, &rooms);
-        self.fill_passages(rng, &mut map);
+        self.place_rooms(&mut map, &rooms, default_room_sprite);
+        self.fill_passages(rng, &mut map, default_room_sprite);
         self.connect_rooms_passages(rng, &mut map, &rooms);
         self.reduce_dead_ends(&mut map);
         if level < self.levels {
@@ -99,6 +104,19 @@ impl MapGenerator {
             self.place_to_prev_level_tiles(rng, &mut map, &rooms);
         }
         map
+    }
+
+    /// Returns the (tile_size)x(tile_size) sprite for the given row and column of the spritesheet
+    fn tile_sprite(&self, row: usize, col: usize) -> SpriteImage {
+        SpriteImage::new_unflipped(
+            self.texture_id,
+            Rect::new(
+                col as i32 * self.tile_size as i32,
+                row as i32 * self.tile_size as i32,
+                self.tile_size,
+                self.tile_size,
+            ),
+        )
     }
 
     // NOTE: This impl block is only for the public interface of MapGenerator + some top-level

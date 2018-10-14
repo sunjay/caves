@@ -85,10 +85,15 @@ impl MapGenerator {
     }
 
     /// Places each room onto the map itself
-    pub(in super) fn place_rooms(&self, map: &mut FloorMap, rooms: &[(RoomId, Room)]) {
+    pub(in super) fn place_rooms(
+        &self,
+        map: &mut FloorMap,
+        rooms: &[(RoomId, Room)],
+        sprite: SpriteImage,
+    ) {
         for &(room_id, ref room) in rooms {
             for pos in room.tile_positions() {
-                map.place_tile(pos, TileType::Room(room_id));
+                map.place_tile(pos, TileType::Room(room_id), sprite);
             }
 
             // Open walls to all adjacent tiles with the same room ID

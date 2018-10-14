@@ -1,7 +1,8 @@
 use std::fmt;
 
-use texture_manager::TextureId;
+use sdl2::rect::Rect;
 
+use texture_manager::TextureId;
 use super::{RoomId, TileWalls};
 
 #[derive(Debug, Clone)]
@@ -48,21 +49,49 @@ impl fmt::Display for TileObject {
     }
 }
 
+/// Represents an image/texture that will be renderered
+///
+/// The convention is that the sprite begins pointing to the right and flipping it horizontally
+/// results in it facing left
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SpriteImage {
+    /// The spritesheet to pull the image from
+    pub texture_id: TextureId,
+    /// The region of the spritesheet to use, unrelated to the actual bounding box
+    pub region: Rect,
+    /// Whether to flip the sprite along the horizontal axis
+    pub flip_horizontal: bool,
+    /// Whether to flip the sprite along the vertical axis
+    pub flip_vertical: bool,
+}
+
+impl SpriteImage {
+    /// Creates a new SpriteImage that is not flipped either horizontally or vertically
+    pub fn new_unflipped(texture_id: TextureId, region: Rect) -> Self {
+        SpriteImage {
+            texture_id,
+            region,
+            flip_horizontal: false,
+            flip_vertical: false,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Tile {
     pub ttype: TileType,
+    pub sprite: SpriteImage,
     pub object: Option<TileObject>,
     pub walls: TileWalls,
-    pub texture_id: Option<TextureId>,
 }
 
 impl Tile {
-    pub(in super) fn with_type(ttype: TileType) -> Self {
+    pub(in super) fn with_type(ttype: TileType, sprite: SpriteImage) -> Self {
         Self {
             ttype,
+            sprite,
             object: Default::default(),
             walls: Default::default(),
-            texture_id: Default::default(),
         }
     }
 

@@ -6,6 +6,7 @@ use specs::{VecStorage, HashMapStorage};
 use sdl2::rect::Rect;
 
 use texture_manager::TextureId;
+use map::SpriteImage;
 
 /// An entity that is unable to move until the given duration has elapsed
 #[derive(Debug, Default, Component)]
@@ -15,29 +16,17 @@ pub struct Wait {
     pub frames_elapsed: usize, // frames
 }
 
-/// Renders a sprite from a surface (spritesheet image).
+/// Renders a sprite from a texture (spritesheet image).
 ///
 /// The sprite is rendered with the region centered on the entity's Position
-///
-/// The convention is that the sprite begins pointing to the right and flipping it horizontally
-/// results in it facing left
-#[derive(Debug, Clone, PartialEq, Eq, Component)]
+#[derive(Debug, Component)]
 #[storage(VecStorage)]
-pub struct Sprite {
-    /// The spritesheet to pull the image from
-    pub texture_id: TextureId,
-    /// The region of the spritesheet to use, unrelated to the actual bounding box
-    pub region: Rect,
-    /// Whether to flip the sprite along the horizontal axis
-    pub flip_horizontal: bool,
-    /// Whether to flip the sprite along the vertical axis
-    pub flip_vertical: bool,
-}
+pub struct Sprite(pub SpriteImage);
 
 impl Sprite {
     /// Updates this sprite from the sprite contained within the given frame
     pub fn update_from_frame(&mut self, frame: &Frame) {
-        *self = frame.sprite.clone();
+        self.0 = frame.sprite.clone();
     }
 }
 
@@ -121,7 +110,7 @@ pub struct AnimationManager {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Frame {
     /// The sprite that this frame represents
-    pub sprite: Sprite,
+    pub sprite: SpriteImage,
     /// The duration of this animation step (in frames)
     pub duration: usize,
 }
@@ -146,7 +135,7 @@ impl AnimationManager {
             let frame_size = 48;
 
             let steps = pattern.zip(durations.iter().cycle()).map(|(j, &duration)| Frame {
-                sprite: Sprite {
+                sprite: SpriteImage {
                     texture_id,
                     region: Rect::new(
                         j * frame_size,
@@ -209,7 +198,7 @@ impl AnimationManager {
     }
 
     /// Returns the default sprite that should be used at the start
-    pub fn default_sprite(&self) -> Sprite {
+    pub fn default_sprite(&self) -> SpriteImage {
         let stopped = &self.stopped_down.steps[0];
         stopped.sprite.clone()
     }

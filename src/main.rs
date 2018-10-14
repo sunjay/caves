@@ -41,6 +41,7 @@ use components::{
     BoundingBox,
     KeyboardControlled,
     CameraFocus,
+    Sprite,
     AnimationManager,
 };
 use resources::{FramesElapsed, ActionQueue, GameKeys};
@@ -57,6 +58,7 @@ fn main() -> Result<(), String> {
     let mut event_pump = renderer.event_pump()?;
 
     let map = MapGenerator {
+        texture_id: textures.create_png_texture("assets/dungeon.png")?,
         levels: 10,
         rows: 20,
         cols: 40,
@@ -69,7 +71,7 @@ fn main() -> Result<(), String> {
         treasure_chamber_height: 9,
         doors: 2,
         next_prev_tiles: 2,
-    }.generate(&mut textures);
+    }.generate();
 
     let mut world = World::new();
 
@@ -98,7 +100,7 @@ fn main() -> Result<(), String> {
         .with(Position(character_center))
         .with(BoundingBox {width: 32, height: 30})
         .with(Movement::default())
-        .with(character_animations.default_sprite())
+        .with(Sprite(character_animations.default_sprite()))
         .with(character_animations.default_animation())
         .with(character_animations)
         .build();

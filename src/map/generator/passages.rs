@@ -6,15 +6,15 @@ use super::MapGenerator;
 use map::*;
 
 impl MapGenerator {
-    pub(in super) fn fill_passages(&self, rng: &mut StdRng, map: &mut FloorMap) {
+    pub(in super) fn fill_passages(&self, rng: &mut StdRng, map: &mut FloorMap, sprite: SpriteImage) {
         for pos in map.tile_positions() {
             if map.is_empty(pos) {
-                self.generate_maze(rng, map, pos);
+                self.generate_maze(rng, map, pos, sprite);
             }
         }
     }
 
-    fn generate_maze(&self, rng: &mut StdRng, map: &mut FloorMap, pos: TilePos) {
+    fn generate_maze(&self, rng: &mut StdRng, map: &mut FloorMap, pos: TilePos, sprite: SpriteImage) {
         assert_eq!(self.passage_size, 1, "only a passage_size of 1 is supported for now");
 
         let mut parent_map = HashMap::new();
@@ -33,7 +33,7 @@ impl MapGenerator {
 
         // Insert new passageway tiles
         for pt in seen {
-            map.place_tile(pt, TileType::Passageway);
+            map.place_tile(pt, TileType::Passageway, sprite);
         }
 
         // Place all of the found paths onto the tiles
