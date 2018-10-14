@@ -37,14 +37,13 @@ use specs::{
 
 use components::{
     Position,
-    Velocity,
+    Movement,
     BoundingBox,
-    //Sprite,
     KeyboardControlled,
     CameraFocus,
-    //MovementAnimation,
+    AnimationManager,
 };
-use resources::{FramesElapsed, GameKeys};
+use resources::{FramesElapsed, ActionQueue, GameKeys};
 use texture_manager::TextureManager;
 use renderer::Renderer;
 use map::MapGenerator;
@@ -61,6 +60,7 @@ fn main() -> Result<(), String> {
         levels: 10,
         rows: 20,
         cols: 40,
+        tile_size: 15,
         rooms: 6,
         room_width: (3, 15).into(),
         room_height: (3, 12).into(),
@@ -73,8 +73,9 @@ fn main() -> Result<(), String> {
 
     let mut world = World::new();
 
-    world.add_resource(FramesElapsed(1));
     world.add_resource(map.clone());
+    world.add_resource(FramesElapsed(1));
+    world.add_resource(ActionQueue::default());
     world.add_resource(GameKeys::from(event_pump.keyboard_state()));
 
     let mut dispatcher = DispatcherBuilder::new()
@@ -89,28 +90,17 @@ fn main() -> Result<(), String> {
 
     // Add the character
     let character_center = map.game_start();
-    //let character_texture = textures.create_png_texture("assets/character.png")?;
-    //let character_animation = [
-    //    // The position on the texture of the character
-    //    Rect::new(110, 115, 32, 30),
-    //    Rect::new(110, 145, 32, 30),
-    //];
+    let character_texture = textures.create_png_texture("assets/hero.png")?;
+    let character_animations = AnimationManager::standard_character_animations(fps as usize, character_texture);
     world.create_entity()
         .with(KeyboardControlled)
         .with(CameraFocus)
         .with(Position(character_center))
         .with(BoundingBox {width: 32, height: 30})
-        .with(Velocity::default())
-        //.with(Sprite {
-        //    texture_id: character_texture,
-        //    region: character_animation[0],
-        //    flip_horizontal: false,
-        //})
-        //.with(MovementAnimation {
-        //    steps: character_animation.into_iter().map(|&rect| (character_texture, rect)).collect(),
-        //    frames_per_step: 5,
-        //    frame_counter: 0,
-        //})
+        .with(Movement::default())
+        .with(character_animations.default_sprite())
+        .with(character_animations.default_animation())
+        .with(character_animations)
         .build();
 
     let mut timer = renderer.timer()?;
@@ -137,11 +127,15 @@ fn main() -> Result<(), String> {
         if frames_elapsed_delta >= 1 {
             *world.write_resource::<FramesElapsed>() = FramesElapsed(frames_elapsed_delta);
             *world.write_resource::<GameKeys>() = GameKeys::from(event_pump.keyboard_state());
+            *world.write_resource::<ActionQueue>() = ActionQueue::default();
 
             dispatcher.dispatch(&mut world.res);
 
             renderer.render(&world, &textures)?;
             last_frames_elapsed = frames_elapsed;
+
+            // Register any updates
+            world.maintain();
         }
         else {
             let ms_per_frame = (1000.0 / fps) as u64;

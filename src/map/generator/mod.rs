@@ -22,6 +22,8 @@ pub struct MapGenerator {
     pub rows: usize,
     /// The number of columns of tiles in the entire world (bound on the size of the map)
     pub cols: usize,
+    /// The width and height of each tile in pixels
+    pub tile_size: u32,
     /// The number of rooms to generate on each floor
     pub rooms: usize,
     /// The minimum and maximum width (in tiles) of a room
@@ -52,6 +54,13 @@ impl MapGenerator {
         let mut rng = key.to_rng();
         GameMap {
             key,
+            current_level: 0,
+            level_boundary: Rect::new(
+                0,
+                0,
+                self.cols as u32 * self.tile_size,
+                self.rows as u32 * self.tile_size,
+            ),
             levels: (1..=self.levels).map(|level| self.generate_level(&mut rng, textures, level)).collect(),
         }
     }

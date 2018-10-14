@@ -1,11 +1,29 @@
 //! ECS Resources for use by various systems
 
+use std::collections::HashMap;
+
 use sdl2::keyboard::{KeyboardState, Scancode};
+use specs::Entity;
 
 /// Resource that represents the number of frames elapsed since the last time all of the systems
 /// were run. Value is guaranteed to be greater than or equal to 1.
 /// Often this will be just 1 but it may be greater if there is lag or if a system takes too long.
 pub struct FramesElapsed(pub usize);
+
+/// Resource that represents any actions that have happened during the current frame
+///
+/// This queue resets every frame
+#[derive(Debug, Default)]
+pub struct ActionQueue(pub HashMap<Entity, Vec<Action>>);
+
+/// Actions that an entity can take or have happen to them during a frame
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Action {
+    Attacked,
+    Hit,
+    Victorious,
+    Defeated,
+}
 
 /// Resource that represents which keys are currently pressed.
 ///

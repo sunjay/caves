@@ -10,8 +10,6 @@ use std::fmt;
 use std::ops::{Index, IndexMut};
 use std::collections::{HashSet, VecDeque};
 
-use sdl2::rect::Rect;
-
 /// A single row of the map's tiles
 pub type Row = [Option<Tile>];
 
@@ -86,10 +84,6 @@ impl FloorMap {
             tiles: vec![vec![None; cols]; rows],
             rooms: Vec::new(),
         }
-    }
-
-    pub fn level_boundary(&self) -> Rect {
-        Rect::new(0, 0, self.cols_len() as u32, self.rows_len() as u32)
     }
 
     /// Returns the number of rows in this grid

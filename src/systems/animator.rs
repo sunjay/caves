@@ -1,14 +1,22 @@
-use specs::{System, Join, ReadExpect, ReadStorage, WriteStorage};
+use std::borrow::Cow;
 
-use components::{Velocity, Sprite, MovementAnimation};
-use resources::FramesElapsed;
+use specs::{System, Join, ReadExpect, ReadStorage, WriteStorage, Entities};
+
+use components::{Movement, MovementDirection::*, Sprite, Animation, AnimationManager, Frame};
+use resources::{ActionQueue, Action::*, FramesElapsed};
+
+/// The number of frames that an entity can be idle before the idle animation starts
+const IDLE_LENGTH: usize = 300;
 
 #[derive(SystemData)]
 pub struct AnimatorData<'a> {
+    entities: Entities<'a>,
+    action_queue: ReadExpect<'a, ActionQueue>,
     frames: ReadExpect<'a, FramesElapsed>,
-    velocities: ReadStorage<'a, Velocity>,
+    movements: ReadStorage<'a, Movement>,
     sprites: WriteStorage<'a, Sprite>,
-    animations: WriteStorage<'a, MovementAnimation>,
+    animations: WriteStorage<'a, Animation>,
+    animation_managers: WriteStorage<'a, AnimationManager>,
 }
 
 pub struct Animator;
@@ -16,28 +24,121 @@ pub struct Animator;
 impl<'a> System<'a> for Animator {
     type SystemData = AnimatorData<'a>;
 
-    fn run(&mut self, AnimatorData {frames, velocities, mut sprites, mut animations}: Self::SystemData) {
-        let FramesElapsed(frames_elapsed) = *frames;
+    fn run(&mut self, data: Self::SystemData) {
+        let AnimatorData {
+            entities,
+            action_queue,
+            frames,
+            movements,
+            mut sprites,
+            mut animations,
+            mut animation_managers,
+        } = data;
 
-        for (vel, sprite, animation) in (&velocities, &mut sprites, &mut animations).join() {
-            if vel.x > 0 {
-                // The assumption is that the sprite begins facing right
-                sprite.flip_horizontal = false;
-            }
-            else if vel.x < 0 {
-                sprite.flip_horizontal = true;
-            }
-            else { // No horizontal movement
-                // Only continue to animate if moving
+        let FramesElapsed(frames_elapsed) = *frames;
+        let ActionQueue(ref action_queue) = *action_queue;
+
+        // NOTE: This code often needs to compare the frames in the animation for equality. If we
+        // could either name each animation or store a specialized frame list that keeps around a
+        // hash of its contents, we could make that comparision much faster.
+
+        // Set the current animation based on an entity's movements or based on actions that have
+        // occurred during this frame
+        for (entity, movement, animation, manager) in (&entities, &movements, &mut animations, &mut animation_managers).join() {
+            // No point in continuing if we can't interrupt the animation that is currently running
+            // This also prevents the idle counter from being incremented during an animation
+            if !animation.can_interrupt && !animation.is_complete() {
                 continue;
             }
 
-            animation.frame_counter += frames_elapsed;
-            let current_step = animation.frame_counter % (animation.steps.len() * animation.frames_per_step) / animation.frames_per_step;
+            let &Movement {direction, is_moving} = movement;
 
-            let (current_texture_id, current_region) = animation.steps[current_step];
-            sprite.texture_id = current_texture_id;
-            sprite.region = current_region;
+            // Don't want to copy the events that occurred but also don't want to deal with the
+            // option type
+            let actions: Cow<Vec<_>> = action_queue.get(&entity).map(|q| Cow::Borrowed(q)).unwrap_or_default();
+
+            // Update the idle counter so we can decide whether to play the idle animation
+            match (is_moving, &actions[..]) {
+                // We are idle as long as we are not moving and no actions have occurred
+                (false, []) => {
+                    manager.idle_counter += frames_elapsed;
+
+                    // Start the idle animation if we have passed the threshold and if we are not
+                    // already playing this animation
+                    if manager.idle_counter >= IDLE_LENGTH {
+                        animation.update_if_different(&manager.idle);
+                    } else {
+                        // This code needs to be in this else so that it does not conflict with the
+                        // idle animation
+
+                        // No longer moving, so stop that animation
+                        match direction {
+                            North => animation.update_if_different(&manager.stopped_up),
+                            East => animation.update_if_different(&manager.stopped_right),
+                            South => animation.update_if_different(&manager.stopped_down),
+                            West => animation.update_if_different(&manager.stopped_left),
+                        }
+                    }
+
+                    continue;
+                },
+                // If we are moving, actions have occurred, or both of those are happening, we are
+                // no longer idle
+                _ => manager.idle_counter = 0,
+            };
+
+            // The order of this code is important: movement animations are overridden by actions
+
+            if is_moving {
+                match direction {
+                    North => animation.update_if_different(&manager.move_up),
+                    East => animation.update_if_different(&manager.move_right),
+                    South => animation.update_if_different(&manager.move_down),
+                    West => animation.update_if_different(&manager.move_left),
+                }
+            }
+
+            for action in actions.iter() {
+                match action {
+                    Attacked => match direction {
+                        North => animation.update_if_different(&manager.attack_up),
+                        East => animation.update_if_different(&manager.attack_right),
+                        South => animation.update_if_different(&manager.attack_down),
+                        West => animation.update_if_different(&manager.attack_left),
+                    },
+                    Hit => match direction {
+                        North => animation.update_if_different(&manager.hit_up),
+                        East => animation.update_if_different(&manager.hit_right),
+                        South => animation.update_if_different(&manager.hit_down),
+                        West => animation.update_if_different(&manager.hit_left),
+                    },
+                    Victorious => animation.update_if_different(&manager.victory),
+                    Defeated => unimplemented!(), //TODO
+                }
+            }
+        }
+
+        // Update the sprites based on teh current animation frame
+        for (sprite, animation) in (&mut sprites, &mut animations).join() {
+            animation.frame_counter += frames_elapsed;
+
+            // This code should work regardless of how many frames have elapsed
+            while animation.frame_counter >= animation.steps[animation.current_step].duration {
+                // Only loop if the animation is configured that way
+                if animation.is_complete() && !animation.should_loop {
+                    break;
+                }
+                // Start at the number of frames that have passed since the end of this step
+                animation.frame_counter -= animation.steps[animation.current_step].duration;
+                // Completed this frame, move on (and loop if necessary)
+                animation.current_step = (animation.current_step + 1) % animation.steps.len();
+            }
+
+            // Update the sprite with the current step
+            let Frame {texture_id, region, flip_horizontal, ..} = animation.steps[animation.current_step];
+            sprite.texture_id = texture_id;
+            sprite.region = region;
+            sprite.flip_horizontal = flip_horizontal;
         }
     }
 }
