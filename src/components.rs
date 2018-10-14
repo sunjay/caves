@@ -100,6 +100,8 @@ pub struct Sprite {
     pub region: Rect,
     /// Whether to flip the sprite along the horizontal axis
     pub flip_horizontal: bool,
+    /// Whether to flip the sprite along the vertical axis
+    pub flip_vertical: bool,
 }
 
 impl Sprite {
@@ -222,6 +224,7 @@ impl AnimationManager {
                         frame_size as u32,
                     ),
                     flip_horizontal,
+                    flip_vertical: false,
                 },
                 duration,
             }).collect();

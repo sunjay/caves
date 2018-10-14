@@ -148,7 +148,7 @@ impl Renderer {
                 0.0,
                 None,
                 sprite.flip_horizontal,
-                false
+                sprite.flip_vertical,
             )?;
         }
 
