@@ -11,10 +11,10 @@ pub use self::map_key::*;
 #[derive(Debug, Clone)]
 pub struct GameMap {
     key: MapKey,
-    current_level: usize,
-    level_boundary: Rect,
     levels: Vec<FloorMap>,
-    game_start: Point,
+    current_level: usize,
+    map_size: GridSize,
+    tile_size: u32,
 }
 
 impl GameMap {
@@ -25,12 +25,26 @@ impl GameMap {
 
     /// Returns the level boundary in pixels of the current map
     pub fn level_boundary(&self) -> Rect {
-        self.level_boundary
+        Rect::new(
+            0,
+            0,
+            self.map_size.cols as u32 * self.tile_size,
+            self.map_size.rows as u32 * self.tile_size,
+        )
     }
 
     /// Return the point that represents the start of the game. This point is always on the
     /// first level and the player should only be spawned at this point on the first level.
     pub fn game_start(&self) -> Point {
-        self.game_start
+        let first_level = self.levels.first().expect("bug: should be at least one level");
+
+        let level_start_room = first_level.rooms().find(|room| room.is_player_start())
+            .expect("bug: should have had a player start level on the first level");
+        // Start in the middle of the level start room
+        let center = level_start_room.center_tile();
+        Point::new(
+            center.col as i32 * self.tile_size as i32,
+            center.row as i32 * self.tile_size as i32,
+        )
     }
 }

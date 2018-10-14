@@ -23,7 +23,7 @@ use specs::{
 
 use texture_manager::TextureManager;
 use components::{Position, Sprite, CameraFocus};
-use map::GameMap;
+use map::{GameMap, SpriteImage};
 
 #[derive(SystemData)]
 struct RenderData<'a> {
@@ -58,7 +58,7 @@ impl Renderer {
         //FIXME: Remove this unwrap() when we start using proper error types
         let window_width = (width as f32 * display_scale) as u32;
         let window_height = (height as f32 * display_scale) as u32;
-        let window = video_subsystem.window("Robo Quest", window_width, window_height)
+        let window = video_subsystem.window("Caves", window_width, window_height)
             .position_centered()
             .build()
             .unwrap();
@@ -115,27 +115,28 @@ impl Renderer {
         // The position on the map of the screen's top left corner
         // Adding this point to the position of the camera_focus would make it render in the center
         // of the screen
-        let render_center = camera_focus - screen_center;
+        let render_top_left = camera_focus - screen_center;
 
         // Need to make sure the camera stays within the level boundary
-        let level_boundary = map.level_boundary();
+        //let level_boundary = map.level_boundary();
+
         // The valid ranges for the top-left corner of the screen
-        let (min_x, max_x) = (0, level_boundary.x() + level_boundary.width() as i32 - screen_width as i32);
-        let (min_y, max_y) = (0, level_boundary.y() + level_boundary.height() as i32 - screen_height as i32);
-        let clamp = |min, x, max| cmp::min(cmp::max(min, x), max);
-        let render_center = Point::new(
-            clamp(min_x, render_center.x, max_x),
-            clamp(min_y, render_center.y, max_y),
-        );
+        //let (min_x, max_x) = (0, level_boundary.x() + level_boundary.width() as i32 - screen_width as i32);
+        //let (min_y, max_y) = (0, level_boundary.y() + level_boundary.height() as i32 - screen_height as i32);
+        //let clamp = |min, x, max| cmp::min(cmp::max(min, x), max);
+        //let render_top_left = Point::new(
+        //    clamp(min_x, render_top_left.x, max_x),
+        //    clamp(min_y, render_top_left.y, max_y),
+        //);
 
         // Get the tiles surrounding the camera focus
-        let screen = Rect::from_center(render_center + screen_center, screen_width, screen_height);
+        let screen = Rect::from_center(render_top_left + screen_center, screen_width, screen_height);
 
-        //self.render_tiles(map.background_within(screen), render_center, textures)?;
-        //self.render_tiles(map.background_items_within(screen), render_center, textures)?;
+        let level = map.current_level_map();
+        self.render_tiles(level.sprites_within(screen), render_top_left, textures)?;
 
         for (&Position(pos), Sprite(ref sprite)) in (&positions, &sprites).join() {
-            let pos = pos - render_center;
+            let pos = pos - render_top_left;
             let texture = textures.get(sprite.texture_id);
             let source_rect = sprite.region;
             let mut dest_rect = source_rect.clone();
@@ -152,35 +153,35 @@ impl Renderer {
             )?;
         }
 
-        //self.render_tiles(map.map_within(screen), render_center, textures)?;
-
         self.canvas.present();
 
         Ok(())
     }
 
-    //fn render_tiles<'a, I: Iterator<Item=&'a Tile>>(&mut self, tiles: I, render_center: Point, textures: &TextureManager) -> Result<(), String> {
-    //    for &Tile {x, y, texture_id, image_width, image_height} in tiles {
-    //        let texture = textures.get(texture_id);
-    //        let source_rect = Rect::new(0, 0, image_width, image_height);
-    //        let dest_rect = Rect::new(
-    //            x - render_center.x(),
-    //            y - render_center.y(),
-    //            image_width,
-    //            image_height,
-    //        );
-//
-    //        self.canvas.copy_ex(
-    //            texture,
-    //            Some(source_rect),
-    //            Some(dest_rect),
-    //            0.0,
-    //            None,
-    //            false,
-    //            false
-    //        )?;
-    //    }
-//
-    //    Ok(())
-    //}
+    fn render_tiles<'a, I: Iterator<Item=(Point, SpriteImage)>>(&mut self, tiles: I, render_top_left: Point, textures: &TextureManager) -> Result<(), String> {
+       for (point, sprite) in tiles {
+           let texture = textures.get(sprite.texture_id);
+           let source_rect = sprite.region.clone();
+           let dest_rect = Rect::new(
+               // Need to subtract the point that represents the top-left corner of the rendered
+               // world so that the world coordinates in point get transformed into screen coordinates
+               point.x() - render_top_left.x(),
+               point.y() - render_top_left.y(),
+               sprite.region.width(),
+               sprite.region.height()
+           );
+
+           self.canvas.copy_ex(
+               texture,
+               Some(source_rect),
+               Some(dest_rect),
+               0.0,
+               None,
+               sprite.flip_horizontal,
+               sprite.flip_vertical,
+           )?;
+       }
+
+       Ok(())
+    }
 }

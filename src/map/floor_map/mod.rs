@@ -11,8 +11,11 @@ pub use self::tile_pos::*;
 pub use self::grid_size::*;
 
 use std::fmt;
+use std::cmp;
 use std::ops::{Index, IndexMut};
 use std::collections::{HashSet, VecDeque};
+
+use sdl2::rect::{Rect, Point};
 
 /// A single row of the map's tiles
 pub type Row = [Option<Tile>];
@@ -32,6 +35,8 @@ pub struct FloorMap {
     tiles: Vec<Vec<Option<Tile>>>,
     /// The RoomId is the index into this field
     rooms: Vec<Room>,
+    /// The width and height of every tile
+    tile_size: u32,
     /// The sprite used to render empty tiles (i.e. when there is no tile)
     empty_tile_sprite: SpriteImage,
 }
@@ -84,11 +89,12 @@ impl fmt::Debug for FloorMap {
 
 impl FloorMap {
     /// Create a new FloorMap with the given number of rows and columns
-    pub fn new(rows: usize, cols: usize, empty_tile_sprite: SpriteImage) -> Self {
+    pub fn new(GridSize {rows, cols}: GridSize, tile_size: u32, empty_tile_sprite: SpriteImage) -> Self {
         assert!(rows > 0 && cols > 0, "Cannot create a grid with zero rows or columns");
         FloorMap {
             tiles: vec![vec![None; cols]; rows],
             rooms: Vec::new(),
+            tile_size,
             empty_tile_sprite,
         }
     }
@@ -335,5 +341,37 @@ impl FloorMap {
         }
 
         seen
+    }
+
+    /// Returns the sprites of tiles within (or around) the region defined by bounds
+    pub fn sprites_within(&self, bounds: Rect) -> impl Iterator<Item=(Point, SpriteImage)> + '_ {
+        // While the caller is allowed to ask for tiles within a boundary Rect that starts at
+        // negative coordinates, the top left of the map is defined as (0, 0). That means that we
+        // can at most request tiles up to that top left corner. The calls to `max()` here help
+        // enforce that by making sure we don't convert a negative number to an unsigned type.
+        let x = cmp::max(bounds.x(), 0) as usize;
+        let y = cmp::max(bounds.y(), 0) as usize;
+        let width = bounds.width() as usize;
+        let height = bounds.height() as usize;
+
+        let clamp_col = |col| cmp::min(cmp::max(col, 0), self.cols_len()-1);
+        let clamp_row = |row| cmp::min(cmp::max(row, 0), self.rows_len()-1);
+
+        let start_col = clamp_col(x / self.tile_size as usize);
+        let start_row = clamp_row(y / self.tile_size as usize);
+        let end_col = clamp_col((x + width) / self.tile_size as usize);
+        let end_row = clamp_row((y + height) / self.tile_size as usize);
+
+        (start_row..=end_row).flat_map(move |row| (start_col..=end_col).map(move |col| {
+            // The position of the tile in world coordinates
+            let pos = Point::new(
+                col as i32 * self.tile_size as i32,
+                row as i32 * self.tile_size as i32,
+            );
+            match self.get(TilePos {row, col}) {
+                None => (pos, self.empty_tile_sprite),
+                Some(tile) => (pos, tile.sprite)
+            }
+        }))
     }
 }

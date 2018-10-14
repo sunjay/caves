@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use specs::{System, Join, ReadExpect, ReadStorage, WriteStorage, Entities};
 
-use components::{Movement, MovementDirection::*, Sprite, Animation, AnimationManager, Frame};
+use components::{Movement, MovementDirection::*, Sprite, Animation, AnimationManager};
 use resources::{ActionQueue, Action::*, FramesElapsed};
 
 /// The number of frames that an entity can be idle before the idle animation starts
