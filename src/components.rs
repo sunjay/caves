@@ -91,7 +91,7 @@ pub struct CameraFocus;
 ///
 /// The convention is that the sprite begins pointing to the right and flipping it horizontally
 /// results in it facing left
-#[derive(Debug, Component)]
+#[derive(Debug, Clone, PartialEq, Eq, Component)]
 #[storage(VecStorage)]
 pub struct Sprite {
     /// The spritesheet to pull the image from
@@ -104,11 +104,7 @@ pub struct Sprite {
 
 impl Sprite {
     pub fn update_from_frame(&mut self, frame: &Frame) {
-        *self = Self {
-            texture_id: frame.texture_id,
-            region: frame.region,
-            flip_horizontal: frame.flip_horizontal,
-        };
+        *self = frame.sprite.clone();
     }
 }
 
@@ -191,14 +187,10 @@ pub struct AnimationManager {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Frame {
-    /// The texture to load the animation frame from
-    pub texture_id: TextureId,
-    /// The location on the texture
-    pub region: Rect,
+    /// The sprite that this frame represents
+    pub sprite: Sprite,
     /// The duration of this animation step (in frames)
     pub duration: usize,
-    /// Whether to flip the sprite along the horizontal axis
-    pub flip_horizontal: bool,
 }
 
 impl AnimationManager {
@@ -221,15 +213,17 @@ impl AnimationManager {
             let frame_size = 48;
 
             let steps = pattern.zip(durations.iter().cycle()).map(|(j, &duration)| Frame {
-                texture_id,
-                region: Rect::new(
-                    j * frame_size,
-                    frame_size * row_i,
-                    frame_size as u32,
-                    frame_size as u32,
-                ),
+                sprite: Sprite {
+                    texture_id,
+                    region: Rect::new(
+                        j * frame_size,
+                        frame_size * row_i,
+                        frame_size as u32,
+                        frame_size as u32,
+                    ),
+                    flip_horizontal,
+                },
                 duration,
-                flip_horizontal,
             }).collect();
 
             Animation::new(steps, can_interrupt, should_loop)
@@ -283,11 +277,7 @@ impl AnimationManager {
     /// Returns the default sprite that should be used at the start
     pub fn default_sprite(&self) -> Sprite {
         let stopped = &self.stopped_down.steps[0];
-        Sprite {
-            texture_id: stopped.texture_id,
-            region: stopped.region,
-            flip_horizontal: stopped.flip_horizontal,
-        }
+        stopped.sprite.clone()
     }
 
     /// Returns the default animation that should be used at the start
