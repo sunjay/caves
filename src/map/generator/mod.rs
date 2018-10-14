@@ -27,9 +27,9 @@ pub struct MapGenerator {
     /// The number of rooms to generate on each floor
     pub rooms: usize,
     /// The minimum and maximum width (in tiles) of a room
-    pub room_width: Bounds<usize>,
+    pub room_cols: Bounds<usize>,
     /// The minimum and maximum height (in tiles) of a room
-    pub room_height: Bounds<usize>,
+    pub room_rows: Bounds<usize>,
     /// The width of the passageways between rooms
     /// Used to calculate the minimum distance between adjacent rooms
     pub passage_size: usize,
@@ -62,8 +62,11 @@ impl MapGenerator {
             let level_start_room = first_level.rooms().find(|room| room.is_player_start())
             .expect("bug: should have had a player start level on the first level");
             // Start in the middle of the level start room
-            let (x, y) = level_start_room.center();
-            Point::new(x as i32 * self.tile_size as i32, y as i32 * self.tile_size as i32)
+            let center = level_start_room.center_tile();
+            Point::new(
+                center.col as i32 * self.tile_size as i32,
+                center.row as i32 * self.tile_size as i32,
+            )
         };
 
         let level_boundary = Rect::new(

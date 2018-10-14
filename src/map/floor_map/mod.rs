@@ -1,10 +1,14 @@
 mod tile;
 mod tile_walls;
 mod room;
+mod tile_pos;
+mod grid_size;
 
 pub use self::tile::*;
 pub use self::tile_walls::*;
 pub use self::room::*;
+pub use self::tile_pos::*;
+pub use self::grid_size::*;
 
 use std::fmt;
 use std::ops::{Index, IndexMut};
@@ -102,17 +106,22 @@ impl FloorMap {
     }
 
     /// Gets the tile at the given position (or None if empty)
-    pub fn get(&self, (row, col): (usize, usize)) -> Option<&Tile> {
+    pub fn get(&self, TilePos {row, col}: TilePos) -> Option<&Tile> {
         self[row][col].as_ref()
     }
 
+    /// Gets the tile at the given position (or None if empty)
+    pub fn get_mut(&mut self, TilePos {row, col}: TilePos) -> Option<&mut Tile> {
+        self[row][col].as_mut()
+    }
+
     /// Returns true if the given position is empty (no tile)
-    pub fn is_empty(&self, (row, col): (usize, usize)) -> bool {
+    pub fn is_empty(&self, TilePos {row, col}: TilePos) -> bool {
         self[row][col].is_none()
     }
 
     /// Returns true if the given position is part of the room with the given ID
-    pub fn is_room_id(&self, (row, col): (usize, usize), room_id: RoomId) -> bool {
+    pub fn is_room_id(&self, TilePos {row, col}: TilePos, room_id: RoomId) -> bool {
         match self[row][col] {
             Some(Tile {ttype: TileType::Room(id), ..}) => id == room_id,
             _ => false,
@@ -120,7 +129,7 @@ impl FloorMap {
     }
 
     /// Returns true if the given position is a dead end passageway
-    pub fn is_dead_end(&self, (row, col): (usize, usize)) -> bool {
+    pub fn is_dead_end(&self, TilePos {row, col}: TilePos) -> bool {
         match self[row][col] {
             Some(Tile {ttype: TileType::Passageway, ref walls, ..}) => walls.is_dead_end(),
             _ => false,
@@ -128,7 +137,7 @@ impl FloorMap {
     }
 
     /// Returns true if the given position is passageway
-    pub fn is_passageway(&self, (row, col): (usize, usize)) -> bool {
+    pub fn is_passageway(&self, TilePos {row, col}: TilePos) -> bool {
         match self[row][col] {
             Some(Tile {ttype: TileType::Passageway, ..}) => true,
             _ => false,
@@ -153,7 +162,7 @@ impl FloorMap {
     /// Places a tile with the given type at the given location
     ///
     /// Panics if that location was not previously empty
-    pub fn place_tile(&mut self, (row, col): (usize, usize), ttype: TileType) {
+    pub fn place_tile(&mut self, TilePos {row, col}: TilePos, ttype: TileType) {
         let tile = &mut self[row][col];
         // Should not be any other tile here already
         debug_assert!(tile.is_none(),
@@ -162,24 +171,24 @@ impl FloorMap {
     }
 
     /// Removes a passageway from the map and closes any walls around it
-    pub(in super) fn remove_passageway(&mut self, (row, col): (usize, usize)) {
-        assert!(self.is_passageway((row, col)), "bug: remove passageway can only be called on a passageway tile");
-        let adjacents: Vec<_> = self.adjacent_positions((row, col))
+    pub(in super) fn remove_passageway(&mut self, pos: TilePos) {
+        assert!(self.is_passageway(pos), "bug: remove passageway can only be called on a passageway tile");
+        let adjacents: Vec<_> = self.adjacent_positions(pos)
             .filter(|&pt| !self.is_empty(pt))
             .collect();
 
         for adj in adjacents {
-            self.close_between((row, col), adj);
+            self.close_between(pos, adj);
         }
 
-        self[row][col] = None;
+        self[pos.row][pos.col] = None;
     }
 
     /// Returns true if there is NO wall between two adjacent cells
-    pub fn is_open_between(&self, (row1, col1): (usize, usize), (row2, col2): (usize, usize)) -> bool {
+    pub fn is_open_between(&self, pos1: TilePos, pos2: TilePos) -> bool {
         macro_rules! wall_is_open {
             ($dir:ident, $opp:ident) => {
-                match (self.get((row1, col1)), self.get((row2, col2))) {
+                match (self.get(pos1), self.get(pos2)) {
                     (Some(tile1), Some(tile2)) => {
                         debug_assert_eq!(tile1.walls.$dir, tile2.walls.$opp);
                         tile1.walls.$dir == Wall::Open
@@ -198,7 +207,7 @@ impl FloorMap {
                 }
             };
         }
-        match (row2 as isize - row1 as isize, col2 as isize - col1 as isize) {
+        match pos2.difference(pos1) {
             // second position is north of first position
             (-1, 0) => wall_is_open!(north, south),
             // second position is east of first position
@@ -212,16 +221,16 @@ impl FloorMap {
     }
 
     /// Removes the wall between two adjacent cells
-    pub fn open_between(&mut self, (row1, col1): (usize, usize), (row2, col2): (usize, usize)) {
+    pub fn open_between(&mut self, pos1: TilePos, pos2: TilePos) {
         macro_rules! open {
             ($wall1:ident, $wall2:ident) => {
                 {
-                    self[row1][col1].as_mut().expect("Cannot open a wall to an empty tile").walls.$wall1 = Wall::Open;
-                    self[row2][col2].as_mut().expect("Cannot open a wall to an empty tile").walls.$wall2 = Wall::Open;
+                    self.get_mut(pos1).expect("Cannot open a wall to an empty tile").walls.$wall1 = Wall::Open;
+                    self.get_mut(pos2).expect("Cannot open a wall to an empty tile").walls.$wall2 = Wall::Open;
                 }
             };
         }
-        match (row2 as isize - row1 as isize, col2 as isize - col1 as isize) {
+        match pos2.difference(pos1) {
             // second position is north of first position
             (-1, 0) => open!(north, south),
             // second position is east of first position
@@ -235,17 +244,17 @@ impl FloorMap {
     }
 
     /// Adds a wall between two adjacent cells
-    pub fn close_between(&mut self, (row1, col1): (usize, usize), (row2, col2): (usize, usize)) {
+    pub fn close_between(&mut self, pos1: TilePos, pos2: TilePos) {
         macro_rules! close {
             ($wall1:ident, $wall2:ident) => {
                 {
                     // Note that walls aren't allowed to be open when there is no tile on the other side
-                    self[row1][col1].as_mut().expect("Cannot close a wall to an empty tile").walls.$wall1 = Wall::Closed;
-                    self[row2][col2].as_mut().expect("Cannot close a wall to an empty tile").walls.$wall2 = Wall::Closed;
+                    self.get_mut(pos1).expect("Cannot close a wall to an empty tile").walls.$wall1 = Wall::Closed;
+                    self.get_mut(pos2).expect("Cannot close a wall to an empty tile").walls.$wall2 = Wall::Closed;
                 }
             };
         }
-        match (row2 as isize - row1 as isize, col2 as isize - col1 as isize) {
+        match pos2.difference(pos1) {
             // second position is north of first position
             (-1, 0) => close!(north, south),
             // second position is east of first position
@@ -258,9 +267,15 @@ impl FloorMap {
         }
     }
 
+    /// Returns an iterator over the positions of all tiles contained within this map
+    pub fn tile_positions(&self) -> impl Iterator<Item=TilePos> {
+        let cols = self.cols_len();
+        (0..self.rows_len()).flat_map(move |row| (0..cols).map(move |col| TilePos {row, col}))
+    }
+
     /// Returns an iterator of tile positions adjacent to the given tile in the four cardinal
     /// directions. Only returns valid cell positions.
-    pub fn adjacent_positions(&self, (row, col): (usize, usize)) -> impl Iterator<Item=(usize, usize)> + '_ {
+    pub fn adjacent_positions(&self, TilePos {row, col}: TilePos) -> impl Iterator<Item=TilePos> + '_ {
         [(-1, 0), (0, -1), (1, 0), (0, 1)].into_iter().filter_map(move |(row_offset, col_offset)| {
             let row = row as isize + row_offset;
             let col = col as isize + col_offset;
@@ -268,30 +283,30 @@ impl FloorMap {
             if row < 0 || row >= self.rows_len() as isize || col < 0 || col >= self.cols_len() as isize {
                 None
             } else {
-                Some((row as usize, col as usize))
+                Some(TilePos {row: row as usize, col: col as usize})
             }
         })
     }
 
     /// Returns an iterator of adjacent passages that do not have a wall between them and the
     /// given position.
-    pub fn adjacent_open_passages(&self, (row, col): (usize, usize)) -> impl Iterator<Item=(usize, usize)> + '_ {
-        self.adjacent_positions((row, col))
-            .filter(move |&pt| self.is_passageway(pt) && self.is_open_between((row, col), pt))
+    pub fn adjacent_open_passages(&self, pos: TilePos) -> impl Iterator<Item=TilePos> + '_ {
+        self.adjacent_positions(pos)
+            .filter(move |&pt| self.is_passageway(pt) && self.is_open_between(pos, pt))
     }
 
     /// Executes a depth-first search starting from a given tile
     ///
-    /// Takes a closure that is given the next (usize, usize) node to be processed and its
+    /// Takes a closure that is given the next position "node" to be processed and its
     /// adjacents. The closure should return the adjacents that you want it to keep searching.
     ///
-    /// Returns the (usize, usize) positions that were visited
-    pub fn depth_first_search_mut<F>(&mut self, (row, col): (usize, usize), mut next_adjacents: F) -> HashSet<(usize, usize)>
-        where F: FnMut(&mut Self, (usize, usize), Vec<(usize, usize)>) -> Vec<(usize, usize)> {
+    /// Returns the positions that were visited
+    pub fn depth_first_search_mut<F>(&mut self, start: TilePos, mut next_adjacents: F) -> HashSet<TilePos>
+        where F: FnMut(&mut Self, TilePos, Vec<TilePos>) -> Vec<TilePos> {
 
         let mut seen = HashSet::new();
         let mut open = VecDeque::new();
-        open.push_front((row, col));
+        open.push_front(start);
 
         while let Some(node) = open.pop_front() {
             if seen.contains(&node) {

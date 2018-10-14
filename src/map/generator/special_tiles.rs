@@ -35,28 +35,21 @@ impl MapGenerator {
         for (i, (room_id, room)) in rooms.into_iter().take(nrooms).enumerate() {
             loop {
                 // Pick a random point on one of the edges of the room
-                let (row, col) = if rng.gen() {
-                    // Random horizontal edge
-                    (
-                        room.y() + *rng.choose(&[0, room.height()-1]).unwrap(),
-                        room.x() + rng.gen_range(0, room.width()),
-                    )
+                let pos = if rng.gen() {
+                    room.random_horizontal_edge_tile(rng)
                 } else {
-                    (
-                        room.y() + rng.gen_range(0, room.height()),
-                        room.x() + *rng.choose(&[0, room.width()-1]).unwrap(),
-                    )
+                    room.random_vertical_edge_tile(rng)
                 };
 
-                assert!(map.is_room_id((row, col), room_id),
+                assert!(map.is_room_id(pos, room_id),
                     "bug: picked a tile that was not in the room it was supposed to be");
 
                 // Don't put anything beside a doorway
-                if map.adjacent_open_passages((row, col)).next().is_some() {
+                if map.adjacent_open_passages(pos).next().is_some() {
                     continue;
                 }
 
-                let tile = map[row][col].as_mut().expect("bug: did not choose a valid room tile");
+                let tile = map.get_mut(pos).expect("bug: did not choose a valid room tile");
                 if tile.has_object() {
                     continue;
                 }

@@ -7,20 +7,18 @@ use map::*;
 
 impl MapGenerator {
     pub(in super) fn fill_passages(&self, rng: &mut StdRng, map: &mut FloorMap) {
-        for row_i in 0..self.rows {
-            for col_i in 0..self.cols {
-                if map.is_empty((row_i, col_i)) {
-                    self.generate_maze(rng, map, (row_i, col_i));
-                }
+        for pos in map.tile_positions() {
+            if map.is_empty(pos) {
+                self.generate_maze(rng, map, pos);
             }
         }
     }
 
-    fn generate_maze(&self, rng: &mut StdRng, map: &mut FloorMap, (row_i, col_i): (usize, usize)) {
+    fn generate_maze(&self, rng: &mut StdRng, map: &mut FloorMap, pos: TilePos) {
         assert_eq!(self.passage_size, 1, "only a passage_size of 1 is supported for now");
 
         let mut parent_map = HashMap::new();
-        let seen = map.depth_first_search_mut((row_i, col_i), |map, node, adjacents| {
+        let seen = map.depth_first_search_mut(pos, |map, node, adjacents| {
             let mut adjacents: Vec<_> = adjacents.into_iter()
                 .filter(|&pt| map.is_empty(pt))
                 .collect();
@@ -51,23 +49,16 @@ impl MapGenerator {
             let mut doors = self.doors;
             while doors > 0 {
                 // Pick a random point on one of the edges of the room
-                let (row, col) = if rng.gen() {
-                    // Random horizontal edge
-                    (
-                        room.y() + *rng.choose(&[0, room.height()-1]).unwrap(),
-                        room.x() + rng.gen_range(0, room.width()),
-                    )
+                let pos = if rng.gen() {
+                    room.random_horizontal_edge_tile(rng)
                 } else {
-                    (
-                        room.y() + rng.gen_range(0, room.height()),
-                        room.x() + *rng.choose(&[0, room.width()-1]).unwrap(),
-                    )
+                    room.random_vertical_edge_tile(rng)
                 };
 
-                debug_assert!(map.is_room_id((row, col), room_id),
+                debug_assert!(map.is_room_id(pos, room_id),
                     "bug: tried to connect a passage to a room with the wrong ID");
 
-                let adjacents: Vec<_> = map.adjacent_positions((row, col))
+                let adjacents: Vec<_> = map.adjacent_positions(pos)
                     .filter(|&pt| map.is_passageway(pt))
                     .collect();
                 let passage = match rng.choose(&adjacents) {
@@ -77,7 +68,7 @@ impl MapGenerator {
                 };
 
                 // Already opened this tile
-                if map.is_open_between((row, col), passage) {
+                if map.is_open_between(pos, passage) {
                     continue;
                 }
 
@@ -92,34 +83,30 @@ impl MapGenerator {
                     // would be good to improve this to be a more sophisticated check--taking
                     // taking corners into account properly. (TODO)
 
-                    // Search the horizontal edge
-                    if (0..room.width()).any(|col| map.adjacent_open_passages((row, room.x() + col)).next().is_some()) {
-                        continue;
-                    }
-                    // Search the vertical edge
-                    if (0..room.height()).any(|row| map.adjacent_open_passages((room.y() + row, col)).next().is_some()) {
+                    // Scan horizontally and vertically in the same row and column for this
+                    // position to see if there are any open passages
+                    let mut same_row_col = room.row_positions(pos.row).chain(room.col_positions(pos.col));
+                    if same_row_col.any(|pos| map.adjacent_open_passages(pos).next().is_some()) {
                         continue;
                     }
                 }
 
-                map.open_between((row, col), passage);
+                map.open_between(pos, passage);
                 doors -= 1;
             }
         }
     }
 
     pub(in super) fn reduce_dead_ends(&self, map: &mut FloorMap) {
-        for row_i in 0..self.rows {
-            for col_i in 0..self.cols {
-                if map.is_dead_end((row_i, col_i)) {
-                    self.reduce_dead_ends_search(map, (row_i, col_i));
-                }
+        for pos in map.tile_positions() {
+            if map.is_dead_end(pos) {
+                self.reduce_dead_ends_search(map, pos);
             }
         }
     }
 
-    fn reduce_dead_ends_search(&self, map: &mut FloorMap, (row_i, col_i): (usize, usize)) {
-        map.depth_first_search_mut((row_i, col_i), |map, node, adjacents| {
+    fn reduce_dead_ends_search(&self, map: &mut FloorMap, pos: TilePos) {
+        map.depth_first_search_mut(pos, |map, node, adjacents| {
             map.remove_passageway(node);
 
             adjacents.into_iter().filter(|&pt| map.is_dead_end(pt)).collect()
