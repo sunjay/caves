@@ -7,6 +7,14 @@ use sdl2::rect::Rect;
 
 use texture_manager::TextureId;
 
+/// An entity that is unable to move until the given duration has elapsed
+#[derive(Debug, Default, Component)]
+#[storage(HashMapStorage)]
+pub struct Wait {
+    pub duration: usize, // frames
+    pub frames_elapsed: usize, // frames
+}
+
 /// Renders a sprite from a surface (spritesheet image).
 ///
 /// The sprite is rendered with the region centered on the entity's Position
@@ -27,6 +35,7 @@ pub struct Sprite {
 }
 
 impl Sprite {
+    /// Updates this sprite from the sprite contained within the given frame
     pub fn update_from_frame(&mut self, frame: &Frame) {
         *self = frame.sprite.clone();
     }
