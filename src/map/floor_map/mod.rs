@@ -292,30 +292,13 @@ impl FloorMap {
     /// Returns an iterator of tile positions adjacent to the given tile in the four cardinal
     /// directions. Only returns valid cell positions.
     pub fn adjacent_positions(&self, TilePos {row, col}: TilePos) -> impl Iterator<Item=TilePos> {
-        let rows = self.rows_len();
-        let cols = self.cols_len();
+        let rows = self.rows_len() as isize;
+        let cols = self.cols_len() as isize;
         [(-1, 0), (0, -1), (1, 0), (0, 1)].into_iter().filter_map(move |(row_offset, col_offset)| {
             let row = row as isize + row_offset;
             let col = col as isize + col_offset;
 
-            if row < 0 || row >= rows as isize || col < 0 || col >= cols as isize {
-                None
-            } else {
-                Some(TilePos {row: row as usize, col: col as usize})
-            }
-        })
-    }
-
-    /// Returns an iterator of tile positions one tile (gap) away from the given tile in the four
-    /// cardinal directions. Only returns valid cell positions.
-    pub fn gap_adjacent_positions(&self, TilePos {row, col}: TilePos) -> impl Iterator<Item=TilePos> {
-        let rows = self.rows_len();
-        let cols = self.cols_len();
-        [(-2, 0), (0, -2), (2, 0), (0, 2)].into_iter().filter_map(move |(row_offset, col_offset)| {
-            let row = row as isize + row_offset;
-            let col = col as isize + col_offset;
-
-            if row < 0 || row >= rows as isize || col < 0 || col >= cols as isize {
+            if row < 0 || row >= rows || col < 0 || col >= cols {
                 None
             } else {
                 Some(TilePos {row: row as usize, col: col as usize})
