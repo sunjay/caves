@@ -29,7 +29,6 @@ use std::{
 use sdl2::{
     event::Event,
     keyboard::Keycode,
-    //rect::Rect,
 };
 use specs::{
     Builder,
@@ -67,8 +66,8 @@ fn main() -> Result<(), String> {
         cols: 40,
         tile_size: 16,
         rooms: 6,
-        room_cols: (5, 15).into(),
         room_rows: (5, 12).into(),
+        room_cols: (5, 15).into(),
         passage_size: 1,
         treasure_chamber_width: 7,
         treasure_chamber_height: 9,

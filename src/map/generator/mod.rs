@@ -40,10 +40,10 @@ pub struct MapGenerator {
     pub tile_size: u32,
     /// The number of rooms to generate on each floor
     pub rooms: usize,
-    /// The minimum and maximum width (in tiles) of a room
-    pub room_cols: Bounds<usize>,
     /// The minimum and maximum height (in tiles) of a room
     pub room_rows: Bounds<usize>,
+    /// The minimum and maximum width (in tiles) of a room
+    pub room_cols: Bounds<usize>,
     /// The width of the passageways between rooms
     /// Used to calculate the minimum distance between adjacent rooms
     pub passage_size: usize,

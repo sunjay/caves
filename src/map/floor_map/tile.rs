@@ -3,7 +3,7 @@ use std::fmt;
 use sdl2::rect::Rect;
 
 use texture_manager::TextureId;
-use super::{RoomId, TileWalls};
+use super::RoomId;
 
 #[derive(Debug, Clone)]
 pub enum Item {
@@ -12,12 +12,16 @@ pub enum Item {
     Potion {stength: u32},
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum TileType {
     /// Tiles that can be used to pass between rooms
     Passageway,
     /// Tiles that are part of a given room
     Room(RoomId),
+    /// Tiles that are part of a room, but cannot be traversed
+    Wall(RoomId),
+    /// A doorway that may be locked
+    Door {room_id: RoomId, locked: bool},
 }
 
 /// The object or item placed at a particular tile
@@ -82,7 +86,6 @@ pub struct Tile {
     pub ttype: TileType,
     pub sprite: SpriteImage,
     pub object: Option<TileObject>,
-    pub walls: TileWalls,
 }
 
 impl Tile {
@@ -91,8 +94,36 @@ impl Tile {
             ttype,
             sprite,
             object: Default::default(),
-            walls: Default::default(),
         }
+    }
+
+    pub fn is_wall(&self) -> bool {
+        match self.ttype {
+            TileType::Wall(_) => true,
+            _ => false,
+        }
+    }
+
+    /// Turns this tile into a Wall tile. Tile must be a Room tile already. Will panic if this is
+    /// not the case.
+    pub fn become_wall(&mut self) {
+        let room_id = match self.ttype {
+            TileType::Room(id) => id,
+            _ => unreachable!("bug: attempt to turn a non-room tile into a wall"),
+        };
+
+        self.ttype = TileType::Wall(room_id);
+    }
+
+    /// Turns this tile into a Room tile. Tile must be a Wall tile already. Will panic if this is
+    /// not the case.
+    pub fn wall_to_room(&mut self) {
+        let room_id = match self.ttype {
+            TileType::Wall(id) => id,
+            _ => unreachable!("bug: attempt to turn a non-wall tile into a room"),
+        };
+
+        self.ttype = TileType::Room(room_id);
     }
 
     pub fn has_object(&self) -> bool {

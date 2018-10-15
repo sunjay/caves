@@ -1,4 +1,5 @@
 use std::cmp;
+use std::iter::once;
 
 use sdl2::rect::Rect;
 use rand::Rng;
@@ -142,6 +143,22 @@ impl Room {
     /// Returns an iterator over the positions of a single column of this room
     pub fn col_positions(self, col: usize) -> impl Iterator<Item=TilePos> {
         (self.top_left.row..self.top_left.row+self.dim.rows).map(move |row| TilePos {row, col})
+    }
+
+    /// Returns an iterator over all positions on an edge of the room
+    pub fn edge_positions(self) -> impl Iterator<Item=TilePos> {
+        let tl = self.top_left();
+        let br = self.bottom_right();
+        let GridSize {rows, cols} = self.dimensions();
+
+        (tl.col..tl.col+cols).flat_map(
+            // Top and bottom edges
+            move |col| once(TilePos {row: tl.row, col}).chain(once(TilePos {row: br.row, col}))
+        // This code needs to avoid accidentally returning each corner twice
+        ).chain((tl.row+1..tl.row+rows-1).flat_map(
+            // Left and right edges
+            move |row| once(TilePos {row, col: tl.col}).chain(once(TilePos {row, col: br.col}))
+        ))
     }
 
     /// Returns a random tile position on one of the horizontal (top or bottom) edges
