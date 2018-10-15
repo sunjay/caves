@@ -1,11 +1,9 @@
 mod tile;
-mod tile_walls;
 mod room;
 mod tile_pos;
 mod grid_size;
 
 pub use self::tile::*;
-pub use self::tile_walls::*;
 pub use self::room::*;
 pub use self::tile_pos::*;
 pub use self::grid_size::*;
@@ -63,20 +61,27 @@ impl fmt::Debug for FloorMap {
             for tile in row {
                 match tile {
                     None => write!(f, "{}", " ".on_black())?,
-                    Some(tile) => match tile.ttype {
-                        TileType::Passageway => {
-                            write!(f, "{}", tile.walls.to_string().on_green())?
-                        },
-                        TileType::Room(id) => {
-                            let object = tile.object.as_ref().map(|o| o.to_string().bold())
-                                .unwrap_or_else(|| tile.walls.to_string().black());
-                            write!(f, "{}", match self.room(id).room_type() {
-                                RoomType::Normal => object.on_blue(),
-                                RoomType::Challenge => object.on_red(),
-                                RoomType::PlayerStart => object.on_bright_blue(),
-                                RoomType::TreasureChamber => object.on_yellow(),
-                            })?
-                        },
+                    Some(tile) => {
+                        let object = tile.object.as_ref().map(|o| o.to_string())
+                            .unwrap_or_else(|| " ".to_string());
+                        use self::TileType::*;
+                        write!(f, "{}", match tile.ttype {
+                            Passageway => {
+                                object.on_green()
+                            },
+                            Room(id) | Wall(id) | Door {room_id: id, ..} => {
+                                let object = if tile.is_wall() {
+                                    "\u{25a2}".to_string()
+                                } else { object };
+
+                                match self.room(id).room_type() {
+                                    RoomType::Normal => object.on_blue(),
+                                    RoomType::Challenge => object.on_red(),
+                                    RoomType::PlayerStart => object.on_bright_blue(),
+                                    RoomType::TreasureChamber => object.on_yellow(),
+                                }
+                            },
+                        })?;
                     },
                 }
             }
@@ -143,9 +148,25 @@ impl FloorMap {
     }
 
     /// Returns true if the given position is a dead end passageway
-    pub fn is_dead_end(&self, TilePos {row, col}: TilePos) -> bool {
-        match self[row][col] {
-            Some(Tile {ttype: TileType::Passageway, ref walls, ..}) => walls.is_dead_end(),
+    /// A dead end is defined as a passage that is surrounded by 3 wall tiles and 1 passage tile.
+    pub fn is_dead_end(&self, pos: TilePos) -> bool {
+        match self.get(pos) {
+            Some(Tile {ttype: TileType::Passageway, ..}) => {
+                let mut walls = 0;
+                let mut passageways = 0;
+                for pos in self.adjacent_positions(pos) {
+                    match self.get(pos) {
+                        Some(tile) => match tile.ttype {
+                            TileType::Wall(_) => walls += 1,
+                            TileType::Passageway => passageways += 1,
+                            _ => {}
+                        },
+                        None => {},
+                    }
+                }
+
+                walls == 3 && passageways == 1
+            },
             _ => false,
         }
     }
@@ -184,101 +205,46 @@ impl FloorMap {
         *tile = Some(Tile::with_type(ttype, sprite));
     }
 
-    /// Removes a passageway from the map and closes any walls around it
+    /// Removes a passageway tile from the map, leaving an empty tile (no tile) in its place
     pub(in super) fn remove_passageway(&mut self, pos: TilePos) {
         assert!(self.is_passageway(pos), "bug: remove passageway can only be called on a passageway tile");
-        let adjacents: Vec<_> = self.adjacent_positions(pos)
-            .filter(|&pt| !self.is_empty(pt))
-            .collect();
-
-        for adj in adjacents {
-            self.close_between(pos, adj);
-        }
 
         self[pos.row][pos.col] = None;
     }
 
-    /// Returns true if there is NO wall between two adjacent cells
+    /// Returns true if there is NO wall between two cells. The cells must have exactly one tile
+    /// between them in one of the cardinal directions
     pub fn is_open_between(&self, pos1: TilePos, pos2: TilePos) -> bool {
-        macro_rules! wall_is_open {
-            ($dir:ident, $opp:ident) => {
-                match (self.get(pos1), self.get(pos2)) {
-                    (Some(tile1), Some(tile2)) => {
-                        debug_assert_eq!(tile1.walls.$dir, tile2.walls.$opp);
-                        tile1.walls.$dir == Wall::Open
-                    },
-                    // If either option is an empty tile then by definition we cannot have an open
-                    // wall since that would lead nowhere!
-                    (Some(tile1), None) => {
-                        debug_assert_eq!(tile1.walls.$dir, Wall::Closed);
-                        false
-                    },
-                    (None, Some(tile2)) => {
-                        debug_assert_eq!(tile2.walls.$opp, Wall::Closed);
-                        false
-                    },
-                    (None, None) => false,
-                }
-            };
-        }
-        match pos2.difference(pos1) {
+        let potential_wall = match pos2.difference(pos1) {
             // second position is north of first position
-            (-1, 0) => wall_is_open!(north, south),
+            (-2, 0) => self.adjacent_north(pos1),
             // second position is east of first position
-            (0, 1) => wall_is_open!(east, west),
+            (0, 2) => self.adjacent_east(pos1),
             // second position is south of first position
-            (1, 0) => wall_is_open!(south, north),
+            (2, 0) => self.adjacent_south(pos1),
             // second position is west of first position
-            (0, -1) => wall_is_open!(west, east),
-            _ => unreachable!("bug: attempt to check if two non-adjacent cells have an open wall between them"),
-        }
+            (0, -2) => self.adjacent_west(pos1),
+            _ => unreachable!("bug: attempt to check if two cells have no wall between them when cells did not have exactly one cell between them"),
+        };
+
+        self.get(potential_wall).map(|tile| tile.is_wall()).unwrap_or(false)
     }
 
-    /// Removes the wall between two adjacent cells
+    /// Removes the wall between two cells and replaces it with a Room tile of the same RoomId.
+    /// The tile between the two given positions must be a Room tile.
     pub fn open_between(&mut self, pos1: TilePos, pos2: TilePos) {
-        macro_rules! open {
-            ($wall1:ident, $wall2:ident) => {
-                {
-                    self.get_mut(pos1).expect("Cannot open a wall to an empty tile").walls.$wall1 = Wall::Open;
-                    self.get_mut(pos2).expect("Cannot open a wall to an empty tile").walls.$wall2 = Wall::Open;
-                }
-            };
-        }
-        match pos2.difference(pos1) {
+        let tile = match pos2.difference(pos1) {
             // second position is north of first position
-            (-1, 0) => open!(north, south),
+            (-2, 0) => self.adjacent_north(pos1),
             // second position is east of first position
-            (0, 1) => open!(east, west),
+            (0, 2) => self.adjacent_east(pos1),
             // second position is south of first position
-            (1, 0) => open!(south, north),
+            (2, 0) => self.adjacent_south(pos1),
             // second position is west of first position
-            (0, -1) => open!(west, east),
-            _ => unreachable!("bug: attempt to open a wall between two non-adjacent cells"),
-        }
-    }
-
-    /// Adds a wall between two adjacent cells
-    pub fn close_between(&mut self, pos1: TilePos, pos2: TilePos) {
-        macro_rules! close {
-            ($wall1:ident, $wall2:ident) => {
-                {
-                    // Note that walls aren't allowed to be open when there is no tile on the other side
-                    self.get_mut(pos1).expect("Cannot close a wall to an empty tile").walls.$wall1 = Wall::Closed;
-                    self.get_mut(pos2).expect("Cannot close a wall to an empty tile").walls.$wall2 = Wall::Closed;
-                }
-            };
-        }
-        match pos2.difference(pos1) {
-            // second position is north of first position
-            (-1, 0) => close!(north, south),
-            // second position is east of first position
-            (0, 1) => close!(east, west),
-            // second position is south of first position
-            (1, 0) => close!(south, north),
-            // second position is west of first position
-            (0, -1) => close!(west, east),
-            _ => unreachable!("bug: attempt to open a wall between two non-adjacent cells"),
-        }
+            (0, -2) => self.adjacent_west(pos1),
+            _ => unreachable!("bug: attempt to open a wall between two cells when the cells did not have exactly one cell between them"),
+        };
+        self.get_mut(tile).expect("bug: attempt to turn an empty tile into a room tile").wall_to_room();
     }
 
     /// Returns an iterator over the positions of all tiles contained within this map
@@ -287,14 +253,69 @@ impl FloorMap {
         (0..self.rows_len()).flat_map(move |row| (0..cols).map(move |col| TilePos {row, col}))
     }
 
+    /// Returns the position one tile north of the given position, panics if already at the northmost tile
+    pub fn adjacent_north(&self, TilePos {row, col}: TilePos) -> TilePos {
+        assert_ne!(row, 0, "bug: already at northmost position");
+        TilePos {
+            row: row - 1,
+            col,
+        }
+    }
+
+    /// Returns the position one tile east of the given position, panics if already at the eastmost tile
+    pub fn adjacent_east(&self, TilePos {row, col}: TilePos) -> TilePos {
+        assert!(col < self.cols_len() - 1, "bug: already at eastmost position");
+        TilePos {
+            row,
+            col: col + 1,
+        }
+    }
+
+    /// Returns the position one tile south of the given position, panics if already at the southmost tile
+    pub fn adjacent_south(&self, TilePos {row, col}: TilePos) -> TilePos {
+        assert!(row < self.rows_len() - 1, "bug: already at southmost position");
+        TilePos {
+            row: row + 1,
+            col,
+        }
+    }
+
+    /// Returns the position one tile west of the given position, panics if already at the westmost tile
+    pub fn adjacent_west(&self, TilePos {row, col}: TilePos) -> TilePos {
+        assert_ne!(col, 0, "bug: already at westmost position");
+        TilePos {
+            row,
+            col: col - 1,
+        }
+    }
+
     /// Returns an iterator of tile positions adjacent to the given tile in the four cardinal
     /// directions. Only returns valid cell positions.
-    pub fn adjacent_positions(&self, TilePos {row, col}: TilePos) -> impl Iterator<Item=TilePos> + '_ {
+    pub fn adjacent_positions(&self, TilePos {row, col}: TilePos) -> impl Iterator<Item=TilePos> {
+        let rows = self.rows_len();
+        let cols = self.cols_len();
         [(-1, 0), (0, -1), (1, 0), (0, 1)].into_iter().filter_map(move |(row_offset, col_offset)| {
             let row = row as isize + row_offset;
             let col = col as isize + col_offset;
 
-            if row < 0 || row >= self.rows_len() as isize || col < 0 || col >= self.cols_len() as isize {
+            if row < 0 || row >= rows as isize || col < 0 || col >= cols as isize {
+                None
+            } else {
+                Some(TilePos {row: row as usize, col: col as usize})
+            }
+        })
+    }
+
+    /// Returns an iterator of tile positions one tile (gap) away from the given tile in the four
+    /// cardinal directions. Only returns valid cell positions.
+    pub fn gap_adjacent_positions(&self, TilePos {row, col}: TilePos) -> impl Iterator<Item=TilePos> {
+        let rows = self.rows_len();
+        let cols = self.cols_len();
+        [(-2, 0), (0, -2), (2, 0), (0, 2)].into_iter().filter_map(move |(row_offset, col_offset)| {
+            let row = row as isize + row_offset;
+            let col = col as isize + col_offset;
+
+            if row < 0 || row >= rows as isize || col < 0 || col >= cols as isize {
                 None
             } else {
                 Some(TilePos {row: row as usize, col: col as usize})
