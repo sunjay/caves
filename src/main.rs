@@ -1,3 +1,5 @@
+#![deny(unused_must_use)]
+
 #[macro_use]
 extern crate specs_derive;
 #[macro_use]
@@ -59,6 +61,7 @@ fn main() -> Result<(), String> {
 
     let map = MapGenerator {
         texture_id: textures.create_png_texture("assets/dungeon.png")?,
+        attempts: 1000,
         levels: 10,
         rows: 40,
         cols: 40,

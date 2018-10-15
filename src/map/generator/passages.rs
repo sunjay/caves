@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use rand::{StdRng, Rng};
 
-use super::MapGenerator;
+use super::{MapGenerator, RanOutOfAttempts};
 use map::*;
 
 impl MapGenerator {
@@ -44,10 +44,21 @@ impl MapGenerator {
     }
 
     /// Connects each room to a passage
-    pub(in super) fn connect_rooms_passages(&self, rng: &mut StdRng, map: &mut FloorMap, rooms: &[(RoomId, Room)]) {
+    pub(in super) fn connect_rooms_passages(
+        &self,
+        rng: &mut StdRng,
+        map: &mut FloorMap,
+        rooms: &[(RoomId, Room)],
+    ) -> Result<(), RanOutOfAttempts> {
         for &(room_id, ref room) in rooms {
             let mut doors = self.doors;
+            let mut attempts = 0;
             while doors > 0 {
+                if attempts > self.attempts {
+                    return Err(RanOutOfAttempts);
+                }
+                attempts += 1;
+
                 // Pick a random point on one of the edges of the room
                 let pos = if rng.gen() {
                     room.random_horizontal_edge_tile(rng)
@@ -95,6 +106,8 @@ impl MapGenerator {
                 doors -= 1;
             }
         }
+
+        Ok(())
     }
 
     pub(in super) fn reduce_dead_ends(&self, map: &mut FloorMap) {
