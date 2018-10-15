@@ -46,6 +46,8 @@ pub struct MapGenerator {
     pub room_cols: Bounds<usize>,
     /// The width of the passageways between rooms
     /// Used to calculate the minimum distance between adjacent rooms
+    /// Must be at least 3 in order to fit walls at the sides of the passages. Must divide evenly
+    /// into both rows and cols in order to guarantee coverage.
     pub passage_size: usize,
     /// The width of the treasure chamber on the last level
     pub treasure_chamber_width: usize,
@@ -100,9 +102,10 @@ impl MapGenerator {
         );
 
         // Levels are generated in "phases". The following calls runs each of those in succession.
+        self.fill_passages(rng, &mut map, default_passage_sprite);
+        println!("{:?}", map);
         let rooms = self.generate_rooms(rng, &mut map, level)?;
         self.place_rooms(&mut map, &rooms, default_room_sprite);
-        self.fill_passages(rng, &mut map, default_passage_sprite);
         self.connect_rooms_passages(rng, &mut map, &rooms)?;
         self.reduce_dead_ends(&mut map);
         if level < self.levels {
