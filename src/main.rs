@@ -68,7 +68,7 @@ fn main() -> Result<(), String> {
         rooms: 6,
         room_rows: (5, 12).into(),
         room_cols: (5, 15).into(),
-        passage_size: 1,
+        passage_size: 4,
         treasure_chamber_width: 7,
         treasure_chamber_height: 9,
         doors: 2,

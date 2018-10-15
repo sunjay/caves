@@ -5,6 +5,47 @@ use rand::{StdRng, Rng};
 use super::{MapGenerator, RanOutOfAttempts};
 use map::*;
 
+/// Imagine this as a "row" of tiles facing the direction given by `direction`.
+/// For size: 4, and each direction: North, East, South, West, you get:
+///
+///  ^           x-->         xxxx             x
+///  |           x               |             x
+///  xxxx        x               v             x
+///              x                          <--x
+///
+/// The arrow starts at where "position" references
+///
+/// In addition to moving forward in its current direction, this cursor can take 4 possible turns:
+///
+/// * "left-in" - anchored on its left tile, turns 90 degrees clockwise
+/// * "left-out" - anchored on its left tile, turns 90 degrees counterclockwise
+/// * "right-in" - anchored on its right tile, turns 90 degrees counterclockwise
+/// * "right-out" - anchored on its right tile, turns 90 degrees clockwise
+///
+/// For either left turn, the direction of the cursor turns by 90 degrees counterclockwise.
+/// For either right turn, the direction of the cursor turns by 90 degrees clockwise.
+///
+/// Each "-in" turn requires that there be `size` rows of tiles behind the cursor.
+/// Each "-out" turn will fill `size` rows of tiles ahead the cursor.
+#[derive(Debug, Clone)]
+struct PathCursor {
+    /// The position of the relative "left" of this. This left is relative to whatever direction
+    /// it is facing.
+    position: TilePos,
+    /// The number of tiles in the cursor starting at the position and perpendicular to direction
+    size: usize,
+    /// The direction that the cursor is planning to go in
+    direction: Direction,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Direction {
+    North,
+    East,
+    South,
+    West,
+}
+
 impl MapGenerator {
     pub(in super) fn fill_passages(&self, rng: &mut StdRng, map: &mut FloorMap, sprite: SpriteImage) {
         for pos in map.tile_positions() {
