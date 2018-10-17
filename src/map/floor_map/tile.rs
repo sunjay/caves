@@ -16,6 +16,8 @@ pub enum Item {
 pub enum TileType {
     /// Tiles that can be used to pass between rooms
     Passageway,
+    /// Tiles that are part of a passage way, but cannot be traversed
+    PassagewayWall,
     /// Tiles that are part of a given room
     Room(RoomId),
     /// Tiles that are part of a room, but cannot be traversed
@@ -99,7 +101,7 @@ impl Tile {
 
     pub fn is_wall(&self) -> bool {
         match self.ttype {
-            TileType::Wall(_) => true,
+            TileType::Wall(_) | TileType::PassagewayWall => true,
             _ => false,
         }
     }
@@ -107,23 +109,21 @@ impl Tile {
     /// Turns this tile into a Wall tile. Tile must be a Room tile already. Will panic if this is
     /// not the case.
     pub fn become_wall(&mut self) {
-        let room_id = match self.ttype {
-            TileType::Room(id) => id,
-            _ => unreachable!("bug: attempt to turn a non-room tile into a wall"),
-        };
-
-        self.ttype = TileType::Wall(room_id);
+        match self.ttype {
+            TileType::Room(id) => self.ttype = TileType::Wall(id),
+            TileType::Passageway => self.ttype = TileType::PassagewayWall,
+            _ => unreachable!("bug: attempt to turn a non-room/passageway tile into a wall"),
+        }
     }
 
     /// Turns this tile into a Room tile. Tile must be a Wall tile already. Will panic if this is
     /// not the case.
     pub fn wall_to_room(&mut self) {
-        let room_id = match self.ttype {
-            TileType::Wall(id) => id,
+        match self.ttype {
+            TileType::Wall(id) => self.ttype = TileType::Room(id),
+            TileType::PassagewayWall => self.ttype = TileType::Passageway,
             _ => unreachable!("bug: attempt to turn a non-wall tile into a room"),
-        };
-
-        self.ttype = TileType::Room(room_id);
+        }
     }
 
     pub fn has_object(&self) -> bool {

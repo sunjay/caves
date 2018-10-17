@@ -1,67 +1,29 @@
+use std::iter::once;
 use std::collections::HashMap;
 
 use rand::{StdRng, Rng};
 
-use super::{MapGenerator, RanOutOfAttempts};
+use super::{MapGenerator, RanOutOfAttempts, TileGrid};
 use map::*;
 
-/// Imagine this as a "row" of tiles facing the direction given by `direction`.
-/// For size: 4, and each direction: North, East, South, West, you get:
-///
-///  ^           x-->         xxxx             x
-///  |           x               |             x
-///  xxxx        x               v             x
-///              x                          <--x
-///
-/// The arrow starts at where "position" references
-///
-/// In addition to moving forward in its current direction, this cursor can take 4 possible turns:
-///
-/// * "left-in" - anchored on its left tile, turns 90 degrees clockwise
-/// * "left-out" - anchored on its left tile, turns 90 degrees counterclockwise
-/// * "right-in" - anchored on its right tile, turns 90 degrees counterclockwise
-/// * "right-out" - anchored on its right tile, turns 90 degrees clockwise
-///
-/// For either left turn, the direction of the cursor turns by 90 degrees counterclockwise.
-/// For either right turn, the direction of the cursor turns by 90 degrees clockwise.
-///
-/// Each "-in" turn requires that there be `size` rows of tiles behind the cursor.
-/// Each "-out" turn will fill `size` rows of tiles ahead the cursor.
-#[derive(Debug, Clone)]
-struct PathCursor {
-    /// The position of the relative "left" of this. This left is relative to whatever direction
-    /// it is facing.
-    position: TilePos,
-    /// The number of tiles in the cursor starting at the position and perpendicular to direction
-    size: usize,
-    /// The direction that the cursor is planning to go in
-    direction: Direction,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Direction {
-    North,
-    East,
-    South,
-    West,
-}
-
 impl MapGenerator {
+    /// Fills the map with passages by generating a maze, treating each "cell" as a
+    /// (passage_size)x(passage_size) square.
     pub(in super) fn fill_passages(&self, rng: &mut StdRng, map: &mut FloorMap, sprite: SpriteImage) {
-        for pos in map.tile_positions() {
-            if map.is_empty(pos) {
-                self.generate_maze(rng, map, pos, sprite);
-            }
-        }
-    }
+        assert!(self.rows % self.passage_size == 0 && self.cols % self.passage_size == 0,
+            "Passage size must divide evenly into the number of rows and cols in order for maze to cover entire map");
 
-    fn generate_maze(&self, rng: &mut StdRng, map: &mut FloorMap, pos: TilePos, sprite: SpriteImage) {
-        assert_eq!(self.passage_size, 1, "only a passage_size of 1 is supported for now");
+        let passage_grid_size = GridSize {
+            rows: map.grid().rows_len() / self.passage_size,
+            cols: map.grid().cols_len() / self.passage_size,
+        };
+        let mut passages = TileGrid::new(passage_grid_size);
 
+        let start = TilePos {row: 0, col: 0};
         let mut parent_map = HashMap::new();
-        let seen = map.depth_first_search_mut(pos, |map, node, adjacents| {
+        let seen = passages.depth_first_search_mut(start, |grid, node, adjacents| {
             let mut adjacents: Vec<_> = adjacents.into_iter()
-                .filter(|&pt| map.is_empty(pt))
+                .filter(|&pt| grid.is_empty(pt))
                 .collect();
             rng.shuffle(&mut adjacents);
 
@@ -73,14 +35,56 @@ impl MapGenerator {
         });
 
         // Insert new passageway tiles
+        let grid = map.grid_mut();
+        let passage_tile_size = GridSize::square(self.passage_size);
         for pt in seen {
-            map.place_tile(pt, TileType::Passageway, sprite);
+            // Transform the pt to be on the original grid
+            let pt = pt * self.passage_size;
+            for pos in grid.tile_positions_within(pt, passage_tile_size) {
+                grid.place_tile(pos, TileType::Passageway, sprite);
+            }
+
+            // Turn edges into walls
+            for pos in grid.tile_positions_on_edges(pt, passage_tile_size) {
+                grid.get_mut(pos)
+                    .expect("bug: should have just placed passage tile here")
+                    .become_wall();
+            }
         }
 
-        // Place all of the found paths onto the tiles
+        // Connect the paths together
         for (pt1, pt2) in parent_map {
-            // Open the walls between these two cells
-            map.open_between(pt1, pt2);
+            // Transform the pt to be on the original grid
+            let pt1 = pt1 * self.passage_size;
+            let pt2 = pt2 * self.passage_size;
+
+            // There will be two sets of walls to open:
+            //
+            //    oooooooooooooooo
+            //    o pt1  oo pt2  o
+            //    oooooooooooooooo
+            //
+            // The two walls between pt1 and pt2 need to be removed.
+
+            // NOTE: There is a lot of room for optimization in the following code since it does a
+            // ton of redundant work.
+
+            // Take the inner, non-wall portion of each passage square and try to open a wall
+            // between it and the nearest tile in the other passage that is exactly
+            // `wall_thickness` distance away
+            let wall_thickness = 1;
+            for (pt1, pt2) in once((pt1, pt2)).chain(once((pt2, pt1))) {
+                let inner_top_left = pt1 + GridSize::square(wall_thickness);
+                let inner_dimensions = passage_tile_size - GridSize::square(wall_thickness * 2);
+                for inner1 in grid.tile_positions_within(inner_top_left, inner_dimensions) {
+                    for pos2 in grid.tile_positions_within(pt2, passage_tile_size) {
+                        // Want the other tile to be one tile after a wall
+                        if inner1.is_orthogonal_difference(pos2, wall_thickness + 1) {
+                            grid.open_between(inner1, pos2);
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -91,6 +95,7 @@ impl MapGenerator {
         map: &mut FloorMap,
         rooms: &[(RoomId, Room)],
     ) -> Result<(), RanOutOfAttempts> {
+        let grid = map.grid_mut();
         for &(room_id, ref room) in rooms {
             let mut doors = self.doors;
             let mut attempts = 0;
@@ -107,11 +112,11 @@ impl MapGenerator {
                     room.random_vertical_edge_tile(rng)
                 };
 
-                debug_assert!(map.is_room_id(pos, room_id),
+                debug_assert!(grid.is_room_id(pos, room_id),
                     "bug: tried to connect a passage to a room with the wrong ID");
 
-                let adjacents: Vec<_> = map.adjacent_positions(pos)
-                    .filter(|&pt| map.is_passageway(pt))
+                let adjacents: Vec<_> = grid.adjacent_positions(pos)
+                    .filter(|&pt| grid.is_passageway(pt))
                     .collect();
                 let passage = match rng.choose(&adjacents) {
                     Some(&pt) => pt,
@@ -120,7 +125,7 @@ impl MapGenerator {
                 };
 
                 // Already opened this tile
-                if map.is_open_between(pos, passage) {
+                if grid.is_open_between(pos, passage) {
                     continue;
                 }
 
@@ -138,12 +143,12 @@ impl MapGenerator {
                     // Scan horizontally and vertically in the same row and column for this
                     // position to see if there are any open passages
                     let mut same_row_col = room.row_positions(pos.row).chain(room.col_positions(pos.col));
-                    if same_row_col.any(|pos| map.adjacent_open_passages(pos).next().is_some()) {
+                    if same_row_col.any(|pos| grid.adjacent_open_passages(pos).next().is_some()) {
                         continue;
                     }
                 }
 
-                map.open_between(pos, passage);
+                grid.open_between(pos, passage);
                 doors -= 1;
             }
         }
@@ -152,18 +157,19 @@ impl MapGenerator {
     }
 
     pub(in super) fn reduce_dead_ends(&self, map: &mut FloorMap) {
-        for pos in map.tile_positions() {
-            if map.is_dead_end(pos) {
-                self.reduce_dead_ends_search(map, pos);
+        let grid = map.grid_mut();
+        for pos in grid.tile_positions() {
+            if grid.is_dead_end(pos) {
+                self.reduce_dead_ends_search(grid, pos);
             }
         }
     }
 
-    fn reduce_dead_ends_search(&self, map: &mut FloorMap, pos: TilePos) {
-        map.depth_first_search_mut(pos, |map, node, adjacents| {
-            map.remove_passageway(node);
+    fn reduce_dead_ends_search(&self, map: &mut TileGrid, pos: TilePos) {
+        map.depth_first_search_mut(pos, |grid, node, adjacents| {
+            grid.remove_passageway(node);
 
-            adjacents.into_iter().filter(|&pt| map.is_dead_end(pt)).collect()
+            adjacents.into_iter().filter(|&pt| grid.is_dead_end(pt)).collect()
         });
     }
 }

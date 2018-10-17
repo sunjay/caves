@@ -1,4 +1,6 @@
-use std::ops::{Add, Sub};
+use std::ops::{Add, Sub, Mul};
+
+use sdl2::rect::Point;
 
 use super::GridSize;
 
@@ -10,16 +12,38 @@ pub struct TilePos {
 }
 
 impl TilePos {
+    /// Converts the given tile position to its point in world coordinates
+    /// Maps columns to x-coordinates and rows to y-coordinates
+    pub fn to_point(self, tile_size: i32) -> Point {
+        // It's easy to mix up the ordering in this Point constructor, so this method
+        // helps avoid that in some cases.
+        Point::new(
+            self.col as i32 * tile_size,
+            self.row as i32 * tile_size,
+        )
+    }
+
     /// Returns the difference between this position and another position
     /// This is like self - other, but negative values are allowed
     /// Returns (delta row, delta col)
-    pub fn difference(self, other: TilePos) -> (isize, isize) {
+    pub fn difference(self, other: Self) -> (isize, isize) {
         (self.row as isize - other.row as isize, self.col as isize - other.col as isize)
+    }
+
+    /// Returns true if the orthogonal (horizontal or vertical) difference between this position and
+    /// another position is equal to the given value.
+    /// Always returns false if the two positions are not orthogonal.
+    pub fn is_orthogonal_difference(self, other: Self, distance: usize) -> bool {
+        match self.difference(other) {
+            (a, 0) | (0, a) => a.abs() == distance as isize,
+            // Not orthogonal
+            _ => false,
+        }
     }
 }
 
 impl Add<GridSize> for TilePos {
-    type Output = TilePos;
+    type Output = Self;
 
     fn add(self, other: GridSize) -> Self {
         Self {
@@ -30,12 +54,23 @@ impl Add<GridSize> for TilePos {
 }
 
 impl Sub<GridSize> for TilePos {
-    type Output = TilePos;
+    type Output = Self;
 
     fn sub(self, other: GridSize) -> Self {
         Self {
             row: self.row - other.rows,
             col: self.col - other.cols,
+        }
+    }
+}
+
+impl Mul<usize> for TilePos {
+    type Output = Self;
+
+    fn mul(self, factor: usize) -> Self {
+        Self {
+            row: self.row * factor,
+            col: self.col * factor,
         }
     }
 }
