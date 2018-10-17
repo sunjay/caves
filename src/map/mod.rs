@@ -25,12 +25,7 @@ impl GameMap {
 
     /// Returns the level boundary in pixels of the current map
     pub fn level_boundary(&self) -> Rect {
-        Rect::new(
-            0,
-            0,
-            self.map_size.cols as u32 * self.tile_size,
-            self.map_size.rows as u32 * self.tile_size,
-        )
+        self.map_size.to_rect(self.tile_size)
     }
 
     /// Return the point that represents the start of the game. This point is always on the
@@ -42,9 +37,6 @@ impl GameMap {
             .expect("bug: should have had a player start level on the first level");
         // Start in the middle of the level start room
         let center = level_start_room.center_tile();
-        Point::new(
-            center.col as i32 * self.tile_size as i32,
-            center.row as i32 * self.tile_size as i32,
-        )
+        center.to_point(self.tile_size as i32)
     }
 }

@@ -42,6 +42,8 @@ impl MapGenerator {
             "Not enough rooms to place next/prev level tiles");
         rng.shuffle(&mut rooms);
 
+        let grid = map.grid_mut();
+
         'place_loop: for (i, (room_id, room)) in rooms.into_iter().take(nrooms).enumerate() {
             for _ in 0..self.attempts {
                 // Pick a random point on one of the edges of the room
@@ -51,15 +53,15 @@ impl MapGenerator {
                     room.random_vertical_edge_tile(rng)
                 };
 
-                assert!(map.is_room_id(pos, room_id),
+                assert!(grid.is_room_id(pos, room_id),
                     "bug: picked a tile that was not in the room it was supposed to be");
 
                 // Don't put anything beside a doorway
-                if map.adjacent_open_passages(pos).next().is_some() {
+                if grid.adjacent_open_passages(pos).next().is_some() {
                     continue;
                 }
 
-                let tile = map.get_mut(pos).expect("bug: did not choose a valid room tile");
+                let tile = grid.get_mut(pos).expect("bug: did not choose a valid room tile");
                 if tile.has_object() {
                     continue;
                 }

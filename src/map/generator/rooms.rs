@@ -111,11 +111,13 @@ impl MapGenerator {
     ) {
         for &(room_id, ref room) in rooms {
             for pos in room.tile_positions() {
-                map.place_tile(pos, TileType::Room(room_id), sprite);
+                map.grid_mut().place_tile(pos, TileType::Room(room_id), sprite);
             }
 
             for edge in room.edge_positions() {
-                map.get_mut(edge).expect("bug: should have just placed room tile here").become_wall();
+                map.grid_mut().get_mut(edge)
+                    .expect("bug: should have just placed room tile here")
+                    .become_wall();
             }
         }
     }
