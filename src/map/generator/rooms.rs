@@ -107,17 +107,18 @@ impl MapGenerator {
         &self,
         map: &mut FloorMap,
         rooms: &[(RoomId, Room)],
-        sprite: SpriteImage,
+        room_sprite: SpriteImage,
+        wall_sprite: SpriteImage,
     ) {
         for &(room_id, ref room) in rooms {
             for pos in room.tile_positions() {
-                map.grid_mut().place_tile(pos, TileType::Room(room_id), sprite);
+                map.grid_mut().place_tile(pos, TileType::Room(room_id), room_sprite);
             }
 
             for edge in room.edge_positions() {
                 map.grid_mut().get_mut(edge)
                     .expect("bug: should have just placed room tile here")
-                    .become_wall();
+                    .become_wall(wall_sprite);
             }
         }
     }

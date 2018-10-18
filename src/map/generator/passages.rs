@@ -9,7 +9,9 @@ use map::*;
 impl MapGenerator {
     /// Fills the map with passages by generating a maze, treating each "cell" as a
     /// (passage_size)x(passage_size) square.
-    pub(in super) fn fill_passages(&self, rng: &mut StdRng, map: &mut FloorMap, sprite: SpriteImage) {
+    pub(in super) fn fill_passages(&self, rng: &mut StdRng, map: &mut FloorMap,
+        passage_sprite: SpriteImage, passage_wall_sprite: SpriteImage) {
+
         assert!(self.rows % self.passage_size == 0 && self.cols % self.passage_size == 0,
             "Passage size must divide evenly into the number of rows and cols in order for maze to cover entire map");
 
@@ -41,14 +43,14 @@ impl MapGenerator {
             // Transform the pt to be on the original grid
             let pt = pt * self.passage_size;
             for pos in grid.tile_positions_within(pt, passage_tile_size) {
-                grid.place_tile(pos, TileType::Passageway, sprite);
+                grid.place_tile(pos, TileType::Passageway, passage_sprite);
             }
 
             // Turn edges into walls
             for pos in grid.tile_positions_on_edges(pt, passage_tile_size) {
                 grid.get_mut(pos)
                     .expect("bug: should have just placed passage tile here")
-                    .become_wall();
+                    .become_wall(passage_wall_sprite);
             }
         }
 
@@ -80,7 +82,7 @@ impl MapGenerator {
                     for pos2 in grid.tile_positions_within(pt2, passage_tile_size) {
                         // Want the other tile to be one tile after a wall
                         if inner1.is_orthogonal_difference(pos2, wall_thickness + 1) {
-                            grid.open_between(inner1, pos2);
+                            grid.open_between(inner1, pos2, passage_sprite);
                         }
                     }
                 }
@@ -94,6 +96,7 @@ impl MapGenerator {
         rng: &mut StdRng,
         map: &mut FloorMap,
         rooms: &[(RoomId, Room)],
+        room_sprite: SpriteImage,
     ) -> Result<(), RanOutOfAttempts> {
         let grid = map.grid_mut();
         for &(room_id, ref room) in rooms {
@@ -148,7 +151,7 @@ impl MapGenerator {
                     }
                 }
 
-                grid.open_between(pos, passage);
+                grid.open_between(pos, passage, room_sprite);
                 doors -= 1;
             }
         }
@@ -156,18 +159,18 @@ impl MapGenerator {
         Ok(())
     }
 
-    pub(in super) fn reduce_dead_ends(&self, map: &mut FloorMap) {
+    pub(in super) fn reduce_dead_ends(&self, map: &mut FloorMap, wall_sprite: SpriteImage) {
         let grid = map.grid_mut();
         for pos in grid.tile_positions() {
             if grid.is_dead_end(pos) {
-                self.reduce_dead_ends_search(grid, pos);
+                self.reduce_dead_ends_search(grid, pos, wall_sprite);
             }
         }
     }
 
-    fn reduce_dead_ends_search(&self, map: &mut TileGrid, pos: TilePos) {
+    fn reduce_dead_ends_search(&self, map: &mut TileGrid, pos: TilePos, wall_sprite: SpriteImage) {
         map.depth_first_search_mut(pos, |grid, node, adjacents| {
-            grid.remove_passageway(node);
+            grid.remove_passageway(node, wall_sprite);
 
             adjacents.into_iter().filter(|&pt| grid.is_dead_end(pt)).collect()
         });

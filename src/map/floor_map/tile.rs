@@ -108,22 +108,26 @@ impl Tile {
 
     /// Turns this tile into a Wall tile. Tile must be a Room tile already. Will panic if this is
     /// not the case.
-    pub fn become_wall(&mut self) {
+    pub fn become_wall(&mut self, wall_sprite: SpriteImage) {
         match self.ttype {
             TileType::Room(id) => self.ttype = TileType::Wall(id),
             TileType::Passageway => self.ttype = TileType::PassagewayWall,
             _ => unreachable!("bug: attempt to turn a non-room/passageway tile into a wall"),
         }
+
+        self.sprite = wall_sprite;
     }
 
     /// Turns this tile into a Room tile. Tile must be a Wall tile already. Will panic if this is
     /// not the case.
-    pub fn wall_to_room(&mut self) {
+    pub fn wall_to_room(&mut self, room_sprite: SpriteImage) {
         match self.ttype {
             TileType::Wall(id) => self.ttype = TileType::Room(id),
             TileType::PassagewayWall => self.ttype = TileType::Passageway,
             _ => unreachable!("bug: attempt to turn a non-wall tile into a room"),
         }
+
+        self.sprite = room_sprite;
     }
 
     pub fn has_object(&self) -> bool {
