@@ -38,7 +38,6 @@ impl GameMap {
         // Start in the middle of the level start room
         let center = level_start_room.center_tile();
         // Start in the middle of the tile
-        let tile_center = Point::new(self.tile_size as i32/2, self.tile_size as i32/2);
-        center.to_point(self.tile_size as i32) + tile_center
+        center.to_point(self.tile_size as i32).offset(self.tile_size as i32/2, self.tile_size as i32/2)
     }
 }
