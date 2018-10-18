@@ -116,8 +116,9 @@ impl MapGenerator {
                     (false, room.random_vertical_edge_tile(rng))
                 };
 
-                // Check if we've already opened this up
-                if grid.is_room(pos, room_id) {
+                // Check if we've already opened this up or if this tile is a corner
+                // Do not allow corners to be opened
+                if grid.is_room(pos, room_id) || room.is_corner(pos) {
                     continue;
                 }
 
@@ -139,12 +140,6 @@ impl MapGenerator {
                     }
                 }
 
-                // Do not allow corners to be opened
-                // Corners have no adjacent room tiles
-                if grid.adjacent_positions(pos).find(|&pt| grid.is_room(pt, room_id)).is_none() {
-                    continue;
-                }
-
                 let adjacents: Vec<_> = grid.adjacent_positions(pos)
                     .filter(|&pt| grid.is_passageway_wall(pt) || grid.is_passageway(pt))
                     .collect();
@@ -153,9 +148,7 @@ impl MapGenerator {
                     // Room is against the edge of the map
                     0 => continue,
                     1 => adjacents[0],
-                    // Rooms with passages right beside them may not have been caught by the
-                    // earlier check. They will be caught by this one though.
-                    _ => continue,
+                    _ => unreachable!("bug: earlier check should have detected corners"),
                 };
 
                 // Finally, make sure that opening this passage doesn't lead off the edge

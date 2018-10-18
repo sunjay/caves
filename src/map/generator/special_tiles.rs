@@ -11,7 +11,7 @@ impl MapGenerator {
         rooms: &[(RoomId, Room)],
     ) -> Result<(), RanOutOfAttempts> {
         let valid_rooms = rooms.iter().filter(|(_, r)| r.can_contain_to_next_level()).cloned();
-        self.place_object_in_rooms(rng, map, valid_rooms, self.next_prev_tiles, TileObject::ToNextLevel)
+        self.place_object_in_rooms_edges(rng, map, valid_rooms, self.next_prev_tiles, TileObject::ToNextLevel)
     }
 
     pub(in super) fn place_to_prev_level_tiles(
@@ -21,11 +21,11 @@ impl MapGenerator {
         rooms: &[(RoomId, Room)],
     ) -> Result<(), RanOutOfAttempts> {
         let valid_rooms = rooms.iter().filter(|(_, r)| r.can_contain_to_prev_level()).cloned();
-        self.place_object_in_rooms(rng, map, valid_rooms, self.next_prev_tiles, TileObject::ToPrevLevel)
+        self.place_object_in_rooms_edges(rng, map, valid_rooms, self.next_prev_tiles, TileObject::ToPrevLevel)
     }
 
     /// Places `nrooms` copies of a TileObject into `nrooms` randomly choosen rooms from rooms
-    fn place_object_in_rooms<OB>(
+    fn place_object_in_rooms_edges<OB>(
         &self,
         rng: &mut StdRng,
         map: &mut FloorMap,
@@ -53,21 +53,34 @@ impl MapGenerator {
                     room.random_vertical_edge_tile(rng)
                 };
 
-                assert!(grid.is_room(pos, room_id),
-                    "bug: picked a tile that was not in the room it was supposed to be");
-
-                // Don't put anything beside a doorway
-                //TODO: This is not correct. Needs to check for passage surrounded by walls or something.
-                if grid.adjacent_positions(pos).find(|&p| grid.is_room(p, room_id)).is_some() {
+                // Cannot place adjacent to corner
+                if room.is_corner(pos) {
                     continue;
                 }
 
-                let tile = grid.get_mut(pos).expect("bug: did not choose a valid room tile");
-                if tile.has_object() {
+                // Must be a room wall with a single room tile adjacent to it. The adjacent room
+                // tile will be where the object will go. This check also ensures that no item
+                // gets placed beside a doorway.
+                if !grid.is_room_wall(pos, room_id) {
                     continue;
                 }
+                let adj_room_tiles: Vec<_> = grid.adjacent_positions(pos)
+                    .filter(|&pt| grid.is_room(pt, room_id))
+                    .collect();
+                let inner_room_tile = match &adj_room_tiles[..] {
+                    // A corner without an entrance next to it
+                    [] => unreachable!("bug: earlier check should have detected corners"),
+                    [adj] => *adj,
+                    // A wall with an entrance adjacent to it. Technically this is fine for item
+                    // placement. A future enhancement would be to filter out the entrance and just
+                    // use the other adjacent that isn't an entrance (TODO).
+                    _ => continue,
+                };
 
-                tile.place_object(object(i));
+                assert!(grid.is_room(inner_room_tile, room_id),
+                    "bug: can only place items within rooms on room tiles");
+
+                grid.get_mut(inner_room_tile).unwrap().place_object(object(i));
                 // Can not simply break because then we would return RanOutOfAttempts
                 continue 'place_loop;
             }
