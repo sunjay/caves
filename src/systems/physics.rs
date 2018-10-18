@@ -6,7 +6,7 @@ use resources::FramesElapsed;
 use map::GameMap;
 
 // Collisions within this threshold will be *ignored*
-const COLLISION_THRESHOLD: i32 = 2;
+const COLLISION_THRESHOLD: i32 = 1;
 
 #[derive(SystemData)]
 pub struct PhysicsData<'a> {
@@ -29,8 +29,11 @@ impl<'a> System<'a> for Physics {
         let PhysicsData {entities, frames, map, movements, bounding_boxes, mut positions, mut waits, updater} = data;
         let FramesElapsed(frames_elapsed) = *frames;
         let level = map.current_level_map();
+        let tile_size = level.tile_size();
 
-        for (entity, Position(pos), &Movement {direction, speed}) in (&entities, &mut positions, &movements).join() {
+        // Need to do updating in a separate phase so we can read all the positions in a nested loop
+        let mut updates = Vec::new();
+        for (entity, Position(pos), &Movement {direction, speed}) in (&entities, &positions, &movements).join() {
             // Entity is waiting for a given amount of frames to elapse
             if let Some(wait) = waits.get_mut(entity) {
                 wait.frames_elapsed += frames_elapsed;
@@ -42,28 +45,66 @@ impl<'a> System<'a> for Physics {
 
             let frames_elapsed = frames_elapsed as i32;
 
-            // Try to move as much as possible
-            for speed in (0..=speed).rev() {
-                let next_pos = *pos + direction.to_vector() * speed * frames_elapsed;
+            let mut next_pos = *pos + direction.to_vector() * speed * frames_elapsed;
 
-                if let Some(&BoundingBox {width, height}) = bounding_boxes.get(entity) {
-                    let bounds = Rect::from_center(
-                        next_pos,
-                        width - COLLISION_THRESHOLD as u32 * 2,
-                        height - COLLISION_THRESHOLD as u32 * 2,
-                    );
+            if let Some(&BoundingBox {width, height}) = bounding_boxes.get(entity) {
+                let bounds = Rect::from_center(
+                    next_pos,
+                    width - COLLISION_THRESHOLD as u32 * 2,
+                    height - COLLISION_THRESHOLD as u32 * 2,
+                );
 
-                    // Check if any of the tiles that this new position intersects with is a wall
-                    if level.tiles_within(bounds).find(|(_, pt, _)| level.grid().is_wall(*pt)).is_some() {
-                        // Do not update the position
-                        continue;
+                // Check if any of the tiles that this new position intersects with is a wall
+                let collisions = level.tiles_within(bounds)
+                    .filter(|(_, pt, _)| level.grid().is_wall(*pt))
+                    .filter_map(|(pos, _, _)| {
+                        let tile_rect = Rect::new(pos.x(), pos.y(), tile_size, tile_size);
+                        bounds.intersection(tile_rect)
+                    });
+                let collisions = collisions.chain((&entities, &positions, &bounding_boxes).join()
+                    .filter_map(|(other, &Position(other_pos), &BoundingBox {width, height})| {
+                        // Do not collide with self
+                        if entity == other { return None; }
+
+                        let other_bounds = Rect::from_center(
+                            other_pos,
+                            width - COLLISION_THRESHOLD as u32 * 2,
+                            height - COLLISION_THRESHOLD as u32 * 2,
+                        );
+                        bounds.intersection(other_bounds)
+                    }));
+
+                for rect in collisions {
+                    // Do the minimal amount of movement in one direction to avoid the collision
+                    if rect.width() <= rect.height() {
+                        let adjustment = rect.width() as i32;
+                        if rect.x() >= next_pos.x() {
+                            // Collision was on the right so we'll move left
+                            next_pos = next_pos.offset(-adjustment, 0);
+                        } else {
+                            // Collision was on the left so we'll move right
+                            next_pos = next_pos.offset(adjustment, 0);
+                        }
+                    } else {
+                        let adjustment = rect.height() as i32;
+                        if rect.y() >= next_pos.y() {
+                            // Collision was below so we'll move up
+                            next_pos = next_pos.offset(0, -adjustment);
+                        } else {
+                            // Collision was above so we'll move down
+                            next_pos = next_pos.offset(0, adjustment);
+                        }
                     }
-
-                    //TODO: Check for collisions with other bounding boxes
                 }
 
-                *pos = next_pos;
+                updates.push((entity, next_pos));
                 break;
+            }
+        }
+
+        for (entity, next_pos) in updates {
+            if let Some(Position(pos)) = positions.get_mut(entity) {
+                *pos = next_pos;
             }
         }
     }

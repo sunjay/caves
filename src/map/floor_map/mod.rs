@@ -94,6 +94,11 @@ impl FloorMap {
         self.empty_tile_sprite
     }
 
+    /// Returns the size of each tile on this map
+    pub fn tile_size(&self) -> u32 {
+        self.tile_size
+    }
+
     pub fn rooms(&self) -> impl Iterator<Item=&Room> {
         self.rooms.iter()
     }
