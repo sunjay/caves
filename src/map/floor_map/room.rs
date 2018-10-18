@@ -54,6 +54,22 @@ impl Room {
         self.top_left
     }
 
+    /// Returns the position of the top right tile within this room
+    pub fn top_right(self) -> TilePos {
+        TilePos {
+            row: self.top_left.row,
+            col: self.top_left.col + self.dim.cols - 1,
+        }
+    }
+
+    /// Returns the position of the bottom left tile within this room
+    pub fn bottom_left(self) -> TilePos {
+        TilePos {
+            row: self.top_left.row + self.dim.rows - 1,
+            col: self.top_left.col,
+        }
+    }
+
     /// Returns the position of the bottom right tile within this room
     pub fn bottom_right(self) -> TilePos {
         TilePos {
@@ -63,7 +79,7 @@ impl Room {
     }
 
     /// Returns true if a room is allowed to contain ToNextLevel tiles
-    pub fn can_contain_to_next_level(self) -> bool {
+    pub fn can_contain_to_next_level(&self) -> bool {
         match self.rtype {
             RoomType::Normal => true,
             _ => false,
@@ -81,6 +97,14 @@ impl Room {
             RoomType::PlayerStart => true,
             _ => false,
         }
+    }
+
+    /// Returns true if the given position is a corner of this room
+    pub fn is_corner(&self, pos: TilePos) -> bool {
+        pos == self.top_left() ||
+        pos == self.top_right() ||
+        pos == self.bottom_left() ||
+        pos == self.bottom_right()
     }
 
     /// Returns the tile position that is considered the "center" of this room.
