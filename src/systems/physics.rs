@@ -55,44 +55,57 @@ impl<'a> System<'a> for Physics {
                 );
 
                 // Check if any of the tiles that this new position intersects with is a wall
-                let collisions = level.tiles_within(bounds)
+                let potential_collisions = level.tiles_within(bounds)
                     .filter(|(_, pt, _)| level.grid().is_wall(*pt))
-                    .filter_map(|(pos, _, _)| {
-                        let tile_rect = Rect::new(pos.x(), pos.y(), tile_size, tile_size);
-                        bounds.intersection(tile_rect)
-                    });
-                let collisions = collisions.chain((&entities, &positions, &bounding_boxes).join()
+                    .map(|(pos, _, _)| Rect::new(
+                        pos.x(),
+                        pos.y(),
+                        tile_size,
+                        tile_size,
+                    ));
+                let potential_collisions = potential_collisions
+                    .chain((&entities, &positions, &bounding_boxes).join()
                     .filter_map(|(other, &Position(other_pos), &BoundingBox {width, height})| {
                         // Do not collide with self
                         if entity == other { return None; }
 
-                        let other_bounds = Rect::from_center(
+                        Some(Rect::from_center(
                             other_pos,
                             width - COLLISION_THRESHOLD as u32 * 2,
                             height - COLLISION_THRESHOLD as u32 * 2,
-                        );
-                        bounds.intersection(other_bounds)
+                        ))
                     }));
 
-                for rect in collisions {
-                    // Do the minimal amount of movement in one direction to avoid the collision
-                    if rect.width() <= rect.height() {
-                        let adjustment = rect.width() as i32;
-                        if rect.x() >= next_pos.x() {
-                            // Collision was on the right so we'll move left
-                            next_pos = next_pos.offset(-adjustment, 0);
+                for other in potential_collisions {
+                    // Recalculate bounds based on latest next_pos
+                    let bounds = Rect::from_center(
+                        next_pos,
+                        width - COLLISION_THRESHOLD as u32 * 2,
+                        height - COLLISION_THRESHOLD as u32 * 2,
+                    );
+                    // Need to recalculate the intersection since we are changing next_pos in each
+                    // iteration. Would not make sense to precalculate the intersections when
+                    // collecting potential collision objects
+                    if let Some(rect) = bounds.intersection(other) {
+                        // Do the minimal amount of movement in one direction to avoid the collision
+                        if rect.width() <= rect.height() {
+                            let adjustment = rect.width() as i32;
+                            if rect.x() >= next_pos.x() {
+                                // Collision was on the right so we'll move left
+                                next_pos = next_pos.offset(-adjustment, 0);
+                            } else {
+                                // Collision was on the left so we'll move right
+                                next_pos = next_pos.offset(adjustment, 0);
+                            }
                         } else {
-                            // Collision was on the left so we'll move right
-                            next_pos = next_pos.offset(adjustment, 0);
-                        }
-                    } else {
-                        let adjustment = rect.height() as i32;
-                        if rect.y() >= next_pos.y() {
-                            // Collision was below so we'll move up
-                            next_pos = next_pos.offset(0, -adjustment);
-                        } else {
-                            // Collision was above so we'll move down
-                            next_pos = next_pos.offset(0, adjustment);
+                            let adjustment = rect.height() as i32;
+                            if rect.y() >= next_pos.y() {
+                                // Collision was below so we'll move up
+                                next_pos = next_pos.offset(0, -adjustment);
+                            } else {
+                                // Collision was above so we'll move down
+                                next_pos = next_pos.offset(0, adjustment);
+                            }
                         }
                     }
                 }
