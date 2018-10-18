@@ -37,6 +37,8 @@ impl GameMap {
             .expect("bug: should have had a player start level on the first level");
         // Start in the middle of the level start room
         let center = level_start_room.center_tile();
-        center.to_point(self.tile_size as i32)
+        // Start in the middle of the tile
+        let tile_center = Point::new(self.tile_size as i32/2, self.tile_size as i32/2);
+        center.to_point(self.tile_size as i32) + tile_center
     }
 }
