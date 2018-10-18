@@ -53,11 +53,12 @@ impl MapGenerator {
                     room.random_vertical_edge_tile(rng)
                 };
 
-                assert!(grid.is_room_id(pos, room_id),
+                assert!(grid.is_room(pos, room_id),
                     "bug: picked a tile that was not in the room it was supposed to be");
 
                 // Don't put anything beside a doorway
-                if grid.adjacent_open_passages(pos).next().is_some() {
+                //TODO: This is not correct. Needs to check for passage surrounded by walls or something.
+                if grid.adjacent_positions(pos).find(|&p| grid.is_room(p, room_id)).is_some() {
                     continue;
                 }
 

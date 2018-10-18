@@ -97,6 +97,7 @@ impl MapGenerator {
         map: &mut FloorMap,
         rooms: &[(RoomId, Room)],
         room_sprite: SpriteImage,
+        passage_sprite: SpriteImage,
     ) -> Result<(), RanOutOfAttempts> {
         let grid = map.grid_mut();
         for &(room_id, ref room) in rooms {
@@ -109,49 +110,64 @@ impl MapGenerator {
                 attempts += 1;
 
                 // Pick a random point on one of the edges of the room
-                let pos = if rng.gen() {
-                    room.random_horizontal_edge_tile(rng)
+                let (is_horizontal, pos) = if rng.gen() {
+                    (true, room.random_horizontal_edge_tile(rng))
                 } else {
-                    room.random_vertical_edge_tile(rng)
+                    (false, room.random_vertical_edge_tile(rng))
                 };
 
-                debug_assert!(grid.is_room_id(pos, room_id),
-                    "bug: tried to connect a passage to a room with the wrong ID");
-
-                let adjacents: Vec<_> = grid.adjacent_positions(pos)
-                    .filter(|&pt| grid.is_passageway(pt))
-                    .collect();
-                let passage = match rng.choose(&adjacents) {
-                    Some(&pt) => pt,
-                    // No passage adjacent to this room tile
-                    None => continue,
-                };
-
-                // Already opened this tile
-                if grid.is_open_between(pos, passage) {
+                // Check if we've already opened this up
+                if grid.is_room(pos, room_id) {
                     continue;
                 }
 
+                debug_assert!(grid.is_room_wall(pos, room_id),
+                    "bug: expected tile to be a room wall with the same ID");
+
                 // This check only works if we are putting fewer than 4 doors on every room
                 if self.doors <= 4 {
-                    // Don't put a door on the same side of a room as another door
-
-                    // We check for this by scanning horizontally and vertically for any other
-                    // doors. This approach isn't perfect though because in addition to disallowing
-                    // what we don't want, it also makes it impossible for two doors to be directly
-                    // opposite from each other in a room. This is not great, so in the future it
-                    // would be good to improve this to be a more sophisticated check--taking
-                    // taking corners into account properly. (TODO)
+                    // Check: Don't put a door on the same side of a room as another door
 
                     // Scan horizontally and vertically in the same row and column for this
                     // position to see if there are any open passages
-                    let mut same_row_col = room.row_positions(pos.row).chain(room.col_positions(pos.col));
-                    if same_row_col.any(|pos| grid.adjacent_open_passages(pos).next().is_some()) {
+                    if is_horizontal && room.row_positions(pos.row).any(|pos| grid.is_room(pos, room_id)) {
+                        continue;
+                    }
+
+                    if !is_horizontal && room.col_positions(pos.col).any(|pos| grid.is_room(pos, room_id)) {
                         continue;
                     }
                 }
 
-                grid.open_between(pos, passage, room_sprite);
+                // Do not allow corners to be opened
+                // Corners have no adjacent room tiles
+                if grid.adjacent_positions(pos).find(|&pt| grid.is_room(pt, room_id)).is_none() {
+                    continue;
+                }
+
+                let adjacents: Vec<_> = grid.adjacent_positions(pos)
+                    .filter(|&pt| grid.is_passageway_wall(pt) || grid.is_passageway(pt))
+                    .collect();
+
+                let passage = match adjacents.len() {
+                    // Room is against the edge of the map
+                    0 => continue,
+                    1 => adjacents[0],
+                    // Rooms with passages right beside them may not have been caught by the
+                    // earlier check. They will be caught by this one though.
+                    _ => continue,
+                };
+
+                // Finally, make sure that opening this passage doesn't lead off the edge
+                if grid.is_on_edge(passage) {
+                    continue;
+                }
+
+                // Open up the room wall and the passage wall
+                grid.get_mut(pos).unwrap().wall_to_room(room_sprite);
+                if grid.is_passageway_wall(passage) {
+                    grid.get_mut(passage).unwrap().wall_to_room(passage_sprite);
+                }
                 doors -= 1;
             }
         }

@@ -108,7 +108,7 @@ impl MapGenerator {
         self.fill_passages(rng, &mut map, passage_sprite, passage_wall_sprite);
         let rooms = self.generate_rooms(rng, &mut map, level)?;
         self.place_rooms(&mut map, &rooms, room_sprite, room_wall_sprite);
-        self.connect_rooms_passages(rng, &mut map, &rooms, room_sprite)?;
+        self.connect_rooms_passages(rng, &mut map, &rooms, room_sprite, passage_sprite)?;
         self.reduce_dead_ends(&mut map, room_wall_sprite);
         if level < self.levels {
             self.place_to_next_level_tiles(rng, &mut map, &rooms)?;
