@@ -6,6 +6,7 @@
 mod rooms;
 mod passages;
 mod special_tiles;
+mod validation;
 
 mod bounds;
 pub use self::bounds::*;
@@ -115,6 +116,8 @@ impl MapGenerator {
         if level > 1 {
             self.place_to_prev_level_tiles(rng, &mut map, &rooms)?;
         }
+
+        self.validate_map(&map);
         Ok(map)
     }
 
