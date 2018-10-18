@@ -148,6 +148,15 @@ impl TileGrid {
         }
     }
 
+    /// Returns true if the given position is any kind of wall
+    pub fn is_wall(&self, TilePos {row, col}: TilePos) -> bool {
+        match self[row][col] {
+            Some(Tile {ttype: TileType::Wall(_), ..}) |
+            Some(Tile {ttype: TileType::PassagewayWall, ..}) => true,
+            _ => false,
+        }
+    }
+
     /// Places a tile with the given type at the given location
     ///
     /// Panics if that location was not previously empty

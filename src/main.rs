@@ -100,7 +100,7 @@ fn main() -> Result<(), String> {
         .with(KeyboardControlled)
         .with(CameraFocus)
         .with(Position(character_center))
-        .with(BoundingBox {width: 32, height: 30})
+        .with(BoundingBox {width: 16, height: 16})
         .with(Movement::default())
         .with(Sprite(character_animations.default_sprite()))
         .with(character_animations.default_animation())

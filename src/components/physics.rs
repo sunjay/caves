@@ -20,23 +20,22 @@ pub struct Position(pub Point);
 pub struct Movement {
     /// The most recent direction that the entity was moving in
     pub direction: MovementDirection,
-    /// This is true if the entity should move in the given direction
-    pub is_moving: bool,
+    /// The speed of the entity in px/frame
+    pub speed: i32,
 }
 
 impl Default for Movement {
     fn default() -> Self {
         Self {
             direction: MovementDirection::East,
-            is_moving: false,
+            speed: 0,
         }
     }
 }
 
 impl Movement {
-    pub fn move_in_direction(&mut self, direction: MovementDirection) {
-        self.is_moving = true;
-        self.direction = direction;
+    pub fn is_moving(&self) -> bool {
+        self.speed != 0
     }
 }
 
@@ -50,6 +49,19 @@ pub enum MovementDirection {
     South,
     East,
     West,
+}
+
+impl MovementDirection {
+    /// Returns a Point that represents the unit vector for a given direction
+    pub fn to_vector(self) -> Point {
+        use self::MovementDirection::*;
+        match self {
+            North => Point::new(0, -1),
+            South => Point::new(0, 1),
+            East => Point::new(1, 0),
+            West => Point::new(-1, 0),
+        }
+    }
 }
 
 /// Represents the bounding box centered around an entity's position. BoundingBox alone doesn't

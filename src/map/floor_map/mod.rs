@@ -117,8 +117,8 @@ impl FloorMap {
         &mut self.grid
     }
 
-    /// Returns the sprites of tiles within (or around) the region defined by bounds
-    pub fn sprites_within(&self, bounds: Rect) -> impl Iterator<Item=(Point, SpriteImage)> + '_ {
+    /// Returns the tiles within (or around) the region defined by bounds
+    pub fn tiles_within(&self, bounds: Rect) -> impl Iterator<Item=(Point, TilePos, Option<&Tile>)> + '_ {
         // While the caller is allowed to ask for tiles within a boundary Rect that starts at
         // negative coordinates, the top left of the map is defined as (0, 0). That means that we
         // can at most request tiles up to that top left corner. The calls to `max()` here help
@@ -145,8 +145,14 @@ impl FloorMap {
             GridSize {rows, cols},
         ).map(move |pos| {
             // The position of the tile in world coordinates
-            let world_pos = pos.to_point(self.tile_size as i32);
-            match self.grid().get(pos) {
+            (pos.to_point(self.tile_size as i32), pos, self.grid().get(pos))
+        })
+    }
+
+    /// Returns the sprites of tiles within (or around) the region defined by bounds
+    pub fn sprites_within(&self, bounds: Rect) -> impl Iterator<Item=(Point, SpriteImage)> + '_ {
+        self.tiles_within(bounds).map(move |(world_pos, _, tile)| {
+            match tile {
                 None => (world_pos, self.empty_tile_sprite),
                 Some(tile) => (world_pos, tile.sprite),
             }

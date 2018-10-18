@@ -51,14 +51,14 @@ impl<'a> System<'a> for Animator {
                 continue;
             }
 
-            let &Movement {direction, is_moving} = movement;
+            let direction = movement.direction;
 
             // Don't want to copy the events that occurred but also don't want to deal with the
             // option type
             let actions: Cow<Vec<_>> = action_queue.get(&entity).map(|q| Cow::Borrowed(q)).unwrap_or_default();
 
             // Update the idle counter so we can decide whether to play the idle animation
-            match (is_moving, &actions[..]) {
+            match (movement.is_moving(), &actions[..]) {
                 // We are idle as long as we are not moving and no actions have occurred
                 (false, []) => {
                     manager.idle_counter += frames_elapsed;
@@ -89,7 +89,7 @@ impl<'a> System<'a> for Animator {
 
             // The order of this code is important: movement animations are overridden by actions
 
-            if is_moving {
+            if movement.is_moving() {
                 match direction {
                     North => animation.update_if_different(&manager.move_up),
                     East => animation.update_if_different(&manager.move_right),
