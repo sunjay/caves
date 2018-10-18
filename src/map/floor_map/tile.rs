@@ -130,6 +130,10 @@ impl Tile {
         self.sprite = room_sprite;
     }
 
+    pub fn has_object(&self) -> bool {
+        self.object.is_some()
+    }
+
     pub fn place_object(&mut self, object: TileObject) {
         self.object = Some(object);
     }

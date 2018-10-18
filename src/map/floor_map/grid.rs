@@ -83,6 +83,31 @@ impl TileGrid {
         }
     }
 
+    /// Returns true if the given position is a room entrance
+    /// A room entrance is defined as a room tile that has at least one other room tile on one side
+    /// and exactly one adjacent passageway.
+    pub fn is_room_entrance(&self, pos: TilePos) -> bool {
+        match self.get(pos) {
+            Some(Tile {ttype: TileType::Room(id), ..}) => {
+                let mut room_tiles = 0;
+                let mut passageways = 0;
+                for pos in self.adjacent_positions(pos) {
+                    match self.get(pos) {
+                        Some(tile) => match tile.ttype {
+                            TileType::Room(id2) if id2 == *id => room_tiles += 1,
+                            TileType::Passageway => passageways += 1,
+                            _ => {}
+                        },
+                        None => {},
+                    }
+                }
+
+                room_tiles >= 1 && passageways == 1
+            },
+            _ => false,
+        }
+    }
+
     /// Returns true if the given position is a dead end passageway
     /// A dead end is defined as a passage that is surrounded by 3 wall tiles and 1 passage tile.
     pub fn is_dead_end(&self, pos: TilePos) -> bool {
