@@ -80,7 +80,26 @@ impl MapGenerator {
                 assert!(grid.is_room(inner_room_tile, room_id),
                     "bug: can only place items within rooms on room tiles");
 
-                grid.get_mut(inner_room_tile).unwrap().place_object(object(i));
+                // Make sure the tile we have chosen isn't surrounded by any room entrances
+                // This can still happen even with all of the other checks if we choose x in the
+                // picture below:
+                //
+                //     ooooooxo
+                //     o
+                //     o      o
+                //     oooooooo
+                //
+                // x would pass all of the previous checks but get caught by this one
+                if grid.adjacent_positions(inner_room_tile).find(|&pt| grid.is_room_entrance(pt)).is_some() {
+                    continue;
+                }
+
+                let tile = grid.get_mut(inner_room_tile).expect("bug: expected a tile");
+                if tile.has_object() {
+                    continue;
+                }
+
+                tile.place_object(object(i));
                 // Can not simply break because then we would return RanOutOfAttempts
                 continue 'place_loop;
             }
