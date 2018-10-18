@@ -5,7 +5,7 @@
 // possible (via &self).
 mod rooms;
 mod passages;
-mod special_tiles;
+mod place_items;
 mod validation;
 
 mod bounds;
