@@ -91,8 +91,10 @@ impl MapGenerator {
     }
 
     fn generate_level(&self, rng: &mut StdRng, level: usize) -> Result<FloorMap, RanOutOfAttempts> {
-        let default_room_sprite = self.tile_sprite(0, 0);
-        let default_passage_sprite = self.tile_sprite(5, 0);
+        let room_sprite = self.tile_sprite(0, 0);
+        let room_wall_sprite = self.tile_sprite(8, 0);
+        let passage_sprite = self.tile_sprite(5, 0);
+        let passage_wall_sprite = self.tile_sprite(8, 5);
         let empty_tile_sprite = self.tile_sprite(0, 3);
 
         let mut map = FloorMap::new(
@@ -102,12 +104,11 @@ impl MapGenerator {
         );
 
         // Levels are generated in "phases". The following calls runs each of those in succession.
-        self.fill_passages(rng, &mut map, default_passage_sprite);
-        println!("{:?}", map);
+        self.fill_passages(rng, &mut map, passage_sprite, passage_wall_sprite);
         let rooms = self.generate_rooms(rng, &mut map, level)?;
-        self.place_rooms(&mut map, &rooms, default_room_sprite);
-        self.connect_rooms_passages(rng, &mut map, &rooms)?;
-        self.reduce_dead_ends(&mut map);
+        self.place_rooms(&mut map, &rooms, room_sprite, room_wall_sprite);
+        self.connect_rooms_passages(rng, &mut map, &rooms, room_sprite)?;
+        self.reduce_dead_ends(&mut map, room_wall_sprite);
         if level < self.levels {
             self.place_to_next_level_tiles(rng, &mut map, &rooms)?;
         }

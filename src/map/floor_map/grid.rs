@@ -115,12 +115,12 @@ impl TileGrid {
 
     /// Removes a passageway tile from the map, leaving an empty tile (no tile) in its place
     /// All adjacent passages will become walls.
-    pub(in map) fn remove_passageway(&mut self, pos: TilePos) {
+    pub(in map) fn remove_passageway(&mut self, pos: TilePos, wall_sprite: SpriteImage) {
         assert!(self.is_passageway(pos), "bug: remove passageway can only be called on a passageway tile");
 
         let open_adjacents: Vec<_> = self.adjacent_open_passages(pos).collect();
         for adj in open_adjacents {
-            self.get_mut(adj).unwrap().become_wall();
+            self.get_mut(adj).unwrap().become_wall(wall_sprite);
         }
 
         self[pos.row][pos.col] = None;
@@ -146,7 +146,7 @@ impl TileGrid {
 
     /// Removes the wall between two cells and replaces it with a Room tile of the same RoomId.
     /// The tile between the two given positions must be a Room tile.
-    pub fn open_between(&mut self, pos1: TilePos, pos2: TilePos) {
+    pub fn open_between(&mut self, pos1: TilePos, pos2: TilePos, room_sprite: SpriteImage) {
         let tile = match pos2.difference(pos1) {
             // second position is north of first position
             (-2, 0) => self.adjacent_north(pos1),
@@ -165,7 +165,7 @@ impl TileGrid {
 
             self.get_mut(tile)
                 .expect("bug: attempt to turn an empty tile into a room tile")
-                .wall_to_room();
+                .wall_to_room(room_sprite);
         }
     }
 
