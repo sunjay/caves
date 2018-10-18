@@ -62,10 +62,23 @@ impl TileGrid {
         self[row][col].is_none()
     }
 
+    /// Returns true if the given position is on the edge of this grid
+    pub fn is_on_edge(&self, TilePos {row, col}: TilePos) -> bool {
+        row == 0 || col == 0 || row == self.rows_len() - 1 || col == self.rows_len() - 1
+    }
+
     /// Returns true if the given position is part of the room with the given ID
-    pub fn is_room_id(&self, TilePos {row, col}: TilePos, room_id: RoomId) -> bool {
+    pub fn is_room(&self, TilePos {row, col}: TilePos, room_id: RoomId) -> bool {
         match self[row][col] {
             Some(Tile {ttype: TileType::Room(id), ..}) => id == room_id,
+            _ => false,
+        }
+    }
+
+    /// Returns true if the given position is a wall of the room with the given ID
+    pub fn is_room_wall(&self, TilePos {row, col}: TilePos, room_id: RoomId) -> bool {
+        match self[row][col] {
+            Some(Tile {ttype: TileType::Wall(id), ..}) => id == room_id,
             _ => false,
         }
     }
@@ -94,10 +107,18 @@ impl TileGrid {
         }
     }
 
-    /// Returns true if the given position is passageway
+    /// Returns true if the given position is a passageway
     pub fn is_passageway(&self, TilePos {row, col}: TilePos) -> bool {
         match self[row][col] {
             Some(Tile {ttype: TileType::Passageway, ..}) => true,
+            _ => false,
+        }
+    }
+
+    /// Returns true if the given position is a passageway wall
+    pub fn is_passageway_wall(&self, TilePos {row, col}: TilePos) -> bool {
+        match self[row][col] {
+            Some(Tile {ttype: TileType::PassagewayWall, ..}) => true,
             _ => false,
         }
     }
@@ -107,9 +128,6 @@ impl TileGrid {
     /// Panics if that location was not previously empty
     pub fn place_tile(&mut self, TilePos {row, col}: TilePos, ttype: TileType, sprite: SpriteImage) {
         let tile = &mut self[row][col];
-        // Should not be any other tile here already
-        debug_assert!(tile.is_none(),
-            "bug: attempt to place tile on a position where a tile was already placed");
         *tile = Some(Tile::with_type(ttype, sprite));
     }
 
@@ -118,9 +136,40 @@ impl TileGrid {
     pub(in map) fn remove_passageway(&mut self, pos: TilePos, wall_sprite: SpriteImage) {
         assert!(self.is_passageway(pos), "bug: remove passageway can only be called on a passageway tile");
 
-        let open_adjacents: Vec<_> = self.adjacent_open_passages(pos).collect();
-        for adj in open_adjacents {
-            self.get_mut(adj).unwrap().become_wall(wall_sprite);
+        for pos in self.adjacent_positions(pos) {
+            match self.get_mut(pos) {
+                None => {},
+                Some(tile) => match tile.ttype {
+                    TileType::Passageway => tile.become_wall(wall_sprite),
+                    TileType::PassagewayWall | TileType::Wall(_) => {},
+                    TileType::Room(_) | TileType::Door {..} => {
+                        // While we may want to support this in the future by adding a
+                        // `room_wall_sprite` argument to this function, it is not useful right
+                        // now so we explicitly disable it.
+                        unreachable!("bug: removing a passageway that led into a room");
+                    },
+                }
+            }
+        }
+
+        self[pos.row][pos.col] = None;
+    }
+
+    /// Removes a passageway wall from the map, leaving an empty tile (no tile) in its place
+    /// This is only valid if this tile is only surrounded by other walls/empty tiles. Otherwise,
+    /// this can accidentally lead to bugs where there is no wall between a tile and emptiness.
+    pub(in map) fn remove_passageway_wall(&mut self, pos: TilePos) {
+        assert!(self.is_passageway(pos), "bug: remove passageway can only be called on a passageway tile");
+
+        for adj in self.adjacent_positions(pos) {
+            match self.get(adj) {
+                // Empty adjacent tile is fine
+                None => {},
+                // Non-empty adjacent must be a wall so that removing this wall doesn't lead to
+                // an invalid map
+                Some(tile) if tile.is_wall() => {},
+                _ => unreachable!("bug: should not remove a wall unless it is surrounded by walls/empty tiles"),
+            }
         }
 
         self[pos.row][pos.col] = None;
@@ -255,13 +304,6 @@ impl TileGrid {
                 Some(TilePos {row: row as usize, col: col as usize})
             }
         })
-    }
-
-    /// Returns an iterator of adjacent passages that do not have a wall between them and the
-    /// given position.
-    pub fn adjacent_open_passages(&self, pos: TilePos) -> impl Iterator<Item=TilePos> + '_ {
-        self.adjacent_positions(pos)
-            .filter(move |&pt| self.is_passageway(pt) && self.is_open_between(pos, pt))
     }
 
     /// Executes a depth-first search starting from a given tile
