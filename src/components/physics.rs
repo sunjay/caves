@@ -1,7 +1,7 @@
 //! Components for physics-related uses
 
 use specs::{VecStorage, HashMapStorage};
-use sdl2::rect::Point;
+use sdl2::rect::{Point, Rect};
 
 /// Represents the XY world coordinates of the center of an entity.
 ///
@@ -68,9 +68,51 @@ impl MovementDirection {
 /// mean much without a Position also attached to the entity.
 ///
 /// Modifying this after it is initially set is currently NOT supported.
-#[derive(Debug, Component)]
+#[derive(Debug, Clone, Copy, Component)]
 #[storage(VecStorage)]
-pub struct BoundingBox {
-    pub width: u32,
-    pub height: u32,
+pub enum BoundingBox {
+    /// A full bounding box centered around the entity's position
+    Full {
+        width: u32,
+        height: u32,
+    },
+    /// A "half" bounding box where the postiion is the top-middle of the box formed by the given
+    /// width and height
+    BottomHalf {
+        width: u32,
+        height: u32,
+    },
+}
+
+impl BoundingBox {
+    /// Shrink the horizontal and vertical size of this bounding box by the given amount centering
+    /// the transformation around the reference position. That means that for full bounding boxes
+    /// this will shift all four sides inward. For bottom half bounding boxes this will only shift
+    /// the left, right, and bottom sides since the top side is at the position already.
+    pub fn shrink(self, value: u32) -> Self {
+        use self::BoundingBox::*;
+        match self {
+            Full {width, height} => Full {
+                width: width - value * 2,
+                height: height - value * 2,
+            },
+            BottomHalf {width, height} => BottomHalf {
+                width: width - value * 2,
+                height: height - value,
+            },
+        }
+    }
+
+    pub fn to_rect(self, pos: Point) -> Rect {
+        use self::BoundingBox::*;
+        match self {
+            Full {width, height} => Rect::from_center(pos, width, height),
+            BottomHalf {width, height} => Rect::from_center(
+                // Make pos be at the top middle of the bounding box
+                pos.offset(0, height as i32/2),
+                width,
+                height
+            ),
+        }
+    }
 }

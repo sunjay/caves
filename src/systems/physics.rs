@@ -6,7 +6,7 @@ use resources::FramesElapsed;
 use map::GameMap;
 
 // Collisions within this threshold will be *ignored*
-const COLLISION_THRESHOLD: i32 = 1;
+const COLLISION_THRESHOLD: u32 = 1;
 
 #[derive(SystemData)]
 pub struct PhysicsData<'a> {
@@ -47,12 +47,10 @@ impl<'a> System<'a> for Physics {
 
             let mut next_pos = *pos + direction.to_vector() * speed * frames_elapsed;
 
-            if let Some(&BoundingBox {width, height}) = bounding_boxes.get(entity) {
-                let bounds = Rect::from_center(
-                    next_pos,
-                    width - COLLISION_THRESHOLD as u32 * 2,
-                    height - COLLISION_THRESHOLD as u32 * 2,
-                );
+            if let Some(&bounds_box) = bounding_boxes.get(entity) {
+                // Shrink by the threshold so we don't detect collisions too eagerly
+                let bounds_box = bounds_box.shrink(COLLISION_THRESHOLD);
+                let bounds = bounds_box.to_rect(next_pos);
 
                 // Check if any of the tiles that this new position intersects with is a wall
                 let potential_collisions = level.tiles_within(bounds)
@@ -65,24 +63,20 @@ impl<'a> System<'a> for Physics {
                     ));
                 let potential_collisions = potential_collisions
                     .chain((&entities, &positions, &bounding_boxes).join()
-                    .filter_map(|(other, &Position(other_pos), &BoundingBox {width, height})| {
+                    .filter_map(|(other, &Position(other_pos), &bounds_box)| {
                         // Do not collide with self
                         if entity == other { return None; }
 
-                        Some(Rect::from_center(
-                            other_pos,
-                            width - COLLISION_THRESHOLD as u32 * 2,
-                            height - COLLISION_THRESHOLD as u32 * 2,
-                        ))
+                        // Shrink by the threshold so we don't detect collisions too eagerly
+                        let bounds_box = bounds_box.shrink(COLLISION_THRESHOLD);
+
+                        Some(bounds_box.to_rect(other_pos))
                     }));
 
                 for other in potential_collisions {
                     // Recalculate bounds based on latest next_pos
-                    let bounds = Rect::from_center(
-                        next_pos,
-                        width - COLLISION_THRESHOLD as u32 * 2,
-                        height - COLLISION_THRESHOLD as u32 * 2,
-                    );
+                    let bounds = bounds_box.to_rect(next_pos);
+
                     // Need to recalculate the intersection since we are changing next_pos in each
                     // iteration. Would not make sense to precalculate the intersections when
                     // collecting potential collision objects
@@ -90,7 +84,7 @@ impl<'a> System<'a> for Physics {
                         // Do the minimal amount of movement in one direction to avoid the collision
                         if rect.width() <= rect.height() {
                             let adjustment = rect.width() as i32;
-                            if rect.x() >= next_pos.x() {
+                            if rect.x() > next_pos.x() {
                                 // Collision was on the right so we'll move left
                                 next_pos = next_pos.offset(-adjustment, 0);
                             } else {
@@ -99,7 +93,10 @@ impl<'a> System<'a> for Physics {
                             }
                         } else {
                             let adjustment = rect.height() as i32;
-                            if rect.y() >= next_pos.y() {
+                            // Need to make sure to use > instead of >= here or else we will fly
+                            // through walls when moving up into them. Do not want to move up by
+                            // the given adjustment when the colliding object is already above us.
+                            if rect.y() > next_pos.y() {
                                 // Collision was below so we'll move up
                                 next_pos = next_pos.offset(0, -adjustment);
                             } else {
