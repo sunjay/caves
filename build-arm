@@ -17,6 +17,6 @@ docker build -t sunjay/caves-armv7-unknown-linux-gnueabihf-sdl2 -f docker/armv7-
 # Build the project for that platform
 # https://github.com/rust-embedded/cross
 # cargo install cross
-cross build --target=armv7-unknown-linux-gnueabihf --verbose
+cross build --target=armv7-unknown-linux-gnueabihf --verbose $*
 
 # Now the target directory (or just the executable) can be copied over and run
