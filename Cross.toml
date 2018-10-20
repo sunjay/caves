@@ -1,0 +1,9 @@
+[build.env]
+passthrough = [
+    "RUST_BACKTRACE",
+    "RUST_LOG",
+    "TRAVIS",
+]
+
+[target.armv7-unknown-linux-gnueabihf]
+image = "sunjay/caves-armv7-unknown-linux-gnueabihf-sdl2"

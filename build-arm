@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+set -xe
+
+# Many instructions from: https://github.com/japaric/rust-cross
+
+# 1. Need C cross toolchain + libraries:
+# sudo apt install gcc-arm-linux-gnueabihf libc6-dev:i386 *armhf
+# See: https://github.com/japaric/rust-cross/blob/1573dbba707e588bd2715934670dffc480bc3da2/.travis.yml#L26
+
+# 2. Cross-compiled std crate:
+# rustup target add armv7-unknown-linux-gnueabihf
+
+# 3. Build the GameShell image (requires Docker installed)
+docker build -t sunjay/caves-armv7-unknown-linux-gnueabihf-sdl2 -f docker/armv7-unknown-linux-gnueabihf/Dockerfile docker
+
+# Build the project for that platform
+# https://github.com/rust-embedded/cross
+# cargo install cross
+cross build --target=armv7-unknown-linux-gnueabihf --verbose
+
+# Now the target directory (or just the executable) can be copied over and run
