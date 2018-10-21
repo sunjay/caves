@@ -73,8 +73,14 @@ impl Renderer {
         // The background color
         canvas.set_draw_color(Color::RGBA(0, 0, 0, 255));
 
+        // Scales the game *within* the window so it is easier to see things
+        let zoom = 1.5;
+
         //FIXME: Remove this unwrap() when we start using proper error types
-        canvas.set_logical_size(width, height).unwrap();
+        canvas.set_logical_size(
+            (width as f64 / zoom) as u32,
+            (height as f64 / zoom) as u32,
+        ).unwrap();
 
         Ok(Self {
             sdl_context,
