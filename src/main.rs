@@ -83,7 +83,7 @@ fn main() -> Result<(), String> {
     world.add_resource(ActionQueue::default());
 
     let mut dispatcher = DispatcherBuilder::new()
-        .with(systems::Keyboard, "Keyboard", &[])
+        .with(systems::Keyboard::default(), "Keyboard", &[])
         .with(systems::Physics, "Physics", &["Keyboard"])
         .with(systems::Animator, "Animator", &["Physics"])
         .build();
