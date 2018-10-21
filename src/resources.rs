@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use sdl2::keyboard::{KeyboardState, Scancode};
+use sdl2::keyboard::Scancode;
 use specs::Entity;
 
 /// Resource that represents the number of frames elapsed since the last time all of the systems
@@ -10,7 +10,82 @@ use specs::Entity;
 /// Often this will be just 1 but it may be greater if there is lag or if a system takes too long.
 pub struct FramesElapsed(pub usize);
 
-/// Resource that represents any actions that have happened during the current frame
+/// Resource that represents any events that have taken place before the current frame.
+///
+/// This queue resets every frame
+#[derive(Debug, Default)]
+pub struct EventQueue(pub Vec<Event>);
+
+impl<'a> IntoIterator for &'a EventQueue {
+    type Item = &'a Event;
+    type IntoIter = ::std::slice::Iter<'a, Event>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        (&self.0).into_iter()
+    }
+}
+
+/// Represents an event from the user of the application
+#[derive(Debug, Clone)]
+pub enum Event {
+    KeyDown(Key),
+    KeyUp(Key),
+}
+
+/// Represents the key that was pressed/released
+#[derive(Debug, Clone, Copy)]
+pub enum Key {
+    UpArrow,
+    DownArrow,
+    LeftArrow,
+    RightArrow,
+    Menu,
+    Select,
+    Start,
+    VolumeDown,
+    VolumeUp,
+    X,
+    Y,
+    A,
+    B,
+    LightKey1,
+    LightKey2,
+    // LightKey3, //FIXME: No way to detect this yet
+    LightKey4,
+    LightKey5,
+}
+
+impl Key {
+    /// Attempts to convert the given scan code to a key. Returns None if the key was not one of
+    /// the supported keys.
+    pub fn from_scancode(code: Scancode) -> Option<Self> {
+        // From mapping: https://github.com/clockworkpi/Keypad#keymaps
+        use self::Key::*;
+        Some(match code {
+            Scancode::Up => UpArrow,
+            Scancode::Down => DownArrow,
+            Scancode::Left => LeftArrow,
+            Scancode::Right => RightArrow,
+            Scancode::Escape => Menu,
+            Scancode::Space => Select,
+            Scancode::Return => Start,
+            Scancode::KpMinus => VolumeDown,
+            Scancode::KpPlus => VolumeUp,
+            Scancode::I => X,
+            Scancode::U => Y,
+            Scancode::K => A,
+            Scancode::J => B,
+            Scancode::H => LightKey1,
+            Scancode::Y => LightKey2,
+            //?? => LightKey3, //FIXME: No way to check if Shift key pressed
+            Scancode::O => LightKey4,
+            Scancode::L => LightKey5,
+            _ => return None,
+        })
+    }
+}
+
+/// Resource that represents any actions that have happened during the current frame.
 ///
 /// This queue resets every frame
 #[derive(Debug, Default)]
@@ -23,55 +98,4 @@ pub enum Action {
     Hit,
     Victorious,
     Defeated,
-}
-
-/// Resource that represents which keys are currently pressed.
-///
-/// Each boolean is true if the key is pressed and false otherwise
-#[derive(Debug, Clone)]
-pub struct GameKeys {
-    pub up_arrow: bool,
-    pub down_arrow: bool,
-    pub left_arrow: bool,
-    pub right_arrow: bool,
-    pub menu: bool,
-    pub select: bool,
-    pub start: bool,
-    pub volume_down: bool,
-    pub volume_up: bool,
-    pub x: bool,
-    pub y: bool,
-    pub a: bool,
-    pub b: bool,
-    pub light_key_1: bool,
-    pub light_key_2: bool,
-    pub light_key_3: bool,
-    pub light_key_4: bool,
-    pub light_key_5: bool,
-}
-
-impl<'a> From<KeyboardState<'a>> for GameKeys {
-    fn from(keys: KeyboardState) -> Self {
-        // From mapping: https://github.com/clockworkpi/Keypad#keymaps
-        Self {
-            up_arrow: keys.is_scancode_pressed(Scancode::Up),
-            down_arrow: keys.is_scancode_pressed(Scancode::Down),
-            left_arrow: keys.is_scancode_pressed(Scancode::Left),
-            right_arrow: keys.is_scancode_pressed(Scancode::Right),
-            menu: keys.is_scancode_pressed(Scancode::Escape),
-            select: keys.is_scancode_pressed(Scancode::Space),
-            start: keys.is_scancode_pressed(Scancode::Return),
-            volume_down: keys.is_scancode_pressed(Scancode::KpMinus),
-            volume_up: keys.is_scancode_pressed(Scancode::KpPlus),
-            x: keys.is_scancode_pressed(Scancode::I),
-            y: keys.is_scancode_pressed(Scancode::U),
-            a: keys.is_scancode_pressed(Scancode::K),
-            b: keys.is_scancode_pressed(Scancode::J),
-            light_key_1: keys.is_scancode_pressed(Scancode::H),
-            light_key_2: keys.is_scancode_pressed(Scancode::Y),
-            light_key_3: false, //FIXME: No way to check if Shift key pressed
-            light_key_4: keys.is_scancode_pressed(Scancode::O),
-            light_key_5: keys.is_scancode_pressed(Scancode::L),
-        }
-    }
 }

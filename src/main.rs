@@ -27,7 +27,7 @@ use std::{
 };
 
 use sdl2::{
-    event::Event,
+    event::Event as SDLEvent,
     keyboard::Keycode,
 };
 use specs::{
@@ -45,7 +45,7 @@ use components::{
     Sprite,
     AnimationManager,
 };
-use resources::{FramesElapsed, ActionQueue, GameKeys};
+use resources::{FramesElapsed, ActionQueue, EventQueue, Event, Key};
 use texture_manager::TextureManager;
 use renderer::Renderer;
 use map::MapGenerator;
@@ -79,8 +79,8 @@ fn main() -> Result<(), String> {
 
     world.add_resource(map.clone());
     world.add_resource(FramesElapsed(1));
+    world.add_resource(EventQueue::default());
     world.add_resource(ActionQueue::default());
-    world.add_resource(GameKeys::from(event_pump.keyboard_state()));
 
     let mut dispatcher = DispatcherBuilder::new()
         .with(systems::Keyboard, "Keyboard", &[])
@@ -111,14 +111,24 @@ fn main() -> Result<(), String> {
 
     // Frames elapsed since the last render
     let mut last_frames_elapsed = 0;
+    // Events since the last dispatch
+    let mut events = Vec::new();
     let mut running = true;
     while running {
         let ticks = timer.ticks(); // ms
 
         for event in event_pump.poll_iter() {
             match event {
-                Event::Quit {..} | Event::KeyDown {keycode: Some(Keycode::Escape), ..} => {
+                SDLEvent::Quit {..} | SDLEvent::KeyDown {keycode: Some(Keycode::Escape), ..} => {
                     running = false;
+                },
+                SDLEvent::KeyDown {scancode: Some(scancode), repeat: false, ..} => {
+                    Key::from_scancode(scancode)
+                        .map(|scancode| events.push(Event::KeyDown(scancode)));
+                },
+                SDLEvent::KeyUp {scancode: Some(scancode), repeat: false, ..} => {
+                    Key::from_scancode(scancode)
+                        .map(|scancode| events.push(Event::KeyUp(scancode)));
                 },
                 _ => {},
             }
@@ -130,8 +140,8 @@ fn main() -> Result<(), String> {
         // At least one frame must have passed for us to do anything
         if frames_elapsed_delta >= 1 {
             *world.write_resource::<FramesElapsed>() = FramesElapsed(frames_elapsed_delta);
-            *world.write_resource::<GameKeys>() = GameKeys::from(event_pump.keyboard_state());
             *world.write_resource::<ActionQueue>() = ActionQueue::default();
+            *world.write_resource::<EventQueue>() = EventQueue(events.drain(..).collect());
 
             dispatcher.dispatch(&mut world.res);
 
