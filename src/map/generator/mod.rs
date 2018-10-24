@@ -4,8 +4,8 @@
 // that take place. The code was designed this way to make sharing the configuration as easy as
 // possible (via &self).
 mod rooms;
-mod passages;
 mod place_items;
+mod doorways;
 mod validation;
 
 mod bounds;
@@ -16,6 +16,8 @@ use rand::{random, StdRng, Rng, SeedableRng};
 use texture_manager::TextureId;
 use map::*;
 
+/// Represents when we have run out of attempts to generate the map from a given key
+/// This can happen if a loop trying to generate something runs too many times
 #[derive(Debug, Clone, Copy)]
 struct RanOutOfAttempts;
 
@@ -39,23 +41,19 @@ pub struct MapGenerator {
     pub cols: usize,
     /// The width and height of each tile in pixels
     pub tile_size: u32,
-    /// The number of rooms to generate on each floor
-    pub rooms: usize,
-    /// The minimum and maximum height (in tiles) of a room
+    /// The min/max number of rows of tiles in a room (will split until no room is over the maximum
+    /// and will no longer split if the result would be below the minimum)
+    /// Note that the splitting strategy does not necessarily guarantee that the number of rows
+    /// will be within these bounds. It only gets as close as possible above the minimum.
     pub room_rows: Bounds<usize>,
-    /// The minimum and maximum width (in tiles) of a room
+    /// The min/max number of columns of tiles in a room (will split until no room is over the
+    /// maximum and will no longer split if the result would be below the minimum)
+    /// Note that the splitting strategy does not necessarily guarantee that the number of rows
+    /// will be within these bounds. It only gets as close as possible above the minimum.
     pub room_cols: Bounds<usize>,
-    /// The width of the passageways between rooms
-    /// Used to calculate the minimum distance between adjacent rooms
-    /// Must be at least 3 in order to fit walls at the sides of the passages. Must divide evenly
-    /// into both rows and cols in order to guarantee coverage.
-    pub passage_size: usize,
-    /// The width of the treasure chamber on the last level
-    pub treasure_chamber_width: usize,
-    /// The height of the treasure chamber on the last level
-    pub treasure_chamber_height: usize,
-    /// The number of doors to generate on each room
-    pub doors: usize,
+    /// The min/max number of doors to give every room. Min must be at least 1 or some rooms will
+    /// not be reachable.
+    pub doors: Bounds<usize>,
     /// The number of tiles that take you to the next level/prev level
     /// This will create `next_prev_tiles` number of ToNextLevel tiles and
     /// `next_prev_tiles` number of ToPrevLevel tiles
@@ -70,9 +68,17 @@ impl MapGenerator {
     pub fn generate_with_key(self, key: MapKey) -> GameMap {
         let mut rng = key.to_rng();
 
+        let sprites = SpriteTable {
+            floor_tiles: vec![self.tile_sprite(0, 0)],
+            wall_tiles: vec![self.tile_sprite(8, 0)],
+            empty_tile_sprite: self.tile_sprite(0, 3),
+            default_floor_tile_index: 0,
+            default_wall_tile_index: 0,
+        };
+
         loop {
             let levels: Result<Vec<_>, _> = (1..=self.levels)
-                .map(|level| self.generate_level(&mut rng, level))
+                .map(|level| self.generate_level(&mut rng, &sprites, level))
                 .collect();
 
             match levels {
@@ -82,6 +88,7 @@ impl MapGenerator {
                     current_level: 0,
                     map_size: GridSize {rows: self.rows, cols: self.cols},
                     tile_size: self.tile_size,
+                    sprites,
                 },
                 // Reseed the rng using itself
                 Err(RanOutOfAttempts) => {
@@ -91,31 +98,31 @@ impl MapGenerator {
         }
     }
 
-    fn generate_level(&self, rng: &mut StdRng, level: usize) -> Result<FloorMap, RanOutOfAttempts> {
-        let room_sprite = self.tile_sprite(0, 0);
-        let room_wall_sprite = self.tile_sprite(8, 0);
-        let passage_sprite = self.tile_sprite(5, 0);
-        let passage_wall_sprite = self.tile_sprite(8, 5);
-        let empty_tile_sprite = self.tile_sprite(0, 3);
-
+    fn generate_level(
+        &self,
+        rng: &mut StdRng,
+        sprites: &SpriteTable,
+        level: usize,
+    ) -> Result<FloorMap, RanOutOfAttempts> {
         let mut map = FloorMap::new(
             GridSize {rows: self.rows, cols: self.cols},
             self.tile_size,
-            empty_tile_sprite,
         );
 
         // Levels are generated in "phases". The following calls runs each of those in succession.
-        self.fill_passages(rng, &mut map, passage_sprite, passage_wall_sprite);
-        let rooms = self.generate_rooms(rng, &mut map, level)?;
-        self.place_rooms(&mut map, &rooms, room_sprite, room_wall_sprite);
-        self.connect_rooms_passages(rng, &mut map, &rooms, room_sprite, passage_sprite)?;
-        self.reduce_dead_ends(&mut map, room_wall_sprite);
+        self.partition_into_rooms(rng, sprites, &mut map, level)?;
+        println!("{:?}", map);
+        self.connect_rooms(rng, sprites, &mut map);
+        println!("{:?}", map);
+        self.place_locks(rng, &mut map);
+        println!("{:?}", map);
         if level < self.levels {
-            self.place_to_next_level_tiles(rng, &mut map, &rooms)?;
+            self.place_to_next_level_tiles(rng, &mut map)?;
         }
         if level > 1 {
-            self.place_to_prev_level_tiles(rng, &mut map, &rooms)?;
+            self.place_to_prev_level_tiles(rng, &mut map)?;
         }
+        println!("{:?}", map);
 
         self.validate_map(&map);
         Ok(map)

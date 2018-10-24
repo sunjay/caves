@@ -2,17 +2,14 @@ use std::collections::{HashSet, VecDeque};
 use std::ops::{Index, IndexMut};
 use std::iter::once;
 
-use super::{Tile, TileType, SpriteImage, GridSize, TilePos, RoomId};
-
-/// A single row of the map's tiles
-pub type Row = [Option<Tile>];
+use super::{Tile, GridSize, TilePos};
 
 /// Represents a 2D grid of tiles
 #[derive(Clone)]
-pub struct TileGrid(Vec<Vec<Option<Tile>>>);
+pub struct TileGrid(Vec<Vec<Tile>>);
 
 impl Index<usize> for TileGrid {
-    type Output = Row;
+    type Output = [Tile];
 
     fn index(&self, index: usize) -> &Self::Output {
         self.0.index(index)
@@ -28,8 +25,8 @@ impl IndexMut<usize> for TileGrid {
 impl TileGrid {
     /// Create a new TileGrid with the given number of rows and columns
     pub fn new(GridSize {rows, cols}: GridSize) -> Self {
-        assert!(rows > 0 && cols > 0, "Cannot create a grid with zero rows or columns");
-        TileGrid(vec![vec![None; cols]; rows])
+        assert!(rows > 0 && cols > 0, "Cannot create a grid with zero rows or zero columns");
+        TileGrid(vec![vec![Tile::empty(); cols]; rows])
     }
 
     /// Returns the number of rows in this grid
@@ -43,213 +40,45 @@ impl TileGrid {
     }
 
     /// Returns an iterator over each row
-    pub fn rows(&self) -> impl Iterator<Item=&Row> {
+    pub fn rows(&self) -> impl Iterator<Item=&[Tile]> {
         self.0.iter().map(|r| r.as_slice())
     }
 
     /// Gets the tile at the given position (or None if empty)
-    pub fn get(&self, TilePos {row, col}: TilePos) -> Option<&Tile> {
-        self[row][col].as_ref()
+    pub fn get(&self, TilePos {row, col}: TilePos) -> &Tile {
+        &self[row][col]
     }
 
     /// Gets the tile at the given position (or None if empty)
-    pub fn get_mut(&mut self, TilePos {row, col}: TilePos) -> Option<&mut Tile> {
-        self[row][col].as_mut()
-    }
-
-    /// Returns true if the given position is empty (no tile)
-    pub fn is_empty(&self, TilePos {row, col}: TilePos) -> bool {
-        self[row][col].is_none()
-    }
-
-    /// Returns true if the given position is on the edge of this grid
-    pub fn is_on_edge(&self, TilePos {row, col}: TilePos) -> bool {
-        row == 0 || col == 0 || row == self.rows_len() - 1 || col == self.rows_len() - 1
-    }
-
-    /// Returns true if the given position is part of the room with the given ID
-    pub fn is_room(&self, TilePos {row, col}: TilePos, room_id: RoomId) -> bool {
-        match self[row][col] {
-            Some(Tile {ttype: TileType::Room(id), ..}) => id == room_id,
-            _ => false,
-        }
-    }
-
-    /// Returns true if the given position is a wall of the room with the given ID
-    pub fn is_room_wall(&self, TilePos {row, col}: TilePos, room_id: RoomId) -> bool {
-        match self[row][col] {
-            Some(Tile {ttype: TileType::Wall(id), ..}) => id == room_id,
-            _ => false,
-        }
+    pub fn get_mut(&mut self, TilePos {row, col}: TilePos) -> &mut Tile {
+        &mut self[row][col]
     }
 
     /// Returns true if the given position is a room entrance
-    /// A room entrance is defined as a room tile that has at least one other room tile on one side
-    /// and exactly one adjacent passageway.
+    /// A room entrance is defined as a floor tile that has at least one other floor tile with a
+    /// different ID as one of its adjacents.
     pub fn is_room_entrance(&self, pos: TilePos) -> bool {
         match self.get(pos) {
-            Some(Tile {ttype: TileType::Room(id), ..}) => {
-                let mut room_tiles = 0;
-                let mut passageways = 0;
+            Tile::Floor {room_id, ..} => {
                 for pos in self.adjacent_positions(pos) {
                     match self.get(pos) {
-                        Some(tile) => match tile.ttype {
-                            TileType::Room(id2) if id2 == *id => room_tiles += 1,
-                            TileType::Passageway => passageways += 1,
-                            _ => {}
-                        },
-                        None => {},
+                        Tile::Floor {room_id: room_id2, ..} if room_id != room_id2 => return true,
+                        _ => {},
                     }
                 }
-
-                room_tiles >= 1 && passageways == 1
             },
-            _ => false,
+            _ => {},
         }
-    }
 
-    /// Returns true if the given position is a dead end passageway
-    /// A dead end is defined as a passage that is surrounded by 3 wall tiles and 1 passage tile.
-    pub fn is_dead_end(&self, pos: TilePos) -> bool {
-        match self.get(pos) {
-            Some(Tile {ttype: TileType::Passageway, ..}) => {
-                let mut walls = 0;
-                let mut passageways = 0;
-                for pos in self.adjacent_positions(pos) {
-                    match self.get(pos) {
-                        Some(tile) => match tile.ttype {
-                            TileType::Wall(_) => walls += 1,
-                            TileType::Passageway => passageways += 1,
-                            _ => {}
-                        },
-                        None => {},
-                    }
-                }
-
-                walls == 3 && passageways == 1
-            },
-            _ => false,
-        }
-    }
-
-    /// Returns true if the given position is a passageway
-    pub fn is_passageway(&self, TilePos {row, col}: TilePos) -> bool {
-        match self[row][col] {
-            Some(Tile {ttype: TileType::Passageway, ..}) => true,
-            _ => false,
-        }
-    }
-
-    /// Returns true if the given position is a passageway wall
-    pub fn is_passageway_wall(&self, TilePos {row, col}: TilePos) -> bool {
-        match self[row][col] {
-            Some(Tile {ttype: TileType::PassagewayWall, ..}) => true,
-            _ => false,
-        }
-    }
-
-    /// Returns true if the given position is any kind of wall
-    pub fn is_wall(&self, TilePos {row, col}: TilePos) -> bool {
-        match self[row][col] {
-            Some(Tile {ttype: TileType::Wall(_), ..}) |
-            Some(Tile {ttype: TileType::PassagewayWall, ..}) => true,
-            _ => false,
-        }
+        false
     }
 
     /// Places a tile with the given type at the given location
     ///
     /// Panics if that location was not previously empty
-    pub fn place_tile(&mut self, TilePos {row, col}: TilePos, ttype: TileType, sprite: SpriteImage) {
-        let tile = &mut self[row][col];
-        *tile = Some(Tile::with_type(ttype, sprite));
-    }
-
-    /// Removes a passageway tile from the map, leaving an empty tile (no tile) in its place
-    /// All adjacent passages will become walls.
-    pub(in map) fn remove_passageway(&mut self, pos: TilePos, wall_sprite: SpriteImage) {
-        assert!(self.is_passageway(pos), "bug: remove passageway can only be called on a passageway tile");
-
-        for pos in self.adjacent_positions(pos) {
-            match self.get_mut(pos) {
-                None => {},
-                Some(tile) => match tile.ttype {
-                    TileType::Passageway => tile.become_wall(wall_sprite),
-                    TileType::PassagewayWall | TileType::Wall(_) => {},
-                    TileType::Room(_) | TileType::Door {..} => {
-                        // While we may want to support this in the future by adding a
-                        // `room_wall_sprite` argument to this function, it is not useful right
-                        // now so we explicitly disable it.
-                        unreachable!("bug: removing a passageway that led into a room");
-                    },
-                }
-            }
-        }
-
-        self[pos.row][pos.col] = None;
-    }
-
-    /// Removes a passageway wall from the map, leaving an empty tile (no tile) in its place
-    /// This is only valid if this tile is only surrounded by other walls/empty tiles. Otherwise,
-    /// this can accidentally lead to bugs where there is no wall between a tile and emptiness.
-    pub(in map) fn remove_passageway_wall(&mut self, pos: TilePos) {
-        assert!(self.is_passageway(pos), "bug: remove passageway can only be called on a passageway tile");
-
-        for adj in self.adjacent_positions(pos) {
-            match self.get(adj) {
-                // Empty adjacent tile is fine
-                None => {},
-                // Non-empty adjacent must be a wall so that removing this wall doesn't lead to
-                // an invalid map
-                Some(tile) if tile.is_wall() => {},
-                _ => unreachable!("bug: should not remove a wall unless it is surrounded by walls/empty tiles"),
-            }
-        }
-
-        self[pos.row][pos.col] = None;
-    }
-
-    /// Returns true if there is NO wall between two cells. The cells must have exactly one tile
-    /// between them in one of the cardinal directions
-    pub fn is_open_between(&self, pos1: TilePos, pos2: TilePos) -> bool {
-        let potential_wall = match pos2.difference(pos1) {
-            // second position is north of first position
-            (-2, 0) => self.adjacent_north(pos1),
-            // second position is east of first position
-            (0, 2) => self.adjacent_east(pos1),
-            // second position is south of first position
-            (2, 0) => self.adjacent_south(pos1),
-            // second position is west of first position
-            (0, -2) => self.adjacent_west(pos1),
-            _ => unreachable!("bug: attempt to check if two cells have no wall between them when cells did not have exactly one cell between them"),
-        };
-
-        self.get(potential_wall).map(|tile| tile.is_wall()).unwrap_or(false)
-    }
-
-    /// Removes the wall between two cells and replaces it with a Room tile of the same RoomId.
-    /// The tile between the two given positions must be a Room tile.
-    pub fn open_between(&mut self, pos1: TilePos, pos2: TilePos, room_sprite: SpriteImage) {
-        let tile = match pos2.difference(pos1) {
-            // second position is north of first position
-            (-2, 0) => self.adjacent_north(pos1),
-            // second position is east of first position
-            (0, 2) => self.adjacent_east(pos1),
-            // second position is south of first position
-            (2, 0) => self.adjacent_south(pos1),
-            // second position is west of first position
-            (0, -2) => self.adjacent_west(pos1),
-            _ => unreachable!("bug: attempt to open a wall between two cells when the cells did not have exactly one cell between them"),
-        };
-
-        if self.get(tile)
-            .expect("bug: attempt to open a wall when the tile was in fact empty")
-            .is_wall() {
-
-            self.get_mut(tile)
-                .expect("bug: attempt to turn an empty tile into a room tile")
-                .wall_to_room(room_sprite);
-        }
+    pub fn place_tile(&mut self, TilePos {row, col}: TilePos, tile: Tile) {
+        assert!(!tile.is_empty(), "bug: unsafe to place an empty tile without checking surroundings");
+        self[row][col] = tile;
     }
 
     /// Returns an iterator over the positions of all tiles contained within this map

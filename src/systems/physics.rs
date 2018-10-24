@@ -54,7 +54,7 @@ impl<'a> System<'a> for Physics {
 
                 // Check if any of the tiles that this new position intersects with is a wall
                 let potential_collisions = level.tiles_within(bounds)
-                    .filter(|(_, pt, _)| level.grid().is_wall(*pt))
+                    .filter(|(_, _, tile)| tile.is_wall())
                     .map(|(pos, _, _)| Rect::new(
                         pos.x(),
                         pos.y(),
