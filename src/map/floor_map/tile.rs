@@ -1,9 +1,6 @@
 use std::fmt;
 
-use sdl2::rect::Rect;
-
-use texture_manager::TextureId;
-use super::RoomId;
+use super::{RoomId, SpriteTable, SpriteImage};
 
 #[derive(Debug, Clone)]
 pub enum Item {
@@ -12,18 +9,12 @@ pub enum Item {
     Potion {stength: u32},
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum TileType {
-    /// Tiles that can be used to pass between rooms
-    Passageway,
-    /// Tiles that are part of a passage way, but cannot be traversed
-    PassagewayWall,
-    /// Tiles that are part of a given room
-    Room(RoomId),
-    /// Tiles that are part of a room, but cannot be traversed
-    Wall(RoomId),
-    /// A doorway that may be locked
-    Door {room_id: RoomId, locked: bool},
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Door {
+    /// Door is open and can be passed through
+    Open,
+    /// Door cannot be passed through and requires a RoomKey to be opened
+    Locked,
 }
 
 /// The object or item placed at a particular tile
@@ -35,13 +26,13 @@ pub enum TileObject {
     /// Stepping on this tile transports you to the previous level
     /// Field is the ID of this gate and the ID of the ToNextLevel tile that this should connect to
     ToPrevLevel(usize),
-    /// A point where an enemy *may* spawn
-    EnemySpawn {
-        /// Probability that an enemy will spawn here: 1.0 means that the enemy will definitely
-        /// spawn and 0.0 means that an enemy will not spawn
-        probability: f64,
-    },
-    Chest(Item),
+    /// A door that is either locked or open (can be opened with a RoomKey)
+    Door(Door),
+    /// A gate that can not be opened without some external event (e.g. switch, challenge room, etc.)
+    Gate(Door),
+    /// A chest containing an item that can be collected
+    /// None - means object has been collected
+    Chest(Option<Item>),
 }
 
 impl fmt::Display for TileObject {
@@ -50,91 +41,124 @@ impl fmt::Display for TileObject {
         write!(f, "{}", match *self {
             ToNextLevel(_) => "\u{2193}",
             ToPrevLevel(_) => "\u{2191}",
-            _ => " ",
+            Door(self::Door::Locked) => "\u{1F510}",
+            Door(self::Door::Open) => "\u{1F513}",
+            Gate(self::Door::Locked) => "\u{1F512}",
+            Gate(self::Door::Open) => "\u{1F513}",
+            Chest(_) => "$",
         })
     }
 }
 
-/// Represents an image/texture that will be renderered
-///
-/// The convention is that the sprite begins pointing to the right and flipping it horizontally
-/// results in it facing left
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct SpriteImage {
-    /// The spritesheet to pull the image from
-    pub texture_id: TextureId,
-    /// The region of the spritesheet to use, unrelated to the actual bounding box
-    pub region: Rect,
-    /// Whether to flip the sprite along the horizontal axis
-    pub flip_horizontal: bool,
-    /// Whether to flip the sprite along the vertical axis
-    pub flip_vertical: bool,
-}
-
-impl SpriteImage {
-    /// Creates a new SpriteImage that is not flipped either horizontally or vertically
-    pub fn new_unflipped(texture_id: TextureId, region: Rect) -> Self {
-        SpriteImage {
-            texture_id,
-            region,
-            flip_horizontal: false,
-            flip_vertical: false,
-        }
-    }
+#[derive(Debug, Clone)]
+pub enum WallDecoration {
+    Torch,
+    //TODO: Enemy spawn, arrow shooter, portal, spikes, etc.
 }
 
 #[derive(Debug, Clone)]
-pub struct Tile {
-    pub ttype: TileType,
-    pub sprite: SpriteImage,
-    pub object: Option<TileObject>,
+pub enum Tile {
+    /// Tiles that can be traversed
+    Floor {
+        room_id: RoomId,
+        object: Option<TileObject>,
+        // The index of the room sprite to use in the sprite table
+        room_sprite_index: usize,
+    },
+    /// Tiles that cannot be traversed, not associated to a particular room
+    Wall {
+        decoration: Option<WallDecoration>,
+        // The index of the wall sprite to use in the sprite table
+        wall_sprite_index: usize,
+    },
+    /// A tile that cannot be traversed and has nothing on it
+    Empty,
 }
 
 impl Tile {
-    pub(in super) fn with_type(ttype: TileType, sprite: SpriteImage) -> Self {
-        Self {
-            ttype,
-            sprite,
-            object: Default::default(),
+    /// Creates a new floor tile with no object and the given sprite
+    pub fn new_floor(room_id: RoomId, room_sprite_index: usize) -> Self {
+        Tile::Floor {room_id, object: None, room_sprite_index}
+    }
+
+    /// Creates a new wall tile with no decoration and the given sprite
+    pub fn new_wall(wall_sprite_index: usize) -> Self {
+        Tile::Wall {decoration: None, wall_sprite_index}
+    }
+
+    /// Creates a new empty tile
+    pub fn empty() -> Self {
+        Tile::Empty
+    }
+
+    /// Returns the sprite that should be used as the background of this tile
+    pub fn background_sprite<'a>(&self, sprites: &'a SpriteTable) -> &'a SpriteImage {
+        use self::Tile::*;
+        match *self {
+            Floor {room_sprite_index, ..} => &sprites.floor_tiles[room_sprite_index],
+            Wall {wall_sprite_index, ..} => &sprites.wall_tiles[wall_sprite_index],
+            Empty => &sprites.empty_tile_sprite,
         }
     }
 
+    /// Returns the sprite that should be drawn on top of the background of this sprite
+    pub fn object_sprite<'a>(&self, sprites: &'a SpriteTable) -> Option<&'a SpriteImage> {
+        match self {
+            Tile::Floor {object: Some(object), ..} => unimplemented!(),
+            _ => None,
+        }
+    }
+
+    /// Returns true if this tile is a floor tile from the given room
+    pub fn is_room_floor(&self, id: RoomId) -> bool {
+        match self {
+            Tile::Floor {room_id, ..} if *room_id == id => true,
+            _ => false
+        }
+    }
+
+    /// Returns true if this tile is a wall
     pub fn is_wall(&self) -> bool {
-        match self.ttype {
-            TileType::Wall(_) | TileType::PassagewayWall => true,
+        match self {
+            Tile::Wall {..} => true,
+            _ => false
+        }
+    }
+
+    /// Returns true if this tile is empty
+    pub fn is_empty(&self) -> bool {
+        match self {
+            Tile::Empty => true,
+            _ => false
+        }
+    }
+
+    /// Turns this tile into a Wall tile
+    pub fn become_wall(&mut self, wall_sprite_index: usize) {
+        *self = Self::new_wall(wall_sprite_index);
+    }
+
+    /// Turns this tile into a Floor tile
+    pub fn become_floor(&mut self, room_id: RoomId, room_sprite_index: usize) {
+        *self = Self::new_floor(room_id, room_sprite_index);
+    }
+
+    /// Returns true if this tile has an object
+    pub fn has_object(&self) -> bool {
+        match self {
+            Tile::Floor {object, ..} => object.is_some(),
             _ => false,
         }
     }
 
-    /// Turns this tile into a Wall tile. Tile must be a Room tile already. Will panic if this is
-    /// not the case.
-    pub fn become_wall(&mut self, wall_sprite: SpriteImage) {
-        match self.ttype {
-            TileType::Room(id) => self.ttype = TileType::Wall(id),
-            TileType::Passageway => self.ttype = TileType::PassagewayWall,
-            _ => unreachable!("bug: attempt to turn a non-room/passageway tile into a wall"),
-        }
-
-        self.sprite = wall_sprite;
-    }
-
-    /// Turns this tile into a Room tile. Tile must be a Wall tile already. Will panic if this is
-    /// not the case.
-    pub fn wall_to_room(&mut self, room_sprite: SpriteImage) {
-        match self.ttype {
-            TileType::Wall(id) => self.ttype = TileType::Room(id),
-            TileType::PassagewayWall => self.ttype = TileType::Passageway,
-            _ => unreachable!("bug: attempt to turn a non-wall tile into a room"),
-        }
-
-        self.sprite = room_sprite;
-    }
-
-    pub fn has_object(&self) -> bool {
-        self.object.is_some()
-    }
-
+    /// Attempts to place an object on this tile. Panics if this is not possible for this type of
+    /// tile.
     pub fn place_object(&mut self, object: TileObject) {
-        self.object = Some(object);
+        match self {
+            // Ensure that we don't replace an object that was already placed by matching on None
+            Tile::Floor {object: obj@None, ..} => *obj = Some(object),
+            Tile::Floor {..} => unreachable!("bug: attempt to place an object on a tile that already had an object"),
+            _ => unreachable!("bug: attempt to place an object on a tile that does not support objects"),
+        }
     }
 }

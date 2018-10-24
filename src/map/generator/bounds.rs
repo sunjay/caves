@@ -4,9 +4,17 @@ use rand::{Rng, distributions::{Distribution, Standard, uniform::SampleUniform}}
 
 /// Represents the minimum and maximum boundary for a given type
 /// Both boundaries are inclusive
+#[derive(Debug)]
 pub struct Bounds<T> {
-    min: T,
-    max: T,
+    pub min: T,
+    pub max: T,
+}
+
+impl<T: PartialOrd> Bounds<T> {
+    /// Returns true if the given value is within the bounds
+    pub fn contains(&self, x: T) -> bool {
+        x >= self.min && x <= self.max
+    }
 }
 
 impl<T: PartialOrd + SampleUniform + Copy> Bounds<T> {

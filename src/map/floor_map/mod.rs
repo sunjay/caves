@@ -3,12 +3,16 @@ mod grid;
 mod room;
 mod tile_pos;
 mod grid_size;
+mod tile_rect;
+mod sprite;
 
 pub use self::tile::*;
 pub use self::grid::*;
 pub use self::room::*;
 pub use self::tile_pos::*;
 pub use self::grid_size::*;
+pub use self::tile_rect::*;
+pub use self::sprite::*;
 
 use std::fmt;
 use std::cmp;
@@ -32,8 +36,6 @@ pub struct FloorMap {
     rooms: Vec<Room>,
     /// The width and height of every tile
     tile_size: u32,
-    /// The sprite used to render empty tiles (i.e. when there is no tile)
-    empty_tile_sprite: SpriteImage,
 }
 
 impl fmt::Debug for FloorMap {
@@ -42,34 +44,22 @@ impl fmt::Debug for FloorMap {
 
         for row in self.grid().rows() {
             for tile in row {
-                match tile {
-                    None => write!(f, "{}", " ".on_black())?,
-                    Some(tile) => {
-                        let object = tile.object.as_ref().map(|o| o.to_string())
+                use self::Tile::*;
+                write!(f, "{}", match tile {
+                    &Floor {room_id, ref object, ..} => {
+                        let object = object.as_ref().map(|o| o.to_string())
                             .unwrap_or_else(|| " ".to_string());
-                        use self::TileType::*;
-                        write!(f, "{}", match tile.ttype {
-                            Passageway | PassagewayWall => {
-                                let object = if tile.is_wall() {
-                                    "\u{25c7}".to_string()
-                                } else { object };
-                                object.on_green()
-                            },
-                            Room(id) | Wall(id) | Door {room_id: id, ..} => {
-                                let object = if tile.is_wall() {
-                                    "\u{25a2}".to_string()
-                                } else { object };
 
-                                match self.room(id).room_type() {
-                                    RoomType::Normal => object.on_blue(),
-                                    RoomType::Challenge => object.on_red(),
-                                    RoomType::PlayerStart => object.on_bright_blue(),
-                                    RoomType::TreasureChamber => object.on_yellow(),
-                                }
-                            },
-                        })?;
+                        match self.room(room_id).room_type() {
+                            RoomType::Normal => object.on_blue(),
+                            RoomType::Challenge => object.on_red(),
+                            RoomType::PlayerStart => object.on_bright_blue(),
+                            RoomType::TreasureChamber => object.on_yellow(),
+                        }
                     },
-                }
+                    Wall {..} => "\u{25a2}".on_black(),
+                    Empty => " ".on_black(),
+                })?;
             }
             writeln!(f)?;
         }
@@ -80,18 +70,12 @@ impl fmt::Debug for FloorMap {
 
 impl FloorMap {
     /// Create a new FloorMap with the given number of rows and columns
-    pub fn new(size: GridSize, tile_size: u32, empty_tile_sprite: SpriteImage) -> Self {
+    pub fn new(size: GridSize, tile_size: u32) -> Self {
         FloorMap {
             grid: TileGrid::new(size),
             rooms: Vec::new(),
             tile_size,
-            empty_tile_sprite,
         }
-    }
-
-    /// Returns the sprite that should be used to render empty tiles (i.e. when there is no tile)
-    pub fn empty_tile_sprite(&self) -> SpriteImage {
-        self.empty_tile_sprite
     }
 
     /// Returns the size of each tile on this map
@@ -99,17 +83,26 @@ impl FloorMap {
         self.tile_size
     }
 
-    pub fn rooms(&self) -> impl Iterator<Item=&Room> {
-        self.rooms.iter()
+    /// Returns an iterator over the rooms in the map and their IDs
+    pub fn rooms(&self) -> impl Iterator<Item=(RoomId, &Room)> {
+        self.rooms.iter().enumerate().map(|(i, room)| (RoomId(i), room))
     }
 
+    /// Returns the room with the specified room ID
     pub fn room(&self, room_id: RoomId) -> &Room {
         &self.rooms[room_id.0]
     }
 
-    /// Add a room to the map. Rooms should NOT be overlapping, though this condition is NOT
-    /// checked by this method. Hence why this is private.
-    pub(in super) fn add_room(&mut self, room: Room) -> RoomId {
+    /// Returns a mutable reference to all of the rooms.
+    /// Not for use after map generation is complete.
+    pub(in super) fn rooms_mut(&mut self) -> &mut [Room] {
+        &mut self.rooms
+    }
+
+    /// Add a room with the given rectangle to the map.
+    /// Rooms should not be added after map generation is complete.
+    pub(in super) fn add_room(&mut self, rect: TileRect) -> RoomId {
+        let room = Room::new(rect);
         self.rooms.push(room);
         RoomId(self.rooms.len() - 1)
     }
@@ -123,7 +116,7 @@ impl FloorMap {
     }
 
     /// Returns the tiles within (or around) the region defined by bounds
-    pub fn tiles_within(&self, bounds: Rect) -> impl Iterator<Item=(Point, TilePos, Option<&Tile>)> + '_ {
+    pub fn tiles_within(&self, bounds: Rect) -> impl Iterator<Item=(Point, TilePos, &Tile)> {
         // While the caller is allowed to ask for tiles within a boundary Rect that starts at
         // negative coordinates, the top left of the map is defined as (0, 0). That means that we
         // can at most request tiles up to that top left corner. The calls to `max()` here help
@@ -151,16 +144,6 @@ impl FloorMap {
         ).map(move |pos| {
             // The position of the tile in world coordinates
             (pos.to_point(self.tile_size as i32), pos, self.grid().get(pos))
-        })
-    }
-
-    /// Returns the sprites of tiles within (or around) the region defined by bounds
-    pub fn sprites_within(&self, bounds: Rect) -> impl Iterator<Item=(Point, SpriteImage)> + '_ {
-        self.tiles_within(bounds).map(move |(world_pos, _, tile)| {
-            match tile {
-                None => (world_pos, self.empty_tile_sprite),
-                Some(tile) => (world_pos, tile.sprite),
-            }
         })
     }
 }
