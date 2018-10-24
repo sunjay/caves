@@ -41,16 +41,15 @@ pub struct MapGenerator {
     pub cols: usize,
     /// The width and height of each tile in pixels
     pub tile_size: u32,
-    /// The min/max number of rows of tiles in a room (will split until no room is over the maximum
-    /// and will no longer split if the result would be below the minimum)
-    /// Note that the splitting strategy does not necessarily guarantee that the number of rows
-    /// will be within these bounds. It only gets as close as possible above the minimum.
+    /// The minimum and maximum number of rooms to generate on each floor
+    pub rooms: Bounds<usize>,
+    /// The minimum and maximum height (in tiles) of a room
     pub room_rows: Bounds<usize>,
-    /// The min/max number of columns of tiles in a room (will split until no room is over the
-    /// maximum and will no longer split if the result would be below the minimum)
-    /// Note that the splitting strategy does not necessarily guarantee that the number of rows
-    /// will be within these bounds. It only gets as close as possible above the minimum.
+    /// The minimum and maximum width (in tiles) of a room
     pub room_cols: Bounds<usize>,
+    /// The maximum % that a room can overlap another room
+    /// Value should be between 0.0 and 1.0
+    pub max_overlap: f64,
     /// The min/max number of doors to give every room. Min must be at least 1 or some rooms will
     /// not be reachable.
     pub doors: Bounds<usize>,
@@ -110,19 +109,16 @@ impl MapGenerator {
         );
 
         // Levels are generated in "phases". The following calls runs each of those in succession.
-        self.partition_into_rooms(rng, sprites, &mut map, level)?;
+        self.generate_rooms(rng, sprites, &mut map, level)?;
         println!("{:?}", map);
         self.connect_rooms(rng, sprites, &mut map);
-        println!("{:?}", map);
         self.place_locks(rng, &mut map);
-        println!("{:?}", map);
-        if level < self.levels {
-            self.place_to_next_level_tiles(rng, &mut map)?;
-        }
-        if level > 1 {
-            self.place_to_prev_level_tiles(rng, &mut map)?;
-        }
-        println!("{:?}", map);
+        //if level < self.levels {
+        //    self.place_to_next_level_tiles(rng, &mut map)?;
+        //}
+        //if level > 1 {
+        //    self.place_to_prev_level_tiles(rng, &mut map)?;
+        //}
 
         self.validate_map(&map);
         Ok(map)
