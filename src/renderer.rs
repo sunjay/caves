@@ -174,7 +174,7 @@ impl Renderer {
     ) -> Result<(), String> {
         for (pos, _, tile) in tiles {
             let tile_layers = once(tile.background_sprite(sprites))
-                .chain(tile.object_sprite(sprites).into_iter());
+                .chain(tile.object_sprite(sprites));
             for sprite in tile_layers {
                 let texture = textures.get(sprite.texture_id);
                 let source_rect = sprite.region.clone();
