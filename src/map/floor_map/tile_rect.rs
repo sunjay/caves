@@ -77,6 +77,24 @@ impl TileRect {
         }
     }
 
+    pub fn intersection(self, other: Self) -> Option<TileRect> {
+        //TODO: Implement this without relying on sdl2. Perhaps based on:
+        // https://github.com/servo/euclid/blob/7a4f6f77990fafc63d5fe5028df2660488e6749c/src/rect.rs#L124
+        self.to_rect().intersection(other.to_rect()).map(|r| {
+            let tl = r.top_left();
+            Self::new(
+                TilePos {
+                    row: tl.y() as usize,
+                    col: tl.x() as usize,
+                },
+                GridSize {
+                    rows: r.height() as usize,
+                    cols: r.width() as usize,
+                }
+            )
+        })
+    }
+
     pub fn has_intersection(self, other: Self) -> bool {
         //TODO: Implement this without relying on sdl2. Perhaps based on:
         // https://github.com/servo/euclid/blob/7a4f6f77990fafc63d5fe5028df2660488e6749c/src/rect.rs#L124

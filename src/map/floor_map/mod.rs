@@ -18,6 +18,7 @@ use std::fmt;
 use std::cmp;
 
 use sdl2::rect::{Rect, Point};
+use rand::Rng;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RoomId(usize);
@@ -83,6 +84,11 @@ impl FloorMap {
         self.tile_size
     }
 
+    /// Returns the number of rooms on this map
+    pub fn nrooms(&self) -> usize {
+        self.rooms.len()
+    }
+
     /// Returns an iterator over the rooms in the map and their IDs
     pub fn rooms(&self) -> impl Iterator<Item=(RoomId, &Room)> {
         self.rooms.iter().enumerate().map(|(i, room)| (RoomId(i), room))
@@ -93,10 +99,10 @@ impl FloorMap {
         &self.rooms[room_id.0]
     }
 
-    /// Returns a mutable reference to all of the rooms.
+    /// Returns an iterator over mutable references to all of the rooms.
     /// Not for use after map generation is complete.
-    pub(in super) fn rooms_mut(&mut self) -> &mut [Room] {
-        &mut self.rooms
+    pub(in super) fn rooms_mut(&mut self) -> impl Iterator<Item=(RoomId, &mut Room)> {
+        self.rooms.iter_mut().enumerate().map(|(i, room)| (RoomId(i), room))
     }
 
     /// Add a room with the given rectangle to the map.

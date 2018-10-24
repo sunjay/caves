@@ -65,8 +65,10 @@ fn main() -> Result<(), String> {
         rows: 40,
         cols: 50,
         tile_size: 16,
-        room_rows: (10, 14).into(),
-        room_cols: (8, 14).into(),
+        rooms: (6, 9).into(),
+        room_rows: (7, 14).into(),
+        room_cols: (8, 16).into(),
+        max_overlap: 0.35,
         doors: (1, 3).into(),
         next_prev_tiles: 2,
     }.generate();
