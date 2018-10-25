@@ -32,7 +32,10 @@ impl MapGenerator {
                 }
             }
 
+            // Remove rooms that aren't a valid size anymore
+            self.remove_invalid_rooms(&mut room_rects);
             // Only keep the largest group of connected rooms
+            // Need to remove invalid first because that may result in more disconnected rooms
             self.remove_disconnected(&mut room_rects);
         }
 
@@ -69,6 +72,26 @@ impl MapGenerator {
 
         for &rect2 in room_rects {
             if let Some(common) = rect.intersection(rect2) {
+                // Room cannot only overlap at a corner.
+                // Example invalid cases:
+                //
+                //        ooooooo               ooooooo
+                //        o     o         xxxxxxxx    o
+                //  xxxxxxxoooooo         x     oxooooo
+                //  x     x               xxxxxxxx
+                //  xxxxxxx
+                //
+                //        ooooooo              ooooooo
+                //        o     o        xxxxxxx     o
+                //  xxxxxxxxooooo        x     xoooooo
+                //  x      x             xxxxxxx
+                //  xxxxxxxx
+                //
+                // Notice that any intersection of area within 4 falls into these cases
+                if common.area() <= 4 {
+                    return None;
+                }
+
                 // Room cannot take over max_overlap% of the area of another room
                 if common.area() as f64 / rect2.area() as f64 > self.max_overlap {
                     return None;
@@ -121,7 +144,7 @@ impl MapGenerator {
         for i in 0..room_rects.len() {
             // If i is not part of any connected component, create one for it
             if !components.iter().any(|c| c.contains(&i)) {
-                let component = self.rect_graph_depth_first_search(&graph, i);
+                let component = self.rect_graph_breadth_first_search(&graph, i);
                 components.push(component);
             }
         }
@@ -140,7 +163,135 @@ impl MapGenerator {
         }
     }
 
-    fn rect_graph_depth_first_search(&self, graph: &HashMap<usize, Vec<usize>>, start: usize) -> HashSet<usize> {
+    /// Removes rooms that have too few leftover inner tiles or rooms that have been split up by
+    /// other rooms.
+    ///
+    /// This can happen because other rooms overlapped with the majority of tiles in this room.
+    fn remove_invalid_rooms(&self, room_rects: &mut Vec<TileRect>) {
+        // Using a counter + while loop to avoid iterator invalidation problems
+        let mut i = 0;
+        while i < room_rects.len() {
+            if self.is_invalid_rect(&room_rects[i], room_rects) {
+                // Room has become too small or has been split up, get rid of it
+                room_rects.remove(i);
+            } else {
+                // Keep the room and move on
+                i += 1;
+            }
+        }
+    }
+
+    fn is_invalid_rect(&self, room: &TileRect, room_rects: &[TileRect]) -> bool {
+        let GridSize {rows, cols} = room.dimensions();
+        // true = tile is uncovered by another room.
+        // false = tile is covered by another room.
+        // All positions in this 2D vector are offset by the top-left of the ith room. That
+        // means you need to subtract the top-left to get the position in this array.
+        let mut room_tiles = vec![vec![true; cols]; rows];
+
+        let top_left = room.top_left();
+        for &other_room in &*room_rects {
+            if *room == other_room {
+                continue;
+            }
+            if let Some(common) = room.intersection(other_room) {
+                for pos in common.tile_positions() {
+                    let local_pos = pos - top_left;
+                    room_tiles[local_pos.row][local_pos.col] = false;
+                }
+            }
+        }
+
+        // Ensure that a room has not accidentally become segrated into chunks that are too
+        // small. We can check for this by searching through the uncovered tiles and finding
+        // the minimum and maximum reachable row/columns in that room.
+        //
+        //  0123456789
+        // 0TTT_______
+        // 1TTT_______
+        // 2__T____TTT
+        // 3TTTTTT_TTT
+        //
+        // Notice that the T values from the top left corner (0, 0) reach all the way to (5. 3)
+        // via the path in column 2. That means that the number of rows between these points is
+        // 4 and the number of columns is 6. Meanwhile, the rectangle in the bottom right
+        // corner formed by (7, 2) and (9, 3) has 2 rows and 3 columns. The places marked "_"
+        // are tiles where another room has overlapped. If the number of rows of either of
+        // these (4 and 2) is not in the room_rows bounds or if the number of columns of either
+        // of these (6 and 3) is not in the room_cols bounds, we want to remove it. The reason
+        // for this is because currently, by being separated like this by overlapping rooms,
+        // this room has essentially become two rooms. If either of those rooms is not the
+        // right size, we want to get rid of the whole thing.
+        //
+        // NOTE: As implemented right now, we actually just get rid fo the whole thing if it
+        // is split up like this. This was determined to be better behaviour because the room
+        // rectangle doesn't really represent anything meaningful if it has been split up like
+        // this. Most of the explanation above still applies so it has been left as is.
+
+        // To find out if there are two separate components in room_tiles, we do a BFS and set
+        // any true items found to false. If there are already no true items, we remove the
+        // room since it has been completely overlapped. If after removing the first component
+        // of true items there are still remaining tiles with true in them, there must be two
+        // components since the remaining ones weren't reachable during the search.
+
+        let first_uncovered = room_tiles.iter().enumerate()
+            .find_map(|(row, r)| r.iter().enumerate()
+                .find_map(|(col, &t)| if t { Some(TilePos {row, col}) } else { None }));
+        if let Some(first_uncovered) = first_uncovered {
+            // Find the first connected component of uncovered tiles
+            let rows = room_tiles.len();
+            let cols = room_tiles[0].len();
+
+            let mut open = VecDeque::new();
+            open.push_back(first_uncovered);
+
+            let mut seen = HashSet::new();
+            while let Some(node) = open.pop_front() {
+                if seen.contains(&node) {
+                    continue;
+                }
+                seen.insert(node);
+
+                let adjacents = node.adjacent_north().into_iter()
+                    .chain(node.adjacent_east(cols))
+                    .chain(node.adjacent_south(rows))
+                    .chain(node.adjacent_west());
+                for adj in adjacents {
+                    if room_tiles[adj.row][adj.col] {
+                        open.push_back(adj);
+                    }
+                }
+            }
+
+            for pos in &seen {
+                // Pretend all of these tiles are covered
+                room_tiles[pos.row][pos.col] = false;
+            }
+            // If there are still any uncovered tiles, there must have been more than one component
+            // so return invalid
+            if room_tiles.iter().any(|r| r.iter().any(|&t| t)) {
+                return true; // invalid room
+            }
+
+            // There is only one component. If its dimensions are too small, return invalid.
+            let min_row = seen.iter().map(|pt| pt.row).min().unwrap();
+            let max_row = seen.iter().map(|pt| pt.row).max().unwrap();
+            let min_col = seen.iter().map(|pt| pt.col).min().unwrap();
+            let max_col = seen.iter().map(|pt| pt.col).max().unwrap();
+            if (max_row - min_row + 1) < self.room_rows.min || (max_col - min_col + 1) < self.room_cols.min {
+                return true; // invalid room
+            }
+
+            //TODO: Should we consider resizing the room to be the size of its smallest component?
+        } else {
+            // No uncovered items at all
+            return true; // invalid room
+        }
+
+        false // room is valid
+    }
+
+    fn rect_graph_breadth_first_search(&self, graph: &HashMap<usize, Vec<usize>>, start: usize) -> HashSet<usize> {
         let mut open = VecDeque::new();
         open.push_back(start);
 

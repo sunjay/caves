@@ -23,6 +23,40 @@ impl TilePos {
         )
     }
 
+    /// Returns the position one tile north of this position, if any
+    pub fn adjacent_north(self) -> Option<TilePos> {
+        self.row.checked_sub(1).map(|row| TilePos {row, col: self.col})
+    }
+
+    /// Returns the position one tile east of this position, if any
+    pub fn adjacent_east(self, ncols: usize) -> Option<TilePos> {
+        if self.col < ncols - 1 {
+            Some(TilePos {
+                row: self.row,
+                col: self.col + 1,
+            })
+        } else {
+            None
+        }
+    }
+
+    /// Returns the position one tile south of this position, if any
+    pub fn adjacent_south(self, nrows: usize) -> Option<TilePos> {
+        if self.row < nrows - 1 {
+            Some(TilePos {
+                row: self.row + 1,
+                col: self.col,
+            })
+        } else {
+            None
+        }
+    }
+
+    /// Returns the position one tile west of this position, if any
+    pub fn adjacent_west(self) -> Option<TilePos> {
+        self.col.checked_sub(1).map(|col| TilePos {row: self.row, col})
+    }
+
     /// Returns the difference between this position and another position
     /// This is like self - other, but negative values are allowed
     /// Returns (delta row, delta col)
@@ -60,6 +94,18 @@ impl Sub<GridSize> for TilePos {
         Self {
             row: self.row - other.rows,
             col: self.col - other.cols,
+        }
+    }
+}
+
+// Subtraction makes sense to implement since you can have points relative to other points
+impl Sub for TilePos {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self {
+        Self {
+            row: self.row - other.row,
+            col: self.col - other.col,
         }
     }
 }
