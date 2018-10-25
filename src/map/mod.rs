@@ -39,10 +39,14 @@ impl GameMap {
     pub fn game_start(&self) -> Point {
         let first_level = self.levels.first().expect("bug: should be at least one level");
 
-        let (_, level_start_room) = first_level.rooms().find(|(_, room)| room.is_player_start())
+        let (room_id, level_start_room) = first_level.rooms()
+            .find(|(_, room)| room.is_player_start())
             .expect("bug: should have had a player start level on the first level");
         // Start in the middle of the level start room
-        let center = level_start_room.rect().center_tile();
+        let center = level_start_room.boundary().center_tile();
+        assert!(first_level.grid().get(center).is_room_floor(room_id),
+            "bug: the center of the player start room was not a tile in that room");
+
         // Start in the middle of the tile
         center.to_point(self.tile_size as i32).offset(self.tile_size as i32/2, self.tile_size as i32/2)
     }

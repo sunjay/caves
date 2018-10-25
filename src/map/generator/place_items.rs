@@ -35,7 +35,7 @@ impl MapGenerator {
         // shuffle to do all the random choosing at once
         let mut rooms: Vec<_> = map.rooms()
             .filter(room_filter)
-            .map(|(id, r)| (id, *r.rect()))
+            .map(|(id, r)| (id, *r.boundary()))
             .collect();
         assert!(rooms.len() >= nrooms,
             "Not enough rooms to place next/prev level tiles");
