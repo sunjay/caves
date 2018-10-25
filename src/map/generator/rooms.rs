@@ -41,7 +41,7 @@ impl MapGenerator {
         for rect in room_rects {
             let room_id = map.add_room(rect);
 
-            self.place_rect(sprites, map, room_id, rect);
+            self.place_rect(sprites, map, room_id);
         }
         self.assign_special_rooms(rng, sprites, map, level);
 
@@ -174,7 +174,7 @@ impl MapGenerator {
                 (room_id, *room.boundary())
             };
             // Put this room's tiles on top
-            self.place_rect(sprites, map, room_id, rect);
+            self.place_rect(sprites, map, room_id);
         }
 
         // If we're on the last level, pick the biggest room as the treasure chamber
@@ -187,12 +187,12 @@ impl MapGenerator {
                 (room_id, *room.boundary())
             };
             // Put this room's tiles on top
-            self.place_rect(sprites, map, room_id, rect);
+            self.place_rect(sprites, map, room_id);
         }
     }
 
     /// Places a TileRect on the map and properly assigns its edges to be wall tiles
-    pub fn place_rect(&self, sprites: &SpriteTable, map: &mut FloorMap, room_id: RoomId, rect: TileRect) {
+    pub fn place_rect(&self, sprites: &SpriteTable, map: &mut FloorMap, room_id: RoomId) {
         // First cover the room in floor tiles
         for pos in map.room(room_id).boundary().tile_positions() {
             map.grid_mut().place_tile(pos, Tile::new_floor(room_id, sprites.default_floor_tile_index));
