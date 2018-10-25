@@ -60,6 +60,7 @@ impl fmt::Debug for FloorMap {
                     Wall {..} => "\u{25a2}".on_black(),
                     Empty => " ".on_black(),
                 })?;
+                write!(f, "{}", " ".on_black())?;
             }
             writeln!(f)?;
         }
