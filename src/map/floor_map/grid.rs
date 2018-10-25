@@ -116,57 +116,15 @@ impl TileGrid {
         ))
     }
 
-    /// Returns the position one tile north of the given position, panics if already at the northmost tile
-    pub fn adjacent_north(&self, TilePos {row, col}: TilePos) -> TilePos {
-        assert_ne!(row, 0, "bug: already at northmost position");
-        TilePos {
-            row: row - 1,
-            col,
-        }
-    }
-
-    /// Returns the position one tile east of the given position, panics if already at the eastmost tile
-    pub fn adjacent_east(&self, TilePos {row, col}: TilePos) -> TilePos {
-        assert!(col < self.cols_len() - 1, "bug: already at eastmost position");
-        TilePos {
-            row,
-            col: col + 1,
-        }
-    }
-
-    /// Returns the position one tile south of the given position, panics if already at the southmost tile
-    pub fn adjacent_south(&self, TilePos {row, col}: TilePos) -> TilePos {
-        assert!(row < self.rows_len() - 1, "bug: already at southmost position");
-        TilePos {
-            row: row + 1,
-            col,
-        }
-    }
-
-    /// Returns the position one tile west of the given position, panics if already at the westmost tile
-    pub fn adjacent_west(&self, TilePos {row, col}: TilePos) -> TilePos {
-        assert_ne!(col, 0, "bug: already at westmost position");
-        TilePos {
-            row,
-            col: col - 1,
-        }
-    }
-
     /// Returns an iterator of tile positions adjacent to the given tile in the four cardinal
     /// directions. Only returns valid cell positions.
-    pub fn adjacent_positions(&self, TilePos {row, col}: TilePos) -> impl Iterator<Item=TilePos> {
-        let rows = self.rows_len() as isize;
-        let cols = self.cols_len() as isize;
-        [(-1, 0), (0, -1), (1, 0), (0, 1)].into_iter().filter_map(move |(row_offset, col_offset)| {
-            let row = row as isize + row_offset;
-            let col = col as isize + col_offset;
-
-            if row < 0 || row >= rows || col < 0 || col >= cols {
-                None
-            } else {
-                Some(TilePos {row: row as usize, col: col as usize})
-            }
-        })
+    pub fn adjacent_positions(&self, pos: TilePos) -> impl Iterator<Item=TilePos> {
+        let rows = self.rows_len();
+        let cols = self.cols_len();
+        pos.adjacent_north().into_iter()
+            .chain(pos.adjacent_east(cols))
+            .chain(pos.adjacent_south(rows))
+            .chain(pos.adjacent_west())
     }
 
     /// Executes a depth-first search starting from a given tile
