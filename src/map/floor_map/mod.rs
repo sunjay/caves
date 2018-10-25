@@ -18,7 +18,6 @@ use std::fmt;
 use std::cmp;
 
 use sdl2::rect::{Rect, Point};
-use rand::Rng;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RoomId(usize);
@@ -105,10 +104,10 @@ impl FloorMap {
         self.rooms.iter_mut().enumerate().map(|(i, room)| (RoomId(i), room))
     }
 
-    /// Add a room with the given rectangle to the map.
+    /// Add a room with the given boundary rectangle to the map.
     /// Rooms should not be added after map generation is complete.
-    pub(in super) fn add_room(&mut self, rect: TileRect) -> RoomId {
-        let room = Room::new(rect);
+    pub(in super) fn add_room(&mut self, boundary: TileRect) -> RoomId {
+        let room = Room::new(boundary);
         self.rooms.push(room);
         RoomId(self.rooms.len() - 1)
     }

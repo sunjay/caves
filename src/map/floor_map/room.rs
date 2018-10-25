@@ -17,28 +17,29 @@ pub enum RoomType {
     TreasureChamber,
 }
 
-/// Represents a rectangular group of tiles. The outermost border of the rectangle is made up of
-/// wall tiles and passages (floor tiles) to adjoining rooms. Rooms can overlap at their outer
-/// walls. In other words, this means that the rectangles of two rooms may share a wall at their
-/// border.
+/// Represents a "room" on the map separated from other rooms by walls/entrances. Rooms are allowed
+/// to overlap, so the boundary of the room only represents the extent of where tiles may be within
+/// the room. Not all tiles within the boundary are guaranteed to be part of this particular room.
 #[derive(Debug, Clone)]
 pub struct Room {
     rtype: RoomType,
-    rect: TileRect,
+    boundary: TileRect,
 }
 
 impl Room {
     /// Create a new normal room
-    pub(in super) fn new(rect: TileRect) -> Self {
-        Self {rtype: RoomType::Normal, rect}
+    pub(in super) fn new(boundary: TileRect) -> Self {
+        Self {rtype: RoomType::Normal, boundary}
     }
 
     pub fn room_type(&self) -> RoomType {
         self.rtype
     }
 
-    pub fn rect(&self) -> &TileRect {
-        &self.rect
+    /// The rectangular boundary of the room. Since rooms are allowed to overlap, all tiles within
+    /// this boundary may not be part of this room.
+    pub fn boundary(&self) -> &TileRect {
+        &self.boundary
     }
 
     /// Returns true if a room is allowed to contain ToNextLevel tiles
