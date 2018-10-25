@@ -13,7 +13,6 @@ pub use self::bounds::*;
 
 use rand::{random, StdRng, Rng, SeedableRng};
 
-use texture_manager::TextureId;
 use map::*;
 
 /// Represents when we have run out of attempts to generate the map from a given key
@@ -22,8 +21,6 @@ use map::*;
 struct RanOutOfAttempts;
 
 pub struct MapGenerator {
-    /// The spritesheet for the map styles
-    pub texture_id: TextureId,
     /// The number of attempts before giving up on placing something randomly
     ///
     /// After this many attempts, the level generator will give up and generate a new seed based
@@ -67,17 +64,9 @@ impl MapGenerator {
     pub fn generate_with_key(self, key: MapKey) -> GameMap {
         let mut rng = key.to_rng();
 
-        let sprites = SpriteTable {
-            floor_tiles: vec![self.tile_sprite(0, 0)],
-            wall_tiles: vec![self.tile_sprite(8, 0)],
-            empty_tile_sprite: self.tile_sprite(0, 3),
-            default_floor_tile_index: 0,
-            default_wall_tile_index: 0,
-        };
-
         loop {
             let levels: Result<Vec<_>, _> = (1..=self.levels)
-                .map(|level| self.generate_level(&mut rng, &sprites, level))
+                .map(|level| self.generate_level(&mut rng, level))
                 .collect();
 
             match levels {
@@ -87,7 +76,6 @@ impl MapGenerator {
                     current_level: 0,
                     map_size: GridSize {rows: self.rows, cols: self.cols},
                     tile_size: self.tile_size,
-                    sprites,
                 },
                 // Reseed the rng using itself
                 Err(RanOutOfAttempts) => {
@@ -97,21 +85,16 @@ impl MapGenerator {
         }
     }
 
-    fn generate_level(
-        &self,
-        rng: &mut StdRng,
-        sprites: &SpriteTable,
-        level: usize,
-    ) -> Result<FloorMap, RanOutOfAttempts> {
+    fn generate_level(&self, rng: &mut StdRng, level: usize) -> Result<FloorMap, RanOutOfAttempts> {
         let mut map = FloorMap::new(
             GridSize {rows: self.rows, cols: self.cols},
             self.tile_size,
         );
 
         // Levels are generated in "phases". The following calls runs each of those in succession.
-        self.generate_rooms(rng, sprites, &mut map, level)?;
+        self.generate_rooms(rng, &mut map, level)?;
         println!("{:?}", map);
-        self.connect_rooms(rng, sprites, &mut map);
+        self.connect_rooms(rng, &mut map);
         self.place_locks(rng, &mut map);
         //if level < self.levels {
         //    self.place_to_next_level_tiles(rng, &mut map)?;
@@ -122,19 +105,6 @@ impl MapGenerator {
 
         self.validate_map(&map);
         Ok(map)
-    }
-
-    /// Returns the (tile_size)x(tile_size) sprite for the given row and column of the spritesheet
-    fn tile_sprite(&self, row: usize, col: usize) -> SpriteImage {
-        SpriteImage::new_unflipped(
-            self.texture_id,
-            Rect::new(
-                col as i32 * self.tile_size as i32,
-                row as i32 * self.tile_size as i32,
-                self.tile_size,
-                self.tile_size,
-            ),
-        )
     }
 
     // NOTE: This impl block is only for the public interface of MapGenerator + some top-level

@@ -48,7 +48,7 @@ use components::{
 use resources::{FramesElapsed, ActionQueue, EventQueue, Event, Key};
 use texture_manager::TextureManager;
 use renderer::Renderer;
-use map::MapGenerator;
+use map::{MapGenerator, MapSprites};
 
 fn main() -> Result<(), String> {
     let fps = 60.0;
@@ -58,13 +58,16 @@ fn main() -> Result<(), String> {
     let mut textures = TextureManager::new(&texture_creator);
     let mut event_pump = renderer.event_pump()?;
 
+    let map_texture = textures.create_png_texture("assets/dungeon.png")?;
+    let tile_size = 16;
+    let sprites = MapSprites::from_dungeon_spritesheet(map_texture, tile_size);
+
     let map = MapGenerator {
-        texture_id: textures.create_png_texture("assets/dungeon.png")?,
         attempts: 1000,
         levels: 10,
         rows: 40,
         cols: 50,
-        tile_size: 16,
+        tile_size,
         rooms: (6, 9).into(),
         room_rows: (7, 14).into(),
         room_cols: (8, 16).into(),
@@ -143,7 +146,7 @@ fn main() -> Result<(), String> {
 
             dispatcher.dispatch(&mut world.res);
 
-            renderer.render(&world, &textures)?;
+            renderer.render(&world, &textures, &sprites)?;
             last_frames_elapsed = frames_elapsed;
 
             // Register any updates

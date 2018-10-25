@@ -15,7 +15,6 @@ pub struct GameMap {
     current_level: usize,
     map_size: GridSize,
     tile_size: u32,
-    sprites: SpriteTable,
 }
 
 impl GameMap {
@@ -27,11 +26,6 @@ impl GameMap {
     /// Returns the level boundary in pixels of the current map
     pub fn level_boundary(&self) -> Rect {
         self.map_size.to_rect(self.tile_size)
-    }
-
-    /// Returns the sprite mapping for this map
-    pub fn sprites(&self) -> &SpriteTable {
-        &self.sprites
     }
 
     /// Return the point that represents the start of the game. This point is always on the

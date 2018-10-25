@@ -9,7 +9,6 @@ impl MapGenerator {
     pub(in super) fn generate_rooms(
         &self,
         rng: &mut StdRng,
-        sprites: &SpriteTable,
         map: &mut FloorMap,
         level: usize,
     ) -> Result<(), RanOutOfAttempts> {
@@ -41,9 +40,9 @@ impl MapGenerator {
         for rect in room_rects {
             let room_id = map.add_room(rect);
 
-            self.place_rect(sprites, map, room_id);
+            self.place_rect(map, room_id);
         }
-        self.assign_special_rooms(rng, sprites, map, level);
+        self.assign_special_rooms(rng, map, level);
 
         Ok(())
     }
@@ -164,22 +163,22 @@ impl MapGenerator {
         seen
     }
 
-    fn assign_special_rooms(&self, rng: &mut StdRng, sprites: &SpriteTable, map: &mut FloorMap, level: usize) {
+    fn assign_special_rooms(&self, rng: &mut StdRng, map: &mut FloorMap, level: usize) {
         // If we're on the first level, pick a random room for the player to start
         if level == 1 {
-            let (room_id, rect) = {
+            let (room_id, _) = {
                 let room_index = rng.gen_range(0, map.nrooms());
                 let (room_id, room) = map.rooms_mut().nth(room_index).unwrap();
                 room.become_player_start();
                 (room_id, *room.boundary())
             };
             // Put this room's tiles on top
-            self.place_rect(sprites, map, room_id);
+            self.place_rect(map, room_id);
         }
 
         // If we're on the last level, pick the biggest room as the treasure chamber
         if level == self.levels {
-            let (room_id, rect) = {
+            let (room_id, _) = {
                 let (room_id, room) = map.rooms_mut()
                     .max_by_key(|(_, r)| r.boundary().area())
                     .expect("bug: should be at least one room");
@@ -187,20 +186,20 @@ impl MapGenerator {
                 (room_id, *room.boundary())
             };
             // Put this room's tiles on top
-            self.place_rect(sprites, map, room_id);
+            self.place_rect(map, room_id);
         }
     }
 
     /// Places a TileRect on the map and properly assigns its edges to be wall tiles
-    pub fn place_rect(&self, sprites: &SpriteTable, map: &mut FloorMap, room_id: RoomId) {
+    pub fn place_rect(&self, map: &mut FloorMap, room_id: RoomId) {
         // First cover the room in floor tiles
         for pos in map.room(room_id).boundary().tile_positions() {
-            map.grid_mut().place_tile(pos, Tile::new_floor(room_id, sprites.default_floor_tile_index));
+            map.grid_mut().place_tile(pos, Tile::new_floor(room_id, FloorSprite::default()));
         }
 
         // Turn the edges of the room into walls
         for edge in map.room(room_id).boundary().edge_positions() {
-            map.grid_mut().get_mut(edge).become_wall(sprites.default_wall_tile_index);
+            map.grid_mut().get_mut(edge).become_wall(WallSprite::default());
         }
     }
 }
