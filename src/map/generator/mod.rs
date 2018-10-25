@@ -64,7 +64,9 @@ impl MapGenerator {
     pub fn generate_with_key(self, key: MapKey) -> GameMap {
         let mut rng = key.to_rng();
 
-        loop {
+        // If this takes more than 10 attempts, we can conclude that it was essentially impossible
+        // to generate the map.
+        for _ in 0..10 {
             let levels: Result<Vec<_>, _> = (1..=self.levels)
                 .map(|level| self.generate_level(&mut rng, level))
                 .collect();
@@ -83,6 +85,8 @@ impl MapGenerator {
                 },
             }
         }
+
+        panic!("Never succeeded in generating a map with key `{}`!", key);
     }
 
     fn generate_level(&self, rng: &mut StdRng, level: usize) -> Result<FloorMap, RanOutOfAttempts> {
