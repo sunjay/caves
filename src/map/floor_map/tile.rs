@@ -1,6 +1,6 @@
 use std::fmt;
 
-use super::{RoomId, SpriteTable, SpriteImage};
+use super::{RoomId, FloorSprite, WallSprite, MapSprites, SpriteImage};
 
 #[derive(Debug, Clone)]
 pub enum Item {
@@ -63,13 +63,13 @@ pub enum Tile {
         room_id: RoomId,
         object: Option<TileObject>,
         // The index of the room sprite to use in the sprite table
-        room_sprite_index: usize,
+        sprite: FloorSprite,
     },
     /// Tiles that cannot be traversed, not associated to a particular room
     Wall {
         decoration: Option<WallDecoration>,
         // The index of the wall sprite to use in the sprite table
-        wall_sprite_index: usize,
+        sprite: WallSprite,
     },
     /// A tile that cannot be traversed and has nothing on it
     Empty,
@@ -77,13 +77,13 @@ pub enum Tile {
 
 impl Tile {
     /// Creates a new floor tile with no object and the given sprite
-    pub fn new_floor(room_id: RoomId, room_sprite_index: usize) -> Self {
-        Tile::Floor {room_id, object: None, room_sprite_index}
+    pub fn new_floor(room_id: RoomId, sprite: FloorSprite) -> Self {
+        Tile::Floor {room_id, object: None, sprite}
     }
 
     /// Creates a new wall tile with no decoration and the given sprite
-    pub fn new_wall(wall_sprite_index: usize) -> Self {
-        Tile::Wall {decoration: None, wall_sprite_index}
+    pub fn new_wall(sprite: WallSprite) -> Self {
+        Tile::Wall {decoration: None, sprite}
     }
 
     /// Creates a new empty tile
@@ -92,17 +92,17 @@ impl Tile {
     }
 
     /// Returns the sprite that should be used as the background of this tile
-    pub fn background_sprite<'a>(&self, sprites: &'a SpriteTable) -> &'a SpriteImage {
+    pub fn background_sprite<'a>(&self, sprites: &'a MapSprites) -> &'a SpriteImage {
         use self::Tile::*;
         match *self {
-            Floor {room_sprite_index, ..} => &sprites.floor_tiles[room_sprite_index],
-            Wall {wall_sprite_index, ..} => &sprites.wall_tiles[wall_sprite_index],
-            Empty => &sprites.empty_tile_sprite,
+            Floor {sprite, ..} => &sprites.floor_sprite(sprite),
+            Wall {sprite, ..} => &sprites.wall_sprite(sprite),
+            Empty => sprites.empty_tile_sprite(),
         }
     }
 
     /// Returns the sprite that should be drawn on top of the background of this sprite
-    pub fn object_sprite<'a>(&self, sprites: &'a SpriteTable) -> Option<&'a SpriteImage> {
+    pub fn object_sprite<'a>(&self, sprites: &'a MapSprites) -> Option<&'a SpriteImage> {
         match self {
             Tile::Floor {object: Some(object), ..} => unimplemented!(),
             _ => None,
@@ -134,13 +134,13 @@ impl Tile {
     }
 
     /// Turns this tile into a Wall tile
-    pub fn become_wall(&mut self, wall_sprite_index: usize) {
-        *self = Self::new_wall(wall_sprite_index);
+    pub fn become_wall(&mut self, sprite: WallSprite) {
+        *self = Self::new_wall(sprite);
     }
 
     /// Turns this tile into a Floor tile
-    pub fn become_floor(&mut self, room_id: RoomId, room_sprite_index: usize) {
-        *self = Self::new_floor(room_id, room_sprite_index);
+    pub fn become_floor(&mut self, room_id: RoomId, sprite: FloorSprite) {
+        *self = Self::new_floor(room_id, sprite);
     }
 
     /// Returns true if this tile has an object

@@ -4,7 +4,7 @@ use super::{MapGenerator, RanOutOfAttempts};
 use map::*;
 
 impl MapGenerator {
-    pub(in super) fn connect_rooms(&self, rng: &mut StdRng, sprites: &SpriteTable, map: &mut FloorMap) {
+    pub(in super) fn connect_rooms(&self, rng: &mut StdRng, map: &mut FloorMap) {
 
     }
 

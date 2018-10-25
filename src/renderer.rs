@@ -24,7 +24,7 @@ use specs::{
 
 use texture_manager::TextureManager;
 use components::{Position, Sprite, CameraFocus};
-use map::{GameMap, Tile, TilePos, SpriteTable};
+use map::{GameMap, Tile, TilePos, MapSprites};
 
 #[derive(SystemData)]
 struct RenderData<'a> {
@@ -106,7 +106,7 @@ impl Renderer {
         self.sdl_context.event_pump()
     }
 
-    pub fn render(&mut self, world: &World, textures: &TextureManager) -> Result<(), String> {
+    pub fn render(&mut self, world: &World, textures: &TextureManager, map_sprites: &MapSprites) -> Result<(), String> {
         self.canvas.clear();
 
         let RenderData {map, positions, sprites, camera_focuses} = world.system_data();
@@ -140,7 +140,7 @@ impl Renderer {
         let screen = Rect::from_center(render_top_left + screen_center, screen_width, screen_height);
 
         let level = map.current_level_map();
-        self.render_tiles(level.tiles_within(screen), map.sprites(), render_top_left, textures)?;
+        self.render_tiles(level.tiles_within(screen), map_sprites, render_top_left, textures)?;
 
         for (&Position(pos), Sprite(ref sprite)) in (&positions, &sprites).join() {
             let pos = pos - render_top_left;
@@ -168,7 +168,7 @@ impl Renderer {
     fn render_tiles<'a>(
         &mut self,
         tiles: impl Iterator<Item=(Point, TilePos, &'a Tile)>,
-        sprites: &SpriteTable,
+        sprites: &MapSprites,
         render_top_left: Point,
         textures: &TextureManager,
     ) -> Result<(), String> {
