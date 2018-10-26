@@ -37,8 +37,7 @@ impl MapGenerator {
             .filter(room_filter)
             .map(|(id, r)| (id, *r.boundary()))
             .collect();
-        assert!(rooms.len() >= nrooms,
-            "Not enough rooms to place next/prev level tiles");
+        assert!(rooms.len() >= nrooms, "Not enough rooms to place items");
         rng.shuffle(&mut rooms);
 
         let grid = map.grid_mut();
@@ -52,7 +51,13 @@ impl MapGenerator {
                     rect.random_vertical_edge_tile(rng)
                 };
 
-                // Cannot place adjacent to corner
+                if !grid.get(pos).is_wall() {
+                    // Can happen since rooms overlap
+                    continue;
+                }
+
+                // Cannot place adjacent to corner since corners are only adjacent to other wall
+                // tiles and to other rooms
                 if rect.is_corner(pos) {
                     continue;
                 }
@@ -85,12 +90,8 @@ impl MapGenerator {
             .filter(|&pt| grid.get(pt).is_room_floor(room_id))
             .collect();
         let inner_room_tile = match &adj_room_tiles[..] {
-            // A corner without an entrance next to it
-            [] => unreachable!("bug: earlier check should have detected corners"),
             [adj] => *adj,
-            // A wall with an entrance adjacent to it. Technically this is fine for item
-            // placement. A future enhancement would be to filter out the entrance and just
-            // use the other adjacent that isn't an entrance (TODO).
+            // Either a wall with an entrance next to it or a wall next to another room.
             _ => return None,
         };
 
