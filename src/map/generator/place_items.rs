@@ -10,7 +10,9 @@ impl MapGenerator {
         map: &mut FloorMap,
     ) -> Result<(), RanOutOfAttempts> {
         let valid_rooms = |(_, r): &(RoomId, &Room)| r.can_contain_to_next_level();
-        self.place_object_in_rooms_edges(rng, map, valid_rooms, self.next_prev_tiles, TileObject::ToNextLevel)
+        // Can only place on vertical edge since we only have sprites for tiles adjacent to those
+        let next_pos = |rng: &mut StdRng, rect: TileRect| rect.random_vertical_edge_tile(rng);
+        self.place_object_in_rooms(rng, map, valid_rooms, self.next_prev_tiles, next_pos, TileObject::ToNextLevel)
     }
 
     pub(in super) fn place_to_prev_level_tiles(
@@ -19,17 +21,20 @@ impl MapGenerator {
         map: &mut FloorMap,
     ) -> Result<(), RanOutOfAttempts> {
         let valid_rooms = |(_, r): &(RoomId, &Room)| r.can_contain_to_prev_level();
-        self.place_object_in_rooms_edges(rng, map, valid_rooms, self.next_prev_tiles, TileObject::ToPrevLevel)
+        // Can only place on vertical edge since we only have sprites for tiles adjacent to those
+        let next_pos = |rng: &mut StdRng, rect: TileRect| rect.random_vertical_edge_tile(rng);
+        self.place_object_in_rooms(rng, map, valid_rooms, self.next_prev_tiles, next_pos, TileObject::ToPrevLevel)
     }
 
     /// Places `nrooms` copies of a TileObject into `nrooms` randomly choosen rooms from rooms
-    fn place_object_in_rooms_edges<'a>(
+    fn place_object_in_rooms<'a>(
         &self,
         rng: &mut StdRng,
         map: &mut FloorMap,
         room_filter: impl FnMut(&(RoomId, &Room)) -> bool,
         nrooms: usize,
-        mut object: impl FnMut(usize) -> TileObject
+        mut next_pos: impl FnMut(&mut StdRng, TileRect) -> TilePos,
+        mut object: impl FnMut(usize) -> TileObject,
     ) -> Result<(), RanOutOfAttempts> {
         // To do this using choose we would need to allocate anyway, so we might as well just use
         // shuffle to do all the random choosing at once
@@ -45,11 +50,7 @@ impl MapGenerator {
         'place_loop: for (i, (room_id, rect)) in rooms.into_iter().take(nrooms).enumerate() {
             for _ in 0..self.attempts {
                 // Pick a random point on one of the edges of the room
-                let pos = if rng.gen() {
-                    rect.random_horizontal_edge_tile(rng)
-                } else {
-                    rect.random_vertical_edge_tile(rng)
-                };
+                let pos = next_pos(rng, rect);
 
                 if !grid.get(pos).is_wall() {
                     // Can happen since rooms overlap
@@ -64,7 +65,8 @@ impl MapGenerator {
 
                 if let Some(inner_room_tile) = self.find_place(grid, pos, room_id) {
                     let tile = grid.get_mut(inner_room_tile);
-                    tile.place_object(object(i));
+                    // Want to face away from the wall
+                    tile.place_object(object(i), Orientation::face_target(pos, inner_room_tile));
                     // Can not simply break because then we would return RanOutOfAttempts
                     continue 'place_loop;
                 }

@@ -1,11 +1,18 @@
 use sdl2::rect::Rect;
 
 use texture_manager::TextureId;
+use super::Orientation;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Anchor {
+    North,
+    East,
+    South,
+    West,
+    Center,
+}
 
 /// Represents an image/texture that will be renderered
-///
-/// The convention is that the sprite begins pointing to the right and flipping it horizontally
-/// results in it facing left
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SpriteImage {
     /// The spritesheet to pull the image from
@@ -16,6 +23,8 @@ pub struct SpriteImage {
     pub flip_horizontal: bool,
     /// Whether to flip the sprite along the vertical axis
     pub flip_vertical: bool,
+    /// The position within the region at which this sprite is anchored
+    pub anchor: Anchor,
 }
 
 impl SpriteImage {
@@ -26,6 +35,31 @@ impl SpriteImage {
             region,
             flip_horizontal: false,
             flip_vertical: false,
+            anchor: Anchor::Center,
+        }
+    }
+
+    /// Returns this sprite image flipped horizontally
+    pub fn flip_horizontally(self) -> Self {
+        Self {
+            flip_horizontal: !self.flip_horizontal,
+            ..self
+        }
+    }
+
+    /// Returns this sprite image flipped vertically
+    pub fn flip_vertically(self) -> Self {
+        Self {
+            flip_vertical: !self.flip_vertical,
+            ..self
+        }
+    }
+
+    /// Returns this sprite image anchored from its south side
+    pub fn anchor_south(self) -> Self {
+        Self {
+            anchor: Anchor::South,
+            ..self
         }
     }
 }
@@ -62,12 +96,16 @@ impl Default for WallSprite {
 /// Used to avoid having to manage sprites in each tile
 #[derive(Debug, Clone)]
 pub struct MapSprites {
+    /// Sprite for Tile::Empty
+    empty_tile_sprite: SpriteImage,
     /// Sprites for each type of floor tile. Each of these must map to a FloorSprite variant
     floor_tiles: Vec<SpriteImage>,
     /// Sprites for each type of wall tile. Each of these must map to a WallSprite variant
     wall_tiles: Vec<SpriteImage>,
-    /// Sprite for Tile::Empty
-    empty_tile_sprite: SpriteImage,
+    /// Sprites for each orientation of staircase
+    staircase_up_tiles: Vec<SpriteImage>,
+    /// Sprites for each orientation of staircase
+    staircase_down_tiles: Vec<SpriteImage>,
 }
 
 impl MapSprites {
@@ -85,10 +123,26 @@ impl MapSprites {
         );
 
         Self {
+            empty_tile_sprite: tile_sprite(0, 3),
             floor_tiles: vec![tile_sprite(0, 0)],
             wall_tiles: vec![tile_sprite(8, 0)],
-            empty_tile_sprite: tile_sprite(0, 3),
+            staircase_up_tiles: vec![
+                // bottom step faces east
+                tile_sprite(16, 8).anchor_south().flip_horizontally(),
+                // bottom step faces west
+                tile_sprite(16, 8).anchor_south(),
+            ],
+            staircase_down_tiles: vec![
+                // bottom step faces east
+                tile_sprite(16, 7).flip_horizontally(),
+                // bottom step faces west
+                tile_sprite(16, 7),
+            ],
         }
+    }
+
+    pub fn empty_tile_sprite(&self) -> &SpriteImage {
+        &self.empty_tile_sprite
     }
 
     pub fn floor_sprite(&self, sprite: FloorSprite) -> &SpriteImage {
@@ -105,7 +159,21 @@ impl MapSprites {
         }
     }
 
-    pub fn empty_tile_sprite(&self) -> &SpriteImage {
-        &self.empty_tile_sprite
+    pub fn staircase_up_sprite(&self, orientation: Orientation) -> &SpriteImage {
+        use self::Orientation::*;
+        match orientation {
+            FaceEast => &self.staircase_up_tiles[0],
+            FaceWest => &self.staircase_up_tiles[1],
+            FaceNorth | FaceSouth => unreachable!("bug: no sprites for staircases facing north/south"),
+        }
+    }
+
+    pub fn staircase_down_sprite(&self, orientation: Orientation) -> &SpriteImage {
+        use self::Orientation::*;
+        match orientation {
+            FaceEast => &self.staircase_down_tiles[0],
+            FaceWest => &self.staircase_down_tiles[1],
+            FaceNorth | FaceSouth => unreachable!("bug: no sprites for staircases facing north/south"),
+        }
     }
 }

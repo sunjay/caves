@@ -6,7 +6,7 @@ use specs::{VecStorage, HashMapStorage};
 use sdl2::rect::Rect;
 
 use texture_manager::TextureId;
-use map::SpriteImage;
+use map::{SpriteImage, Anchor};
 
 /// An entity that is unable to move until the given duration has elapsed
 #[derive(Debug, Default, Component)]
@@ -145,6 +145,7 @@ impl AnimationManager {
                     ),
                     flip_horizontal,
                     flip_vertical: false,
+                    anchor: Anchor::Center,
                 },
                 duration,
             }).collect();
