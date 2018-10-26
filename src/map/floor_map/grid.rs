@@ -29,6 +29,14 @@ impl TileGrid {
         TileGrid(vec![vec![Tile::empty(); cols]; rows])
     }
 
+    /// Returns the dimensions of the map
+    pub fn dimensions(&self) -> GridSize {
+        GridSize {
+            rows: self.rows_len(),
+            cols: self.cols_len(),
+        }
+    }
+
     /// Returns the number of rows in this grid
     pub fn rows_len(&self) -> usize {
         self.0.len()

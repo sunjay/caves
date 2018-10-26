@@ -76,7 +76,6 @@ impl MapGenerator {
                     key,
                     levels,
                     current_level: 0,
-                    map_size: GridSize {rows: self.rows, cols: self.cols},
                 },
                 // Reseed the rng using itself
                 Err(RanOutOfAttempts) => {

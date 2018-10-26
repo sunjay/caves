@@ -1,6 +1,5 @@
 use std::env;
 use std::cmp;
-use std::iter::once;
 
 use sdl2::{
     self,
@@ -24,7 +23,7 @@ use specs::{
 
 use texture_manager::TextureManager;
 use components::{Position, Sprite, CameraFocus};
-use map::{GameMap, Tile, TilePos, MapSprites};
+use map::{GameMap, MapSprites};
 
 #[derive(SystemData)]
 struct RenderData<'a> {
@@ -106,7 +105,7 @@ impl Renderer {
         self.sdl_context.event_pump()
     }
 
-    pub fn render(&mut self, world: &World, textures: &TextureManager, map_sprites: &MapSprites) -> Result<(), String> {
+    pub fn render<T>(&mut self, world: &World, textures: &TextureManager<T>, map_sprites: &MapSprites) -> Result<(), String> {
         self.canvas.clear();
 
         let RenderData {map, positions, sprites, camera_focuses} = world.system_data();
@@ -140,7 +139,7 @@ impl Renderer {
         let screen = Rect::from_center(render_top_left + screen_center, screen_width, screen_height);
 
         let level = map.current_level_map();
-        self.render_tiles(level.tiles_within(screen), map_sprites, render_top_left, textures)?;
+        level.render(screen, &mut self.canvas, render_top_left, map_sprites, textures)?;
 
         for (&Position(pos), Sprite(ref sprite)) in (&positions, &sprites).join() {
             let pos = pos - render_top_left;
@@ -161,44 +160,6 @@ impl Renderer {
         }
 
         self.canvas.present();
-
-        Ok(())
-    }
-
-    fn render_tiles<'a>(
-        &mut self,
-        tiles: impl Iterator<Item=(Point, TilePos, &'a Tile)>,
-        sprites: &MapSprites,
-        render_top_left: Point,
-        textures: &TextureManager,
-    ) -> Result<(), String> {
-        for (pos, _, tile) in tiles {
-            let tile_layers = once(tile.background_sprite(sprites))
-                .chain(tile.object_sprite(sprites));
-            for sprite in tile_layers {
-                let texture = textures.get(sprite.texture_id);
-                let source_rect = sprite.region.clone();
-                let dest_rect = Rect::new(
-                    // Need to subtract the position (world coordinates) of this tile from the position
-                    // in world coordinates of the top-left corner of the screen so that we are left
-                    // with the position of this sprite on the screen in screen coordinates
-                    pos.x() - render_top_left.x(),
-                    pos.y() - render_top_left.y(),
-                    sprite.region.width(),
-                    sprite.region.height()
-                );
-
-                self.canvas.copy_ex(
-                    texture,
-                    Some(source_rect),
-                    Some(dest_rect),
-                    0.0,
-                    None,
-                    sprite.flip_horizontal,
-                    sprite.flip_vertical,
-                )?;
-            }
-        }
 
         Ok(())
     }

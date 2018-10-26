@@ -6,7 +6,6 @@ use std::{
 use sdl2::{
     image::LoadTexture,
     render::{TextureCreator, Texture},
-    video::WindowContext,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -15,16 +14,16 @@ pub struct TextureId(usize);
 // NOTE: Ideally, this would just be managed in the renderer, but we can't do that because
 // we can't have a field in a struct that refers to another field. Textures are dependent
 // on the TextureCreator and they need to be stored separately in order for this to work.
-pub struct TextureManager<'a> {
-    texture_creator: &'a TextureCreator<WindowContext>,
+pub struct TextureManager<'a, T: 'a> {
+    texture_creator: &'a TextureCreator<T>,
     textures: Vec<Texture<'a>>,
     /// Memoized textures for each path so we don't end up loading a path twice for no reason.
     /// Path is canonicalized so that slight differences in the path get normalized.
     path_textures: HashMap<PathBuf, TextureId>,
 }
 
-impl<'a> TextureManager<'a> {
-    pub fn new(texture_creator: &'a TextureCreator<WindowContext>) -> Self {
+impl<'a, T> TextureManager<'a, T> {
+    pub fn new(texture_creator: &'a TextureCreator<T>) -> Self {
         Self {
             texture_creator,
             textures: Default::default(),

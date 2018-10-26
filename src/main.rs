@@ -76,6 +76,10 @@ fn main() -> Result<(), String> {
         next_prev_tiles: 2,
     }.generate();
 
+    for (i, level) in map.levels().enumerate() {
+        level.render_to_file(format!("level{}.png", i+1))?;
+    }
+
     let mut world = World::new();
 
     world.add_resource(map.clone());

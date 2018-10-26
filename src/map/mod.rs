@@ -13,7 +13,6 @@ pub struct GameMap {
     key: MapKey,
     levels: Vec<FloorMap>,
     current_level: usize,
-    map_size: GridSize,
 }
 
 impl GameMap {
@@ -22,9 +21,14 @@ impl GameMap {
         &self.levels[self.current_level]
     }
 
+    /// Returns an iterator of the game levels
+    pub fn levels(&self) -> impl Iterator<Item=&FloorMap> {
+        self.levels.iter()
+    }
+
     /// Returns the level boundary in pixels of the current map
     pub fn level_boundary(&self) -> Rect {
-        self.map_size.to_rect(self.current_level_map().tile_size())
+        self.current_level_map().level_boundary()
     }
 
     /// Return the point that represents the start of the game. This point is always on the

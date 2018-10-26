@@ -6,6 +6,9 @@ mod grid_size;
 mod tile_rect;
 mod sprite;
 
+// Extension modules: extend FloorMap with additional methods/functionality
+mod renderer;
+
 pub use self::tile::*;
 pub use self::grid::*;
 pub use self::room::*;
@@ -82,6 +85,11 @@ impl FloorMap {
     /// Returns the size of each tile on this map
     pub fn tile_size(&self) -> u32 {
         self.tile_size
+    }
+
+    /// Returns the level boundary in pixels of the current map
+    pub fn level_boundary(&self) -> Rect {
+        self.grid.dimensions().to_rect(self.tile_size)
     }
 
     /// Returns the number of rooms on this map
