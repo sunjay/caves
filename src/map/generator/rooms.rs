@@ -317,11 +317,11 @@ impl MapGenerator {
     fn assign_special_rooms(&self, rng: &mut StdRng, map: &mut FloorMap, level: usize) {
         // If we're on the first level, pick a random room for the player to start
         if level == 1 {
-            let (room_id, _) = {
+            let room_id = {
                 let room_index = rng.gen_range(0, map.nrooms());
                 let (room_id, room) = map.rooms_mut().nth(room_index).unwrap();
                 room.become_player_start();
-                (room_id, *room.boundary())
+                room_id
             };
             // Put this room's tiles on top
             self.place_rect(map, room_id);
@@ -329,13 +329,46 @@ impl MapGenerator {
 
         // If we're on the last level, pick the biggest room as the treasure chamber
         if level == self.levels {
-            let (room_id, _) = {
-                let (room_id, room) = map.rooms_mut()
-                    .max_by_key(|(_, r)| r.boundary().area())
-                    .expect("bug: should be at least one room");
-                room.become_treasure_chamber();
-                (room_id, *room.boundary())
+            // Adjacency list representation
+            let mut graph: HashMap<_, Vec<_>> = HashMap::new();
+
+            // Create an undirected graph based on intersections
+            // NOTE: Since all rooms are connected at this point, the graph should have as many
+            // keys as there are rooms. All rooms should be accounted for.
+            for (id1, r1) in map.rooms() {
+                for (id2, r2) in map.rooms() {
+                    if id1 != id2 && r1.boundary().has_intersection(*r2.boundary()) {
+                        graph.entry(id1).or_default().push(id2);
+                    }
+                }
+            }
+
+            assert_eq!(graph.len(), map.nrooms(),
+                "bug: not all rooms were added to the graph even though there should no longer be any disconnected rooms");
+
+            // Since the treasure room is the final room of the game, it is possible for it to
+            // accidentally make another room unreachable if we aren't careful in choosing it. To
+            // avoid this, we first try to find the largest room that has only one other adjacent.
+            // This can never make another room unreachable because it is already the end of a
+            // path. If that doesn't work, all rooms must have at least 2 adjacents, so we can pick
+            // the largest room and every other room will always have at least one way to get to it.
+            let largest_room = graph.into_iter()
+                .filter_map(|(id, adjacents)| if adjacents.len() == 1 { Some(id) } else { None })
+                .max_by_key(|&id| map.room(id).boundary().area());
+
+            let room_id = match largest_room {
+                Some(room_id) => room_id,
+                None => {
+                    // All rooms have at least two adjacents, return the largest
+                    map.rooms()
+                        .max_by_key(|(_, r)| r.boundary().area())
+                        .map(|(id, _)| id)
+                        .expect("bug: should be at least one room")
+                }
             };
+
+            map.room_mut(room_id).become_treasure_chamber();
+
             // Put this room's tiles on top
             self.place_rect(map, room_id);
         }

@@ -19,7 +19,7 @@ use std::cmp;
 
 use sdl2::rect::{Rect, Point};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct RoomId(usize);
 
 impl fmt::Display for RoomId {
@@ -97,6 +97,12 @@ impl FloorMap {
     /// Returns the room with the specified room ID
     pub fn room(&self, room_id: RoomId) -> &Room {
         &self.rooms[room_id.0]
+    }
+
+    /// Returns the room with the specified room ID
+    /// Not for use after map generation is complete.
+    pub(in super) fn room_mut(&mut self, room_id: RoomId) -> &mut Room {
+        &mut self.rooms[room_id.0]
     }
 
     /// Returns an iterator over mutable references to all of the rooms.
