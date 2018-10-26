@@ -47,7 +47,7 @@ impl fmt::Debug for FloorMap {
                 use self::Tile::*;
                 write!(f, "{}", match tile {
                     &Floor {room_id, ref object, ..} => {
-                        let object = object.as_ref().map(|o| o.to_string())
+                        let object = object.as_ref().map(|(o, _)| o.to_string())
                             .unwrap_or_else(|| " ".to_string());
 
                         match self.room(room_id).room_type() {

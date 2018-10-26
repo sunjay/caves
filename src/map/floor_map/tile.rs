@@ -1,6 +1,6 @@
 use std::fmt;
 
-use super::{RoomId, FloorSprite, WallSprite, MapSprites, SpriteImage};
+use super::{RoomId, FloorSprite, WallSprite, MapSprites, SpriteImage, TilePos};
 
 #[derive(Debug, Clone)]
 pub enum Item {
@@ -56,19 +56,54 @@ pub enum WallDecoration {
     //TODO: Enemy spawn, arrow shooter, portal, spikes, etc.
 }
 
+/// Represents the direction that an object should face
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Orientation {
+    FaceNorth,
+    FaceEast,
+    FaceSouth,
+    FaceWest,
+}
+
+impl Orientation {
+    /// Returns the orientation that would cause the tile at the given position to face `target`.
+    /// The positions do not need to be adjacent, but they do need to be in the same row or column..
+    pub fn face_target(pos: TilePos, target: TilePos) -> Self {
+        match pos.difference(target) {
+            (0, 0) => unreachable!("bug: cannot find orientation of a point facing itself"),
+            (a, 0) => if a > 0 {
+                // target is north of pos
+                Orientation::FaceNorth
+            } else {
+                // target is south of pos
+                Orientation::FaceSouth
+            },
+            (0, a) => if a > 0 {
+                // target is west of pos
+                Orientation::FaceWest
+            } else {
+                // target is east of pos
+                Orientation::FaceEast
+            },
+            _ => unreachable!("bug: positions were not in the same row/column"),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Tile {
     /// Tiles that can be traversed
     Floor {
         room_id: RoomId,
-        object: Option<TileObject>,
-        // The index of the room sprite to use in the sprite table
+        ///
+        object: Option<(TileObject, Orientation)>,
+        /// The floor sprite to use
         sprite: FloorSprite,
     },
     /// Tiles that cannot be traversed, not associated to a particular room
     Wall {
         decoration: Option<WallDecoration>,
-        // The index of the wall sprite to use in the sprite table
+        // The wall sprite to use
         sprite: WallSprite,
     },
     /// A tile that cannot be traversed and has nothing on it
@@ -104,7 +139,11 @@ impl Tile {
     /// Returns the sprite that should be drawn on top of the background of this sprite
     pub fn object_sprite<'a>(&self, sprites: &'a MapSprites) -> Option<&'a SpriteImage> {
         match self {
-            Tile::Floor {object: Some(object), ..} => unimplemented!(),
+            &Tile::Floor {object: Some((ref object, orientation)), ..} => Some(match object {
+                TileObject::ToNextLevel(_) => sprites.staircase_down_sprite(orientation),
+                TileObject::ToPrevLevel(_) => sprites.staircase_up_sprite(orientation),
+                _ => unimplemented!(),
+            }),
             _ => None,
         }
     }
@@ -161,10 +200,10 @@ impl Tile {
 
     /// Attempts to place an object on this tile. Panics if this is not possible for this type of
     /// tile.
-    pub fn place_object(&mut self, object: TileObject) {
+    pub fn place_object(&mut self, object: TileObject, orientation: Orientation) {
         match self {
             // Ensure that we don't replace an object that was already placed by matching on None
-            Tile::Floor {object: obj@None, ..} => *obj = Some(object),
+            Tile::Floor {object: obj@None, ..} => *obj = Some((object, orientation)),
             Tile::Floor {..} => unreachable!("bug: attempt to place an object on a tile that already had an object"),
             _ => unreachable!("bug: attempt to place an object on a tile that does not support objects"),
         }
