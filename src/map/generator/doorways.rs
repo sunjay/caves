@@ -7,21 +7,32 @@ use map::*;
 
 impl MapGenerator {
     pub(in super) fn connect_rooms(&self, rng: &mut StdRng, map: &mut FloorMap) {
+        // A mapping from the rooms that were connected to the edge tile that connected them
         let mut connected_rooms = HashMap::new();
 
-        for (room_id, room) in map.rooms() {
-            // Find all edges that can be turned into a doorway
-            let edges: Vec<_> = room.boundary().edge_positions()
-                .filter_map(|edge| self.doorway_wall_adjacent_rooms(edge, room_id, map.grid()).map(|pair| (edge, pair)))
-                .filter(|&(_, (r1, r2))| !connected_rooms.contains_key(&(r1, r2)) && !connected_rooms.contains_key(&(r2, r1)))
-                .collect();
+        // Strategy: Get all possible edge wall tiles that can become doorways. Choose a
+        // random edge tile and make it a doorway. Filter out any other edge that would have opened
+        // a space between the same two rooms as the newly added doorway. Keep going until there
+        // are no more doorways left to add.
+        //
+        // This algorithm guarantees that all rooms will be connected such that there is a path
+        // from one room to every other room.
 
-            // If a room is only connected to one other room, there may already be a doorway from
-            // that room to its adjacent. That means that we won't have any other edges to make
-            // into doorways
-            if let Some(&(edge, pair)) = rng.choose(&edges[..]) {
-                connected_rooms.insert(pair, edge);
-            }
+        // Get all potential doorways
+        let mut doorways: Vec<_> = map.rooms().flat_map(|(room_id, room)| {
+            let grid = map.grid();
+
+            // Find all edges that can be turned into a doorway on this room
+            room.boundary().edge_positions()
+                .filter_map(move |edge| self.doorway_wall_adjacent_rooms(edge, room_id, grid)
+                    .map(|pair| (edge, pair)))
+        }).collect();
+
+        while let Some(&(edge, pair)) = rng.choose(&doorways[..]) {
+            connected_rooms.insert(pair, edge);
+
+            // Only retain the doorways that connect rooms we haven't added a doorway for yet
+            doorways.retain(|&(_, (r1, r2))| !connected_rooms.contains_key(&(r1, r2)) && !connected_rooms.contains_key(&(r2, r1)));
         }
 
         // Perform all the insertions at once (want to avoid immutable + mutable borrow)
@@ -60,7 +71,7 @@ impl MapGenerator {
             return None;
         };
 
-        Some((r1, r2))
+        Some(pair)
     }
 
     pub(in super) fn place_locks(&self, rng: &mut StdRng, map: &mut FloorMap) {
