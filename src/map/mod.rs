@@ -14,7 +14,6 @@ pub struct GameMap {
     levels: Vec<FloorMap>,
     current_level: usize,
     map_size: GridSize,
-    tile_size: u32,
 }
 
 impl GameMap {
@@ -25,7 +24,7 @@ impl GameMap {
 
     /// Returns the level boundary in pixels of the current map
     pub fn level_boundary(&self) -> Rect {
-        self.map_size.to_rect(self.tile_size)
+        self.map_size.to_rect(self.current_level_map().tile_size())
     }
 
     /// Return the point that represents the start of the game. This point is always on the
@@ -41,7 +40,8 @@ impl GameMap {
         assert!(first_level.grid().get(center).is_room_floor(room_id),
             "bug: the center of the player start room was not a tile in that room");
 
+        let tile_size = first_level.tile_size();
         // Start in the middle of the tile
-        center.to_point(self.tile_size as i32).offset(self.tile_size as i32/2, self.tile_size as i32/2)
+        center.to_point(tile_size as i32).offset(tile_size as i32/2, tile_size as i32/2)
     }
 }
