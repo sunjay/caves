@@ -109,11 +109,19 @@ impl Tile {
         }
     }
 
+    /// Returns the room ID of the tile if it is a floor tile or None if it is not
+    pub fn floor_room_id(&self) -> Option<RoomId> {
+        match self {
+            &Tile::Floor {room_id, ..} => Some(room_id),
+            _ => None,
+        }
+    }
+
     /// Returns true if this tile is a floor tile from the given room
     pub fn is_room_floor(&self, id: RoomId) -> bool {
         match self {
             Tile::Floor {room_id, ..} if *room_id == id => true,
-            _ => false
+            _ => false,
         }
     }
 

@@ -127,6 +127,12 @@ impl TileGrid {
             .chain(pos.adjacent_west())
     }
 
+    /// Returns an iterator of tiles adjacent to the given tile in the four cardinal directions.
+    /// Only returns as many adjacents as are valid.
+    pub fn adjacents(&self, pos: TilePos) -> impl Iterator<Item=&Tile> {
+        self.adjacent_positions(pos).map(move |pt| self.get(pt))
+    }
+
     /// Executes a depth-first search starting from a given tile
     ///
     /// Takes a closure that is given the next position "node" to be processed and its
