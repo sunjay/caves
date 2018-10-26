@@ -3,7 +3,7 @@ use specs::{System, Join, ReadExpect, ReadStorage, WriteStorage};
 use components::{Movement, MovementDirection, KeyboardControlled};
 use resources::{EventQueue, Event, Key};
 
-const MOVEMENT_SPEED: i32 = 2;
+const MOVEMENT_SPEED: i32 = 3;
 
 #[derive(SystemData)]
 pub struct KeyboardData<'a> {

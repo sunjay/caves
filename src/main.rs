@@ -51,7 +51,7 @@ use renderer::Renderer;
 use map::{MapGenerator, MapSprites};
 
 fn main() -> Result<(), String> {
-    let fps = 60.0;
+    let fps = 30.0;
 
     let mut renderer = Renderer::init(320, 240)?;
     let texture_creator = renderer.texture_creator();
