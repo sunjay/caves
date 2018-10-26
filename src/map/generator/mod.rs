@@ -101,12 +101,13 @@ impl MapGenerator {
         self.connect_rooms(rng, &mut map);
         println!("{:?}", map);
         self.place_locks(rng, &mut map);
-        //if level < self.levels {
-        //    self.place_to_next_level_tiles(rng, &mut map)?;
-        //}
-        //if level > 1 {
-        //    self.place_to_prev_level_tiles(rng, &mut map)?;
-        //}
+        if level < self.levels {
+            self.place_to_next_level_tiles(rng, &mut map)?;
+        }
+        if level > 1 {
+            self.place_to_prev_level_tiles(rng, &mut map)?;
+        }
+        println!("{:?}", map);
 
         self.validate_map(&map);
         Ok(map)
