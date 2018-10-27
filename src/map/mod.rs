@@ -8,7 +8,7 @@ pub use self::generator::*;
 pub use self::floor_map::*;
 pub use self::map_key::*;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct GameMap {
     key: MapKey,
     levels: Vec<FloorMap>,

@@ -2,7 +2,7 @@ use std::fmt;
 
 use super::{TilePos};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Item {
     TreasureKey,
     RoomKey,
@@ -37,14 +37,14 @@ impl StairsDirection {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Chest {
     Item(Item),
     Opened,
 }
 
 /// The object or item placed at a particular tile
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TileObject {
     /// Stepping on this tile transports you to the next level
     ToNextLevel {

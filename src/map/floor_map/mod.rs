@@ -34,7 +34,7 @@ impl fmt::Display for RoomId {
 }
 
 /// A type that represents the static floor plan of a map
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct FloorMap {
     grid: TileGrid,
     /// The RoomId is the index into this field

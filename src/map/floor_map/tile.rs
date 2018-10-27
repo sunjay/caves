@@ -1,12 +1,12 @@
 use super::{RoomId, FloorSprite, WallSprite, MapSprites, SpriteImage, TileObject};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum WallDecoration {
     Torch,
     //TODO: Enemy spawn, arrow shooter, portal, spikes, etc.
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Tile {
     /// Tiles that can be traversed
     Floor {

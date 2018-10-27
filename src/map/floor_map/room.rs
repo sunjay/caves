@@ -20,7 +20,7 @@ pub enum RoomType {
 /// Represents a "room" on the map separated from other rooms by walls/entrances. Rooms are allowed
 /// to overlap, so the boundary of the room only represents the extent of where tiles may be within
 /// the room. Not all tiles within the boundary are guaranteed to be part of this particular room.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Room {
     rtype: RoomType,
     boundary: TileRect,

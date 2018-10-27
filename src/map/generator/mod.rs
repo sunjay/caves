@@ -64,6 +64,7 @@ impl MapGenerator {
     }
 
     pub fn generate_with_key(self, key: MapKey) -> GameMap {
+        #[cfg(not(test))]
         println!("{}", key);
         let mut rng = key.to_rng();
 
@@ -115,6 +116,8 @@ impl MapGenerator {
         self.layout_floor_wall_sprites(rng, &mut map);
 
         self.validate_map(&map);
+
+        #[cfg(not(test))]
         println!("{:?}", map);
         Ok(map)
     }

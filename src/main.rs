@@ -175,12 +175,24 @@ fn main() -> Result<(), String> {
 mod tests {
     use super::*;
     use rayon::prelude::*;
+    use rand::random;
 
     #[test]
     fn map_generation() {
         // See if we can generate lots of maps without failing
         (0..500).into_par_iter().for_each(|_| {
             map_generator(16).generate();
+        });
+    }
+
+    #[test]
+    fn deterministic_maps() {
+        (0..10).into_par_iter().for_each(|_| {
+            // The same key should produce the same map over and over again
+            let key = random();
+            let map1 = map_generator(16).generate_with_key(key);
+            let map2 = map_generator(16).generate_with_key(key);
+            assert_eq!(map1, map2);
         });
     }
 }
