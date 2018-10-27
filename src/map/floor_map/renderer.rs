@@ -48,16 +48,23 @@ impl FloorMap {
                 .chain(tile.object_sprite(sprites));
             for sprite in tile_layers {
                 let texture = textures.get(sprite.texture_id);
+                // Source rect should never be modified here because it represents the exact place
+                // on the spritesheet of this sprite. No reaosn to modify that.
                 let source_rect = sprite.region.clone();
-                let dest_rect = Rect::new(
+
+                // The destination rectangle that this sprite should be aligned against. The sprite
+                // is not required to be confined to this rectangle. It is only used to decide how
+                // the sprite's layout should be calculated.
+                let dest = Rect::new(
                     // Need to subtract the position (world coordinates) of this tile from the position
                     // in world coordinates of the top-left corner of the screen so that we are left
                     // with the position of this sprite on the screen in screen coordinates
                     pos.x() - render_top_left.x(),
                     pos.y() - render_top_left.y(),
-                    sprite.region.width(),
-                    sprite.region.height()
+                    self.tile_size,
+                    self.tile_size,
                 );
+                let dest_rect = sprite.apply_anchor(dest);
 
                 canvas.copy_ex(
                     texture,

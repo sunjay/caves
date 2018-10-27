@@ -1,4 +1,4 @@
-use sdl2::rect::Rect;
+use sdl2::rect::{Point, Rect};
 use rand::{
     Rng,
     distributions::{
@@ -10,12 +10,34 @@ use rand::{
 use texture_manager::TextureId;
 use super::Orientation;
 
+/// Defines how a sprite is aligned (or "anchored") relative to its destination rectangle
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Anchor {
-    North,
-    East,
-    South,
-    West,
+    /// Sprite is horizontally centered and its top side is aligned with the top side of the
+    /// destination rectangle
+    N,
+    /// The top right corner of the sprite is aligned with the top right corner of the destination
+    /// rectangle
+    NE,
+    /// Sprite is vertically centered and its right side is aligned with the right side of the
+    /// destination rectangle
+    E,
+    /// The bottom right corner of the sprite is aligned with the bottom right corner of the
+    /// destination rectangle
+    SE,
+    /// Sprite is horizontally centered and its bottom side is aligned with the bottom of the
+    /// destination rectangle
+    S,
+    /// The bottom left corner of the sprite is aligned with the bottom left corner of the
+    /// destination rectangle
+    SW,
+    /// Sprite is vertically centered and its left side is aligned with the left side of the
+    /// destination rectangle
+    W,
+    /// The top left corner of the sprite is aligned with the top left corner of the destination
+    /// rectangle
+    NW,
+    /// The center of the sprite is aligned with the center of the destination rectangle
     Center,
 }
 
@@ -65,9 +87,38 @@ impl SpriteImage {
     /// Returns this sprite image anchored from its south side
     pub fn anchor_south(self) -> Self {
         Self {
-            anchor: Anchor::South,
+            anchor: Anchor::S,
             ..self
         }
+    }
+
+    /// Given the top left coordinates of where this sprite may be placed, returns the region where
+    /// the sprite should really be placed based on its anchor setting
+    pub fn apply_anchor(&self, dest: Rect) -> Rect {
+        let width = self.region.width() as i32;
+        let height = self.region.height() as i32;
+        let center = dest.center();
+
+        // Each of these calculations is calculating the anchor point on dest and then offsetting
+        // by the width and height of the sprite to get the top left corner of the result rectangle
+        let top_left = match self.anchor {
+            Anchor::N => Point::new(center.x(), dest.top()).offset(-width/2, 0),
+            Anchor::NE => dest.top_right().offset(-width, 0),
+            Anchor::E => Point::new(dest.right(), center.y()).offset(-width, -height/2),
+            Anchor::SE => dest.bottom_right().offset(-width, -height),
+            Anchor::S => Point::new(center.x(), dest.bottom()).offset(-width/2, -height),
+            Anchor::SW => dest.bottom_left().offset(0, -height),
+            Anchor::W => Point::new(dest.left(), center.y()).offset(0, -height/2),
+            Anchor::NW => dest.top_left(),
+            Anchor::Center => center.offset(-width/2, -height/2),
+        };
+
+        Rect::new(
+            top_left.x(),
+            top_left.y(),
+            width as u32,
+            height as u32,
+        )
     }
 }
 
@@ -146,54 +197,61 @@ impl MapSprites {
     /// Creates a table of sprites from the standard layout of the dungeon spritesheet
     pub fn from_dungeon_spritesheet(texture_id: TextureId, tile_size: u32) -> Self {
         // Returns the (tile_size)x(tile_size) sprite for the given row and column of the spritesheet
-        let tile_sprite = |row, col| SpriteImage::new_unflipped(
-            texture_id,
-            Rect::new(
-                col as i32 * tile_size as i32,
-                row as i32 * tile_size as i32,
-                tile_size,
-                tile_size,
-            ),
-        );
+        macro_rules! tile_sprite {
+            ($row:expr, $col:expr, $width:expr, $height:expr) => (
+                SpriteImage::new_unflipped(
+                    texture_id,
+                    Rect::new(
+                        $col as i32 * tile_size as i32,
+                        $row as i32 * tile_size as i32,
+                        $width,
+                        $height,
+                    ),
+                )
+            );
+            ($row:expr, $col:expr) => (
+                tile_sprite!($row, $col, tile_size, tile_size);
+            )
+        }
 
         Self {
-            empty_tile_sprite: tile_sprite(0, 3),
-            floor_tiles: vec![tile_sprite(0, 0)],
+            empty_tile_sprite: tile_sprite!(0, 3),
+            floor_tiles: vec![tile_sprite!(0, 0)],
             wall_tiles: vec![
-                tile_sprite(8, 0),
-                tile_sprite(8, 1),
-                tile_sprite(8, 2),
-                tile_sprite(8, 3),
+                tile_sprite!(8, 0),
+                tile_sprite!(8, 1),
+                tile_sprite!(8, 2),
+                tile_sprite!(8, 3),
 
-                tile_sprite(9, 0),
-                tile_sprite(9, 1),
-                tile_sprite(9, 2),
-                tile_sprite(9, 3),
+                tile_sprite!(9, 0),
+                tile_sprite!(9, 1),
+                tile_sprite!(9, 2),
+                tile_sprite!(9, 3),
 
-                tile_sprite(10, 0),
-                tile_sprite(10, 1),
-                tile_sprite(10, 2),
-                tile_sprite(10, 3),
+                tile_sprite!(10, 0),
+                tile_sprite!(10, 1),
+                tile_sprite!(10, 2),
+                tile_sprite!(10, 3),
 
-                tile_sprite(11, 0),
-                tile_sprite(11, 1),
-                tile_sprite(11, 2),
-                tile_sprite(11, 3),
+                tile_sprite!(11, 0),
+                tile_sprite!(11, 1),
+                tile_sprite!(11, 2),
+                tile_sprite!(11, 3),
 
                 // Alternates
 
                 // EW
-                tile_sprite(8, 4),
-                tile_sprite(9, 4),
+                tile_sprite!(8, 4),
+                tile_sprite!(9, 4),
                 // NS
-                tile_sprite(10, 4),
-                tile_sprite(11, 4),
+                tile_sprite!(10, 4),
+                tile_sprite!(11, 4),
             ],
             staircase_up_tiles: vec![
                 // bottom step faces east
-                tile_sprite(16, 8).anchor_south().flip_horizontally(),
+                tile_sprite!(15, 8, tile_size, tile_size*2).anchor_south().flip_horizontally(),
                 // bottom step faces west
-                tile_sprite(16, 8).anchor_south(),
+                tile_sprite!(15, 8, tile_size, tile_size*2).anchor_south(),
             ],
             staircase_down_tiles: vec![
                 // bottom step faces east
