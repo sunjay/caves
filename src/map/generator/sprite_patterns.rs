@@ -23,12 +23,12 @@ impl MapGenerator {
                     continue;
                 }
 
-                use self::Orientation::*;
-                match Orientation::face_target(pos, adj) {
-                    FaceNorth => wall_sprite.wall_north = true,
-                    FaceEast => wall_sprite.wall_east = true,
-                    FaceSouth => wall_sprite.wall_south = true,
-                    FaceWest => wall_sprite.wall_west = true,
+                match pos.difference(adj) {
+                    (a, 0) if a > 0 => wall_sprite.wall_north = true,
+                    (0, a) if a < 0 => wall_sprite.wall_east = true,
+                    (a, 0) if a < 0 => wall_sprite.wall_south = true,
+                    (0, a) if a > 0 => wall_sprite.wall_west = true,
+                    _ => unreachable!("bug: position and its adjacent were not in the same row/column"),
                 }
             }
 

@@ -1,21 +1,23 @@
-mod tile;
+mod grid_size;
 mod grid;
 mod room;
-mod tile_pos;
-mod grid_size;
-mod tile_rect;
 mod sprite;
+mod tile_object;
+mod tile_pos;
+mod tile_rect;
+mod tile;
 
 // Extension modules: extend FloorMap with additional methods/functionality
 mod renderer;
 
-pub use self::tile::*;
+pub use self::grid_size::*;
 pub use self::grid::*;
 pub use self::room::*;
-pub use self::tile_pos::*;
-pub use self::grid_size::*;
-pub use self::tile_rect::*;
 pub use self::sprite::*;
+pub use self::tile_object::*;
+pub use self::tile_pos::*;
+pub use self::tile_rect::*;
+pub use self::tile::*;
 
 use std::fmt;
 use std::cmp;
@@ -50,7 +52,7 @@ impl fmt::Debug for FloorMap {
                 use self::Tile::*;
                 write!(f, "{}", match tile {
                     &Floor {room_id, ref object, ..} => {
-                        let object = object.as_ref().map(|(o, _)| o.to_string())
+                        let object = object.as_ref().map(|object| object.to_string())
                             .unwrap_or_else(|| " ".to_string());
 
                         match self.room(room_id).room_type() {

@@ -12,8 +12,11 @@ impl MapGenerator {
         let valid_rooms = |(_, r): &(RoomId, &Room)| r.can_contain_to_next_level();
         // Can only place on vertical edge since we only have sprites for tiles adjacent to those
         let next_pos = |rng: &mut StdRng, rect: TileRect| rect.random_vertical_edge_tile(rng);
+        let object = |id, obj_pos, wall_pos| {
+            TileObject::ToNextLevel {id, direction: StairsDirection::towards_target(wall_pos, obj_pos)}
+        };
         let placed = self.place_object_in_rooms(rng, map, valid_rooms, self.next_prev_tiles,
-            next_pos, TileObject::ToNextLevel)?;
+            next_pos, object)?;
         self.surround_stairways(&placed, map);
         Ok(())
     }
@@ -26,8 +29,11 @@ impl MapGenerator {
         let valid_rooms = |(_, r): &(RoomId, &Room)| r.can_contain_to_prev_level();
         // Can only place on vertical edge since we only have sprites for tiles adjacent to those
         let next_pos = |rng: &mut StdRng, rect: TileRect| rect.random_vertical_edge_tile(rng);
+        let object = |id, obj_pos, wall_pos| {
+            TileObject::ToPrevLevel {id, direction: StairsDirection::towards_target(wall_pos, obj_pos)}
+        };
         let placed = self.place_object_in_rooms(rng, map, valid_rooms, self.next_prev_tiles,
-            next_pos, TileObject::ToPrevLevel)?;
+            next_pos, object)?;
         self.surround_stairways(&placed, map);
         Ok(())
     }
@@ -53,7 +59,7 @@ impl MapGenerator {
         room_filter: impl FnMut(&(RoomId, &Room)) -> bool,
         nrooms: usize,
         mut next_pos: impl FnMut(&mut StdRng, TileRect) -> TilePos,
-        mut object: impl FnMut(usize) -> TileObject,
+        mut object: impl FnMut(usize, TilePos, TilePos) -> TileObject,
     ) -> Result<Vec<TilePos>, RanOutOfAttempts> {
         // To do this using choose we would need to allocate anyway, so we might as well just use
         // shuffle to do all the random choosing at once
@@ -87,7 +93,7 @@ impl MapGenerator {
                     let tile = grid.get_mut(inner_room_tile);
 
                     // Want to face away from the wall
-                    tile.place_object(object(i), Orientation::face_target(pos, inner_room_tile));
+                    tile.place_object(object(i, inner_room_tile, pos));
 
                     placed.push(inner_room_tile);
 

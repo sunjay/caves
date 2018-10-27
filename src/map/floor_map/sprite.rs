@@ -8,7 +8,7 @@ use rand::{
 };
 
 use texture_manager::TextureId;
-use super::Orientation;
+use super::StairsDirection;
 
 /// Defines how a sprite is aligned (or "anchored") relative to its destination rectangle
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -248,15 +248,15 @@ impl MapSprites {
                 tile_sprite!(11, 4),
             ],
             staircase_up_tiles: vec![
-                // bottom step faces east
+                // bottom step faces right
                 tile_sprite!(15, 8, tile_size, tile_size*2).anchor_south().flip_horizontally(),
-                // bottom step faces west
+                // bottom step faces left
                 tile_sprite!(15, 8, tile_size, tile_size*2).anchor_south(),
             ],
             staircase_down_tiles: vec![
-                // top step faces east
+                // top step faces right
                 tile_sprite!(16, 7),
-                // top step faces west
+                // top step faces left
                 tile_sprite!(16, 7).flip_horizontally(),
             ],
         }
@@ -316,21 +316,19 @@ impl MapSprites {
         }
     }
 
-    pub fn staircase_up_sprite(&self, orientation: Orientation) -> &SpriteImage {
-        use self::Orientation::*;
-        match orientation {
-            FaceEast => &self.staircase_up_tiles[0],
-            FaceWest => &self.staircase_up_tiles[1],
-            FaceNorth | FaceSouth => unreachable!("bug: no sprites for staircases facing north/south"),
+    pub fn staircase_up_sprite(&self, direction: StairsDirection) -> &SpriteImage {
+        use self::StairsDirection::*;
+        match direction {
+            Right => &self.staircase_up_tiles[0],
+            Left => &self.staircase_up_tiles[1],
         }
     }
 
-    pub fn staircase_down_sprite(&self, orientation: Orientation) -> &SpriteImage {
-        use self::Orientation::*;
-        match orientation {
-            FaceEast => &self.staircase_down_tiles[0],
-            FaceWest => &self.staircase_down_tiles[1],
-            FaceNorth | FaceSouth => unreachable!("bug: no sprites for staircases facing north/south"),
+    pub fn staircase_down_sprite(&self, direction: StairsDirection) -> &SpriteImage {
+        use self::StairsDirection::*;
+        match direction {
+            Right => &self.staircase_down_tiles[0],
+            Left => &self.staircase_down_tiles[1],
         }
     }
 }

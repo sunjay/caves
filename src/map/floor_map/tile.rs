@@ -1,109 +1,9 @@
-use std::fmt;
-
-use super::{RoomId, FloorSprite, WallSprite, MapSprites, SpriteImage, TilePos};
-
-#[derive(Debug, Clone)]
-pub enum Item {
-    TreasureKey,
-    RoomKey,
-    Potion {stength: u32},
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Door {
-    /// Door is open and can be passed through
-    Open,
-    /// Door cannot be passed through and requires a RoomKey to be opened
-    Locked,
-}
-
-/// The object or item placed at a particular tile
-#[derive(Debug, Clone)]
-pub enum TileObject {
-    /// Stepping on this tile transports you to the next level
-    /// Field is the ID of this gate and the ID of the ToPrevLevel tile that this should connect to
-    ToNextLevel(usize),
-    /// Stepping on this tile transports you to the previous level
-    /// Field is the ID of this gate and the ID of the ToNextLevel tile that this should connect to
-    ToPrevLevel(usize),
-    /// A door that is either locked or open (can be opened with a RoomKey)
-    Door(Door),
-    /// A gate that can not be opened without some external event (e.g. switch, challenge room, etc.)
-    Gate(Door),
-    /// A chest containing an item that can be collected
-    /// None - means object has been collected
-    Chest(Option<Item>),
-}
-
-impl fmt::Display for TileObject {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use self::TileObject::*;
-        write!(f, "{}", match *self {
-            ToNextLevel(_) => "\u{2193}",
-            ToPrevLevel(_) => "\u{2191}",
-            Door(self::Door::Locked) => "\u{1F510}",
-            Door(self::Door::Open) => "\u{1F513}",
-            Gate(self::Door::Locked) => "\u{1F512}",
-            Gate(self::Door::Open) => "\u{1F513}",
-            Chest(_) => "$",
-        })
-    }
-}
-
-impl TileObject {
-    /// Returns true if the player is allowed to move over top of this object
-    pub fn is_traversable(&self) -> bool {
-        use self::TileObject::*;
-        match self {
-            ToNextLevel(_) |
-            ToPrevLevel(_) |
-            Door(self::Door::Open) |
-            Gate(self::Door::Open) => true,
-            Door(self::Door::Locked) |
-            Gate(self::Door::Locked) |
-            Chest(_) => false,
-        }
-    }
-}
+use super::{RoomId, FloorSprite, WallSprite, MapSprites, SpriteImage, TileObject};
 
 #[derive(Debug, Clone)]
 pub enum WallDecoration {
     Torch,
     //TODO: Enemy spawn, arrow shooter, portal, spikes, etc.
-}
-
-/// Represents the direction that an object should face
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Orientation {
-    FaceNorth,
-    FaceEast,
-    FaceSouth,
-    FaceWest,
-}
-
-impl Orientation {
-    /// Returns the orientation that would cause the tile at the given position to face `target`.
-    /// The positions do not need to be adjacent, but they do need to be in the same row or column..
-    pub fn face_target(pos: TilePos, target: TilePos) -> Self {
-        match pos.difference(target) {
-            (0, 0) => unreachable!("bug: cannot find orientation of a point facing itself"),
-            (a, 0) => if a > 0 {
-                // target is north of pos
-                Orientation::FaceNorth
-            } else {
-                // target is south of pos
-                Orientation::FaceSouth
-            },
-            (0, a) => if a > 0 {
-                // target is west of pos
-                Orientation::FaceWest
-            } else {
-                // target is east of pos
-                Orientation::FaceEast
-            },
-            _ => unreachable!("bug: positions were not in the same row/column"),
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -112,7 +12,7 @@ pub enum Tile {
     Floor {
         room_id: RoomId,
         ///
-        object: Option<(TileObject, Orientation)>,
+        object: Option<TileObject>,
         /// The floor sprite to use
         sprite: FloorSprite,
     },
@@ -155,9 +55,9 @@ impl Tile {
     /// Returns the sprite that should be drawn on top of the background of this sprite
     pub fn object_sprite<'a>(&self, sprites: &'a MapSprites) -> Option<&'a SpriteImage> {
         match self {
-            &Tile::Floor {object: Some((ref object, orientation)), ..} => Some(match object {
-                TileObject::ToNextLevel(_) => sprites.staircase_down_sprite(orientation),
-                TileObject::ToPrevLevel(_) => sprites.staircase_up_sprite(orientation),
+            Tile::Floor {object: Some(object), ..} => Some(match object {
+                &TileObject::ToNextLevel {direction, ..} => sprites.staircase_down_sprite(direction),
+                &TileObject::ToPrevLevel {direction, ..} => sprites.staircase_up_sprite(direction),
                 _ => unimplemented!(),
             }),
             _ => None,
@@ -185,7 +85,7 @@ impl Tile {
     pub fn is_traversable(&self) -> bool {
         match self {
             // Floor tiles are traversable by default unless their object is not traversable
-            Tile::Floor {object, ..} => object.as_ref().map(|(obj, _)| obj.is_traversable()).unwrap_or(true),
+            Tile::Floor {object, ..} => object.as_ref().map(|obj| obj.is_traversable()).unwrap_or(true),
             Tile::Wall {..} |
             Tile::Empty => false,
         }
@@ -235,10 +135,10 @@ impl Tile {
 
     /// Attempts to place an object on this tile. Panics if this is not possible for this type of
     /// tile.
-    pub fn place_object(&mut self, object: TileObject, orientation: Orientation) {
+    pub fn place_object(&mut self, object: TileObject) {
         match self {
             // Ensure that we don't replace an object that was already placed by matching on None
-            Tile::Floor {object: obj@None, ..} => *obj = Some((object, orientation)),
+            Tile::Floor {object: obj@None, ..} => *obj = Some(object),
             Tile::Floor {..} => unreachable!("bug: attempt to place an object on a tile that already had an object"),
             _ => unreachable!("bug: attempt to place an object on a tile that does not support objects"),
         }
