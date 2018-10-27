@@ -306,10 +306,6 @@ impl MapSprites {
                 tile_sprite!(row: 11, col: 14),
                 // vertical door (closed)
                 tile_sprite!(row: 10, col: 15, width: tile_size, height: tile_size*2).anchor_south(),
-                // horizontal door (open)
-                tile_sprite!(x: 244, y: 170, width: 9, height: 22).anchor_west(),
-                // vertical door (open)
-                tile_sprite!(row: 11, col: 14).dest_offset(8, 2),
             ],
         }
     }
@@ -389,14 +385,14 @@ impl MapSprites {
         }
     }
 
-    pub fn door_sprite(&self, state: Door, orientation: HoriVert) -> &SpriteImage {
+    pub fn door_sprite(&self, state: Door, orientation: HoriVert) -> Option<&SpriteImage> {
         match (state, orientation) {
             (Door::Locked, HoriVert::Horizontal) |
-            (Door::Closed, HoriVert::Horizontal) => &self.door_tiles[0],
+            (Door::Closed, HoriVert::Horizontal) => Some(&self.door_tiles[0]),
             (Door::Locked, HoriVert::Vertical) |
-            (Door::Closed, HoriVert::Vertical) => &self.door_tiles[1],
-            (Door::Open, HoriVert::Horizontal) => &self.door_tiles[2],
-            (Door::Open, HoriVert::Vertical) => &self.door_tiles[3],
+            (Door::Closed, HoriVert::Vertical) => Some(&self.door_tiles[1]),
+            // Just hide open doors (tried rendering a sprite for this but it didn't work out)
+            (Door::Open, _) => None,
         }
     }
 }

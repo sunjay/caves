@@ -55,12 +55,12 @@ impl Tile {
     /// Returns the sprite that should be drawn on top of the background of this sprite
     pub fn object_sprite<'a>(&self, sprites: &'a MapSprites) -> Option<&'a SpriteImage> {
         match self {
-            Tile::Floor {object: Some(object), ..} => Some(match object {
-                &TileObject::ToNextLevel {direction, ..} => sprites.staircase_down_sprite(direction),
-                &TileObject::ToPrevLevel {direction, ..} => sprites.staircase_up_sprite(direction),
+            Tile::Floor {object: Some(object), ..} => match object {
+                &TileObject::ToNextLevel {direction, ..} => Some(sprites.staircase_down_sprite(direction)),
+                &TileObject::ToPrevLevel {direction, ..} => Some(sprites.staircase_up_sprite(direction)),
                 &TileObject::Door {state, orientation} => sprites.door_sprite(state, orientation),
                 _ => unimplemented!(),
-            }),
+            },
             _ => None,
         }
     }
