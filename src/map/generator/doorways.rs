@@ -37,7 +37,31 @@ impl MapGenerator {
 
         // Perform all the insertions at once (want to avoid immutable + mutable borrow)
         for ((room_id, _), edge) in connected_rooms {
-            map.grid_mut().get_mut(edge).become_floor(room_id, FloorSprite::default());
+            // Determine if the door should be horizontally or vertically oriented
+            let mut row_walls = 0;
+            let mut col_walls = 0;
+            for adj in map.grid().adjacent_positions(edge) {
+                if !map.grid().get(adj).is_wall() {
+                    continue;
+                }
+                if adj.row == edge.row {
+                    row_walls += 1;
+                }
+                if adj.col == edge.col {
+                    col_walls += 1;
+                }
+            }
+            // This code assumes that entrances are of width 1. We expect them to have walls either
+            // in the same row or in the same column, never both.
+            let orientation = match (row_walls, col_walls) {
+                (2, 0) => HoriVert::Horizontal,
+                (0, 2) => HoriVert::Vertical,
+                _ => unreachable!("bug: entrance did not have expected walls"),
+            };
+
+            let tile = map.grid_mut().get_mut(edge);
+            tile.become_floor(room_id, FloorSprite::default());
+            tile.place_object(TileObject::Door {state: Door::Closed, orientation});
         }
     }
 

@@ -8,7 +8,7 @@ use rand::{
 };
 
 use texture_manager::TextureId;
-use super::StairsDirection;
+use super::*;
 
 /// Defines how a sprite is aligned (or "anchored") relative to its destination rectangle
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -201,6 +201,8 @@ pub struct MapSprites {
     staircase_up_tiles: Vec<SpriteImage>,
     /// Sprites for each orientation of staircase
     staircase_down_tiles: Vec<SpriteImage>,
+    /// Sprites for each orientation of a door
+    door_tiles: Vec<SpriteImage>,
 }
 
 impl MapSprites {
@@ -271,6 +273,12 @@ impl MapSprites {
                 tile_sprite!(16, 7),
                 // top step faces left
                 tile_sprite!(16, 7).flip_horizontally(),
+            ],
+            door_tiles: vec![
+                // horizontal
+                tile_sprite!(11, 14),
+                // vertical
+                tile_sprite!(10, 15, tile_size, tile_size*2).anchor_south(),
             ],
         }
     }
@@ -347,6 +355,13 @@ impl MapSprites {
         match direction {
             Right => &self.staircase_down_tiles[0],
             Left => &self.staircase_down_tiles[1],
+        }
+    }
+
+    pub fn door_sprite(&self, state: Door, orientation: HoriVert) -> &SpriteImage {
+        match orientation {
+            HoriVert::Horizontal => &self.door_tiles[0],
+            HoriVert::Vertical => &self.door_tiles[1],
         }
     }
 }

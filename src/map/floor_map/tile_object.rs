@@ -13,8 +13,25 @@ pub enum Item {
 pub enum Door {
     /// Door is open and can be passed through
     Open,
+    /// Door is closed and can be opened in order to pass through
+    Closed,
     /// Door cannot be passed through and requires a RoomKey to be opened
     Locked,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Gate {
+    /// Gate is open and can be passed through
+    Open,
+    /// Gate cannot be passed through and requires a RoomKey to be opened
+    Locked,
+}
+
+/// Represents the orientation of something that can be either horizontal or vertical
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum HoriVert {
+    Horizontal,
+    Vertical,
 }
 
 /// Represents the direction that the stairway should face
@@ -58,10 +75,16 @@ pub enum TileObject {
         id: usize,
         direction: StairsDirection,
     },
-    /// A door that is either locked or open (can be opened with a RoomKey)
-    Door(Door),
+    /// A door that may be locked (can be opened with a RoomKey)
+    Door {
+        state: Door,
+        orientation: HoriVert,
+    },
     /// A gate that can not be opened without some external event (e.g. switch, challenge room, etc.)
-    Gate(Door),
+    Gate {
+        state: Gate,
+        orientation: HoriVert,
+    },
     /// A chest containing an item that can be collected
     Chest(Chest),
 }
@@ -72,10 +95,11 @@ impl fmt::Display for TileObject {
         write!(f, "{}", match *self {
             ToNextLevel {..} => "\u{2193}",
             ToPrevLevel {..} => "\u{2191}",
-            Door(self::Door::Locked) => "\u{1F510}",
-            Door(self::Door::Open) => "\u{1F513}",
-            Gate(self::Door::Locked) => "\u{1F512}",
-            Gate(self::Door::Open) => "\u{1F513}",
+            Door {state: self::Door::Locked, ..} => "\u{1F510}",
+            Door {state: self::Door::Closed, ..} => "\u{1f6aa}",
+            Door {state: self::Door::Open, ..} => "\u{1F513}",
+            Gate {state: self::Gate::Locked, ..} => "\u{1F512}",
+            Gate {state: self::Gate::Open, ..} => "\u{1F513}",
             Chest(_) => "$",
         })
     }
@@ -88,10 +112,11 @@ impl TileObject {
         match self {
             ToNextLevel {..} |
             ToPrevLevel {..} |
-            Door(self::Door::Open) |
-            Gate(self::Door::Open) => true,
-            Door(self::Door::Locked) |
-            Gate(self::Door::Locked) |
+            Door {state: self::Door::Open, ..} |
+            Gate {state: self::Gate::Open, ..} => true,
+            Door {state: self::Door::Locked, ..} |
+            Door {state: self::Door::Closed, ..} |
+            Gate {state: self::Gate::Locked, ..} |
             Chest(_) => false,
         }
     }

@@ -58,6 +58,7 @@ impl Tile {
             Tile::Floor {object: Some(object), ..} => Some(match object {
                 &TileObject::ToNextLevel {direction, ..} => sprites.staircase_down_sprite(direction),
                 &TileObject::ToPrevLevel {direction, ..} => sprites.staircase_up_sprite(direction),
+                &TileObject::Door {state, orientation} => sprites.door_sprite(state, orientation),
                 _ => unimplemented!(),
             }),
             _ => None,
