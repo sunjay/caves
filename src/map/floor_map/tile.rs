@@ -50,6 +50,22 @@ impl fmt::Display for TileObject {
     }
 }
 
+impl TileObject {
+    /// Returns true if the player is allowed to move over top of this object
+    pub fn is_traversable(&self) -> bool {
+        use self::TileObject::*;
+        match self {
+            ToNextLevel(_) |
+            ToPrevLevel(_) |
+            Door(self::Door::Open) |
+            Gate(self::Door::Open) => true,
+            Door(self::Door::Locked) |
+            Gate(self::Door::Locked) |
+            Chest(_) => false,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum WallDecoration {
     Torch,
@@ -162,6 +178,16 @@ impl Tile {
         match self {
             &Tile::Floor {room_id, ..} => Some(room_id),
             _ => None,
+        }
+    }
+
+    /// Returns true if the player is allowed to move over top of this tile
+    pub fn is_traversable(&self) -> bool {
+        match self {
+            // Floor tiles are traversable by default unless their object is not traversable
+            Tile::Floor {object, ..} => object.as_ref().map(|(obj, _)| obj.is_traversable()).unwrap_or(true),
+            Tile::Wall {..} |
+            Tile::Empty => false,
         }
     }
 
