@@ -254,10 +254,10 @@ impl MapSprites {
                 tile_sprite!(15, 8, tile_size, tile_size*2).anchor_south(),
             ],
             staircase_down_tiles: vec![
-                // bottom step faces east
-                tile_sprite(16, 7).flip_horizontally(),
-                // bottom step faces west
-                tile_sprite(16, 7),
+                // top step faces east
+                tile_sprite!(16, 7),
+                // top step faces west
+                tile_sprite!(16, 7).flip_horizontally(),
             ],
         }
     }
