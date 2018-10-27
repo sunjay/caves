@@ -4,6 +4,7 @@
 // that take place. The code was designed this way to make sharing the configuration as easy as
 // possible (via &self).
 mod rooms;
+mod sprite_patterns;
 mod place_items;
 mod doorways;
 mod validation;
@@ -62,6 +63,7 @@ impl MapGenerator {
     }
 
     pub fn generate_with_key(self, key: MapKey) -> GameMap {
+        println!("{}", key);
         let mut rng = key.to_rng();
 
         // If this takes more than 10 attempts, we can conclude that it was essentially impossible
@@ -94,20 +96,21 @@ impl MapGenerator {
         );
 
         // Levels are generated in "phases". The following calls runs each of those in succession.
+
         self.generate_rooms(rng, &mut map, level)?;
-        println!("{:?}", map);
         self.connect_rooms(rng, &mut map);
-        println!("{:?}", map);
         self.place_locks(rng, &mut map);
+        self.layout_floor_wall_sprites(rng, &mut map);
+
         if level < self.levels {
             self.place_to_next_level_tiles(rng, &mut map)?;
         }
         if level > 1 {
             self.place_to_prev_level_tiles(rng, &mut map)?;
         }
-        println!("{:?}", map);
 
         self.validate_map(&map);
+        println!("{:?}", map);
         Ok(map)
     }
 

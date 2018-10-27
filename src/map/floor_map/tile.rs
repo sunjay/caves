@@ -148,6 +148,15 @@ impl Tile {
         }
     }
 
+    /// Sets the sprite to the given wall sprite only if the tile is a wall tile
+    pub(in map) fn set_wall_sprite(&mut self, wall_sprite: WallSprite) {
+        use self::Tile::*;
+        match self {
+            Wall {sprite, ..} => *sprite = wall_sprite,
+            _ => unreachable!("bug: cannot set a wall sprite for a non-wall tile"),
+        }
+    }
+
     /// Returns the room ID of the tile if it is a floor tile or None if it is not
     pub fn floor_room_id(&self) -> Option<RoomId> {
         match self {
