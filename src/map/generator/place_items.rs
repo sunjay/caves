@@ -3,6 +3,30 @@ use rand::{StdRng, Rng};
 use super::{MapGenerator, RanOutOfAttempts};
 use map::*;
 
+fn validate_chosen_staircase(grid: &TileGrid, pos: TilePos) -> bool {
+    // The staircase cannot be directly beside another staircase. It also cannot be beside
+    // a tile that is beside an entrance or else that entrance will get blocked by a wall
+    // in surround_stairways
+
+    let mut open_sides = 0;
+    for adj in grid.adjacent_positions(pos) {
+        // It must be possible to enter into the stairs from one side or the other.
+        // Taking advantage of the fact that all stairways are on vertical edges of rooms
+        if adj.row == pos.row && grid.get(adj).is_traversable() {
+            open_sides += 1;
+        }
+
+        if grid.get(adj).has_staircase() {
+            return false;
+        }
+        if grid.adjacent_positions(adj).any(|adj2| grid.is_room_entrance(adj2)) {
+            return false;
+        }
+    }
+
+    open_sides == 1
+}
+
 impl MapGenerator {
     pub(in super) fn place_to_next_level_tiles(
         &self,
@@ -12,11 +36,12 @@ impl MapGenerator {
         let valid_rooms = |(_, r): &(RoomId, &Room)| r.can_contain_to_next_level();
         // Can only place on vertical edge since we only have sprites for tiles adjacent to those
         let next_pos = |rng: &mut StdRng, rect: TileRect| rect.random_vertical_edge_tile(rng);
+
         let object = |id, obj_pos, wall_pos| {
             TileObject::ToNextLevel {id, direction: StairsDirection::towards_target(wall_pos, obj_pos)}
         };
         let placed = self.place_object_in_rooms(rng, map, valid_rooms, self.next_prev_tiles,
-            next_pos, object)?;
+            next_pos, validate_chosen_staircase, object)?;
         self.surround_stairways(&placed, map);
         Ok(())
     }
@@ -29,11 +54,12 @@ impl MapGenerator {
         let valid_rooms = |(_, r): &(RoomId, &Room)| r.can_contain_to_prev_level();
         // Can only place on vertical edge since we only have sprites for tiles adjacent to those
         let next_pos = |rng: &mut StdRng, rect: TileRect| rect.random_vertical_edge_tile(rng);
+
         let object = |id, obj_pos, wall_pos| {
             TileObject::ToPrevLevel {id, direction: StairsDirection::towards_target(wall_pos, obj_pos)}
         };
         let placed = self.place_object_in_rooms(rng, map, valid_rooms, self.next_prev_tiles,
-            next_pos, object)?;
+            next_pos, validate_chosen_staircase, object)?;
         self.surround_stairways(&placed, map);
         Ok(())
     }
@@ -59,6 +85,7 @@ impl MapGenerator {
         room_filter: impl FnMut(&(RoomId, &Room)) -> bool,
         nrooms: usize,
         mut next_pos: impl FnMut(&mut StdRng, TileRect) -> TilePos,
+        mut extra_validation: impl FnMut(&TileGrid, TilePos) -> bool,
         mut object: impl FnMut(usize, TilePos, TilePos) -> TileObject,
     ) -> Result<Vec<TilePos>, RanOutOfAttempts> {
         // To do this using choose we would need to allocate anyway, so we might as well just use
@@ -90,6 +117,10 @@ impl MapGenerator {
                 }
 
                 if let Some(inner_room_tile) = self.find_place(grid, pos, room_id) {
+                    if !extra_validation(grid, inner_room_tile) {
+                        continue;
+                    }
+
                     let tile = grid.get_mut(inner_room_tile);
 
                     // Want to face away from the wall

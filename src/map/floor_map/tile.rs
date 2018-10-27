@@ -140,6 +140,15 @@ impl Tile {
         }
     }
 
+    /// Returns true if this tile has a staircase
+    pub fn has_staircase(&self) -> bool {
+        match self {
+            Tile::Floor {object: Some(TileObject::ToNextLevel {..}), ..} |
+            Tile::Floor {object: Some(TileObject::ToPrevLevel {..}), ..} => true,
+            _ => false,
+        }
+    }
+
     /// Attempts to place an object on this tile. Panics if this is not possible for this type of
     /// tile.
     pub fn place_object(&mut self, object: TileObject) {
