@@ -133,8 +133,22 @@ impl FloorMap {
         &self.grid
     }
 
-    pub(in super) fn grid_mut(&mut self) -> &mut TileGrid {
+    pub fn grid_mut(&mut self) -> &mut TileGrid {
         &mut self.grid
+    }
+
+    /// Finds the tile position on the grid that the given point in world coordinates represents.
+    /// Panics if the point is outside of the grid.
+    pub fn world_to_tile_pos(&self, point: Point) -> TilePos {
+        let x = point.x();
+        let y = point.y();
+
+        assert!(x >= 0 && y >= 0, "bug: point was not on the grid");
+
+        let row = y as usize / self.tile_size as usize;
+        let col = x as usize / self.tile_size as usize;
+
+        TilePos {row, col}
     }
 
     /// Returns the tiles within (or around) the region defined by bounds

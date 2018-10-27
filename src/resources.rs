@@ -94,8 +94,14 @@ pub struct ActionQueue(pub HashMap<Entity, Vec<Action>>);
 /// Actions that an entity can take or have happen to them during a frame
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Action {
+    /// The entity requested to interact with the tile/item it is currently facing
+    Interact,
+    /// The entity performed its attack
     Attacked,
+    /// The entity was hit by something and took damage
     Hit,
+    /// The entity completed something
     Victorious,
+    /// The entity was defeated in battle (0 HP)
     Defeated,
 }

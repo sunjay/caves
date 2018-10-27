@@ -133,6 +133,14 @@ impl Tile {
         *self = Self::new_floor(room_id, sprite);
     }
 
+    /// Returns the object on this tile (if there is any)
+    pub fn object_mut(&mut self) -> Option<&mut TileObject> {
+        match self {
+            Tile::Floor {object, ..} => object.as_mut(),
+            _ => None,
+        }
+    }
+
     /// Returns true if this tile has an object
     pub fn has_object(&self) -> bool {
         match self {

@@ -1,13 +1,15 @@
-use specs::{System, Join, ReadExpect, ReadStorage, WriteStorage};
+use specs::{System, Join, ReadExpect, WriteExpect, ReadStorage, WriteStorage, Entities};
 
 use components::{Movement, MovementDirection, KeyboardControlled};
-use resources::{EventQueue, Event, Key};
+use resources::{EventQueue, Event, ActionQueue, Action, Key};
 
 const MOVEMENT_SPEED: i32 = 3;
 
 #[derive(SystemData)]
 pub struct KeyboardData<'a> {
+    entities: Entities<'a>,
     events: ReadExpect<'a, EventQueue>,
+    actions: WriteExpect<'a, ActionQueue>,
     keyboard_controlled: ReadStorage<'a, KeyboardControlled>,
     movements: WriteStorage<'a, Movement>,
 }
@@ -49,15 +51,20 @@ impl Keyboard {
 impl<'a> System<'a> for Keyboard {
     type SystemData = KeyboardData<'a>;
 
-    fn run(&mut self, KeyboardData {events, keyboard_controlled, mut movements}: Self::SystemData) {
+    fn run(&mut self, KeyboardData {entities, events, mut actions, keyboard_controlled, mut movements}: Self::SystemData) {
         use self::MovementDirection::*;
         use self::Event::*;
         use self::Key::*;
 
-        // We only want the user to be able to move in one of the cardinal directions at once.
-        // We override each movement based on the order in which the events arrive.
+        // Set to true if the user has requested to interact with the tile it is facing
+        let mut interact = false;
+
         for event in &*events {
             match event {
+                KeyUp(A) => interact = true,
+
+                // We only want the user to be able to move in one of the cardinal directions at
+                // once. We override each movement based on the order in which the events arrive.
                 KeyDown(UpArrow) => self.push_direction(North),
                 KeyDown(RightArrow) => self.push_direction(East),
                 KeyDown(DownArrow) => self.push_direction(South),
@@ -72,7 +79,11 @@ impl<'a> System<'a> for Keyboard {
             }
         }
 
-        for (movement, _) in (&mut movements, &keyboard_controlled).join() {
+        for (entity, movement, _) in (&entities, &mut movements, &keyboard_controlled).join() {
+            if interact {
+                actions.0.entry(entity).or_default().push(Action::Interact);
+            }
+
             if let Some(direction) = self.current_direction() {
                 movement.direction = direction;
                 movement.speed = MOVEMENT_SPEED;

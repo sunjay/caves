@@ -95,7 +95,8 @@ fn main() -> Result<(), String> {
     let mut dispatcher = DispatcherBuilder::new()
         .with(systems::Keyboard::default(), "Keyboard", &[])
         .with(systems::Physics, "Physics", &["Keyboard"])
-        .with(systems::Animator, "Animator", &["Physics"])
+        .with(systems::Interactions, "Interactions", &["Physics"])
+        .with(systems::Animator, "Animator", &["Interactions"])
         .build();
     dispatcher.setup(&mut world.res);
     // Renderer is not called in the dispatcher, so we need to separately set up the component

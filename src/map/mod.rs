@@ -21,6 +21,11 @@ impl GameMap {
         &self.levels[self.current_level]
     }
 
+    /// Returns a mutable reference to the floor map of the current level
+    pub fn current_level_map_mut(&mut self) -> &mut FloorMap {
+        &mut self.levels[self.current_level]
+    }
+
     /// Returns an iterator of the game levels
     pub fn levels(&self) -> impl Iterator<Item=&FloorMap> {
         self.levels.iter()

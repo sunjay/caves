@@ -100,6 +100,7 @@ impl<'a> System<'a> for Animator {
 
             for action in actions.iter() {
                 match action {
+                    Interact => {},
                     Attacked => match direction {
                         North => animation.update_if_different(&manager.attack_up),
                         East => animation.update_if_different(&manager.attack_right),
