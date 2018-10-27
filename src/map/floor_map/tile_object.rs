@@ -30,11 +30,8 @@ impl StairsDirection {
     pub fn towards_target(pos: TilePos, target: TilePos) -> Self {
         match pos.difference(target) {
             (0, 0) => unreachable!("bug: a position cannot face itself"),
-            (0, a) => if a > 0 {
-                StairsDirection::Left
-            } else {
-                StairsDirection::Right
-            },
+            (0, a) if a > 0 => StairsDirection::Left,
+            (0, a) if a < 0 => StairsDirection::Right,
             _ => unreachable!("bug: stairs only support facing left or right"),
         }
     }
