@@ -13,6 +13,7 @@ mod bounds;
 pub use self::bounds::*;
 
 use rand::{random, StdRng, Rng, SeedableRng};
+use rayon::prelude::*;
 
 use map::*;
 
@@ -69,8 +70,11 @@ impl MapGenerator {
         // If this takes more than 10 attempts, we can conclude that it was essentially impossible
         // to generate the map.
         for _ in 0..10 {
-            let levels: Result<Vec<_>, _> = (1..=self.levels)
-                .map(|level| self.generate_level(&mut rng, level))
+            let rngs: Vec<_> = (1..=self.levels)
+                .map(|level| (level, StdRng::from_seed(rng.gen())))
+                .collect();
+            let levels: Result<Vec<_>, _> = rngs.into_par_iter()
+                .map(|(level, mut rng)| self.generate_level(&mut rng, level))
                 .collect();
 
             match levels {
