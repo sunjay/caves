@@ -12,6 +12,7 @@ rand = "0.5"
 base64 = "0.9"
 lazy_static = "1.1"
 colored = "1.6"
+rayon = "1.0"
 
 [dependencies.sdl2]
 version = "*"

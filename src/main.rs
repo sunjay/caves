@@ -13,6 +13,7 @@ extern crate shred;
 extern crate rand;
 extern crate base64;
 extern crate colored;
+extern crate rayon;
 
 mod systems;
 mod components;
@@ -50,6 +51,22 @@ use texture_manager::TextureManager;
 use renderer::Renderer;
 use map::{MapGenerator, MapSprites};
 
+fn map_generator(tile_size: u32) -> MapGenerator {
+    MapGenerator {
+        attempts: 2000,
+        levels: 10,
+        rows: 40,
+        cols: 50,
+        tile_size,
+        rooms: (6, 9).into(),
+        room_rows: (7, 14).into(),
+        room_cols: (8, 16).into(),
+        max_overlap: 0.35,
+        doors: (1, 3).into(),
+        next_prev_tiles: 2,
+    }
+}
+
 fn main() -> Result<(), String> {
     let fps = 30.0;
 
@@ -62,19 +79,7 @@ fn main() -> Result<(), String> {
     let tile_size = 16;
     let sprites = MapSprites::from_dungeon_spritesheet(map_texture, tile_size);
 
-    let map = MapGenerator {
-        attempts: 1000,
-        levels: 10,
-        rows: 40,
-        cols: 50,
-        tile_size,
-        rooms: (6, 9).into(),
-        room_rows: (7, 14).into(),
-        room_cols: (8, 16).into(),
-        max_overlap: 0.35,
-        doors: (1, 3).into(),
-        next_prev_tiles: 2,
-    }.generate();
+    let map = map_generator(tile_size).generate();
 
     for (i, level) in map.levels().enumerate() {
         level.render_to_file(format!("level{}.png", i+1))?;
@@ -164,4 +169,18 @@ fn main() -> Result<(), String> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rayon::prelude::*;
+
+    #[test]
+    fn map_generation() {
+        // See if we can generate lots of maps without failing
+        (0..500).into_par_iter().for_each(|_| {
+            map_generator(16).generate();
+        });
+    }
 }
