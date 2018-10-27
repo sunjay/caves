@@ -1,7 +1,7 @@
 use rand::{StdRng, Rng};
 
 use super::{MapGenerator, RanOutOfAttempts};
-use map::*;
+use map::{*, WallSpriteAlternate::BrickColumn};
 
 impl MapGenerator {
     pub(in super) fn place_to_next_level_tiles(
@@ -45,7 +45,7 @@ impl MapGenerator {
             for adj in grid.adjacent_positions(stairs) {
                 // Taking advantage of the fact that all stairways are on vertical edges of rooms
                 if adj.col == stairs.col && !grid.get(adj).is_wall() {
-                    grid.get_mut(adj).become_wall(WallSprite::default());
+                    grid.get_mut(adj).become_wall(WallSprite::with_alternate(BrickColumn));
                 }
             }
         }
