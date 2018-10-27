@@ -54,6 +54,8 @@ pub struct SpriteImage {
     pub flip_vertical: bool,
     /// The position within the region at which this sprite is anchored
     pub anchor: Anchor,
+    /// An additional amount to offset the destination rectangle
+    pub dest_offset: Point,
 }
 
 impl SpriteImage {
@@ -65,6 +67,7 @@ impl SpriteImage {
             flip_horizontal: false,
             flip_vertical: false,
             anchor: Anchor::Center,
+            dest_offset: Point::new(0, 0),
         }
     }
 
@@ -84,10 +87,26 @@ impl SpriteImage {
         }
     }
 
+    /// Returns this sprite image anchored from its west side
+    pub fn anchor_west(self) -> Self {
+        Self {
+            anchor: Anchor::W,
+            ..self
+        }
+    }
+
     /// Returns this sprite image anchored from its south side
     pub fn anchor_south(self) -> Self {
         Self {
             anchor: Anchor::S,
+            ..self
+        }
+    }
+
+    /// Returns this sprite image with the given destination offset
+    pub fn dest_offset(self, x: i32, y: i32) -> Self {
+        Self {
+            dest_offset: Point::new(x, y),
             ..self
         }
     }
@@ -210,75 +229,87 @@ impl MapSprites {
     pub fn from_dungeon_spritesheet(texture_id: TextureId, tile_size: u32) -> Self {
         // Returns the (tile_size)x(tile_size) sprite for the given row and column of the spritesheet
         macro_rules! tile_sprite {
-            ($row:expr, $col:expr, $width:expr, $height:expr) => (
+            (x: $x:expr, y: $y:expr, width: $width:expr, height: $height:expr) => (
                 SpriteImage::new_unflipped(
                     texture_id,
                     Rect::new(
-                        $col as i32 * tile_size as i32,
-                        $row as i32 * tile_size as i32,
+                        $x,
+                        $y,
                         $width,
                         $height,
                     ),
                 )
             );
-            ($row:expr, $col:expr) => (
-                tile_sprite!($row, $col, tile_size, tile_size);
+            (row: $row:expr, col: $col:expr, width: $width:expr, height: $height:expr) => (
+                tile_sprite!(
+                    x: $col as i32 * tile_size as i32,
+                    y: $row as i32 * tile_size as i32,
+                    width: $width,
+                    height: $height
+                )
+            );
+            (row: $row:expr, col: $col:expr) => (
+                tile_sprite!(row: $row, col: $col, width: tile_size, height: tile_size);
             )
         }
 
         Self {
-            empty_tile_sprite: tile_sprite!(0, 3),
-            floor_tiles: vec![tile_sprite!(0, 0)],
+            empty_tile_sprite: tile_sprite!(row: 0, col: 3),
+            floor_tiles: vec![tile_sprite!(row: 0, col: 0)],
             wall_tiles: vec![
-                tile_sprite!(8, 0),
-                tile_sprite!(8, 1),
-                tile_sprite!(8, 2),
-                tile_sprite!(8, 3),
+                tile_sprite!(row: 8, col: 0),
+                tile_sprite!(row: 8, col: 1),
+                tile_sprite!(row: 8, col: 2),
+                tile_sprite!(row: 8, col: 3),
 
-                tile_sprite!(9, 0),
-                tile_sprite!(9, 1),
-                tile_sprite!(9, 2),
-                tile_sprite!(9, 3),
+                tile_sprite!(row: 9, col: 0),
+                tile_sprite!(row: 9, col: 1),
+                tile_sprite!(row: 9, col: 2),
+                tile_sprite!(row: 9, col: 3),
 
-                tile_sprite!(10, 0),
-                tile_sprite!(10, 1),
-                tile_sprite!(10, 2),
-                tile_sprite!(10, 3),
+                tile_sprite!(row: 10, col: 0),
+                tile_sprite!(row: 10, col: 1),
+                tile_sprite!(row: 10, col: 2),
+                tile_sprite!(row: 10, col: 3),
 
-                tile_sprite!(11, 0),
-                tile_sprite!(11, 1),
-                tile_sprite!(11, 2),
-                tile_sprite!(11, 3),
+                tile_sprite!(row: 11, col: 0),
+                tile_sprite!(row: 11, col: 1),
+                tile_sprite!(row: 11, col: 2),
+                tile_sprite!(row: 11, col: 3),
 
                 // Alternates
 
                 // EW
-                tile_sprite!(8, 4),
-                tile_sprite!(9, 4),
+                tile_sprite!(row: 8, col: 4),
+                tile_sprite!(row: 9, col: 4),
                 // NS
-                tile_sprite!(10, 4),
-                tile_sprite!(11, 4),
+                tile_sprite!(row: 10, col: 4),
+                tile_sprite!(row: 11, col: 4),
 
                 // Special wall tiles
-                tile_sprite!(17, 7, tile_size, tile_size*2).anchor_south(),
+                tile_sprite!(row: 17, col: 7, width: tile_size, height: tile_size*2).anchor_south(),
             ],
             staircase_up_tiles: vec![
                 // bottom step faces right
-                tile_sprite!(15, 8, tile_size, tile_size*2).anchor_south().flip_horizontally(),
+                tile_sprite!(row: 15, col: 8, width: tile_size, height: tile_size*2).anchor_south().flip_horizontally(),
                 // bottom step faces left
-                tile_sprite!(15, 8, tile_size, tile_size*2).anchor_south(),
+                tile_sprite!(row: 15, col: 8, width: tile_size, height: tile_size*2).anchor_south(),
             ],
             staircase_down_tiles: vec![
                 // top step faces right
-                tile_sprite!(16, 7),
+                tile_sprite!(row: 16, col: 7),
                 // top step faces left
-                tile_sprite!(16, 7).flip_horizontally(),
+                tile_sprite!(row: 16, col: 7).flip_horizontally(),
             ],
             door_tiles: vec![
-                // horizontal
-                tile_sprite!(11, 14),
-                // vertical
-                tile_sprite!(10, 15, tile_size, tile_size*2).anchor_south(),
+                // horizontal door (closed)
+                tile_sprite!(row: 11, col: 14),
+                // vertical door (closed)
+                tile_sprite!(row: 10, col: 15, width: tile_size, height: tile_size*2).anchor_south(),
+                // horizontal door (open)
+                tile_sprite!(x: 244, y: 170, width: 9, height: 22).anchor_west(),
+                // vertical door (open)
+                tile_sprite!(row: 11, col: 14).dest_offset(8, 2),
             ],
         }
     }
@@ -359,9 +390,13 @@ impl MapSprites {
     }
 
     pub fn door_sprite(&self, state: Door, orientation: HoriVert) -> &SpriteImage {
-        match orientation {
-            HoriVert::Horizontal => &self.door_tiles[0],
-            HoriVert::Vertical => &self.door_tiles[1],
+        match (state, orientation) {
+            (Door::Locked, HoriVert::Horizontal) |
+            (Door::Closed, HoriVert::Horizontal) => &self.door_tiles[0],
+            (Door::Locked, HoriVert::Vertical) |
+            (Door::Closed, HoriVert::Vertical) => &self.door_tiles[1],
+            (Door::Open, HoriVert::Horizontal) => &self.door_tiles[2],
+            (Door::Open, HoriVert::Vertical) => &self.door_tiles[3],
         }
     }
 }

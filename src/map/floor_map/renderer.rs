@@ -9,7 +9,7 @@ use sdl2::{
     render::{Canvas, RenderTarget},
 };
 
-use super::{FloorMap, MapSprites};
+use super::{FloorMap, MapSprites, TilePos, SpriteImage};
 use texture_manager::TextureManager;
 
 impl FloorMap {
@@ -46,43 +46,71 @@ impl FloorMap {
         // used is actually something that doesn't take up the entire space (e.g. a column tile)
         let default_floor = sprites.floor_sprite(Default::default());
 
-        let tiles = self.tiles_within(region);
-        for (pos, _, tile) in tiles {
-            let tile_layers = once(default_floor)
-                .chain(once(tile.background_sprite(sprites)))
-                .chain(tile.object_sprite(sprites));
-            for sprite in tile_layers {
-                let texture = textures.get(sprite.texture_id);
-                // Source rect should never be modified here because it represents the exact place
-                // on the spritesheet of this sprite. No reaosn to modify that.
-                let source_rect = sprite.region.clone();
+        // Rendering strategy: For each row, first render all the backgrounds, then render all of
+        // objects at once right after. This allows an object to overlap the background of the tile
+        // on its right.
 
-                // The destination rectangle that this sprite should be aligned against. The sprite
-                // is not required to be confined to this rectangle. It is only used to decide how
-                // the sprite's layout should be calculated.
-                let dest = Rect::new(
-                    // Need to subtract the position (world coordinates) of this tile from the position
-                    // in world coordinates of the top-left corner of the screen so that we are left
-                    // with the position of this sprite on the screen in screen coordinates
-                    pos.x() - render_top_left.x(),
-                    pos.y() - render_top_left.y(),
-                    self.tile_size,
-                    self.tile_size,
-                );
-                let dest_rect = sprite.apply_anchor(dest);
+        let (top_left, size) = self.grid_area_within(region);
+        for (row, row_tiles) in self.grid().rows().enumerate().skip(top_left.row).take(size.rows) {
+            for (col, tile) in row_tiles.iter().enumerate().skip(top_left.col).take(size.cols) {
+                let pos = TilePos {row, col}.to_point(self.tile_size as i32);
+                let tile_layers = once(default_floor)
+                    .chain(once(tile.background_sprite(sprites)));
 
-                canvas.copy_ex(
-                    texture,
-                    Some(source_rect),
-                    Some(dest_rect),
-                    0.0,
-                    None,
-                    sprite.flip_horizontal,
-                    sprite.flip_vertical,
-                )?;
+                for sprite in tile_layers {
+                    self.render_sprite(pos, sprite, canvas, render_top_left, textures)?;
+                }
+            }
+
+            for (col, tile) in row_tiles.iter().enumerate().skip(top_left.col).take(size.cols) {
+                let pos = TilePos {row, col}.to_point(self.tile_size as i32);
+                if let Some(sprite) = tile.object_sprite(sprites) {
+                    self.render_sprite(pos, sprite, canvas, render_top_left, textures)?;
+                }
             }
         }
 
         Ok(())
+    }
+
+    fn render_sprite<T: RenderTarget, U>(
+        &self,
+        pos: Point,
+        sprite: &SpriteImage,
+        canvas: &mut Canvas<T>,
+        render_top_left: Point,
+        textures: &TextureManager<U>,
+    ) -> Result<(), String> {
+        let texture = textures.get(sprite.texture_id);
+        // Source rect should never be modified here because it represents the exact place
+        // on the spritesheet of this sprite. No reaosn to modify that.
+        let source_rect = sprite.region.clone();
+
+        // The destination rectangle that this sprite should be aligned against. The sprite
+        // is not required to be confined to this rectangle. It is only used to decide how
+        // the sprite's layout should be calculated.
+        let dest = Rect::new(
+            // Need to subtract the position (world coordinates) of this tile from the position
+            // in world coordinates of the top-left corner of the screen so that we are left
+            // with the position of this sprite on the screen in screen coordinates
+            pos.x() - render_top_left.x(),
+            pos.y() - render_top_left.y(),
+            self.tile_size,
+            self.tile_size,
+        );
+        let mut dest_rect = sprite.apply_anchor(dest);
+
+        let dest_offset = sprite.dest_offset;
+        dest_rect.offset(dest_offset.x(), dest_offset.y());
+
+        canvas.copy_ex(
+            texture,
+            Some(source_rect),
+            Some(dest_rect),
+            0.0,
+            None,
+            sprite.flip_horizontal,
+            sprite.flip_vertical,
+        )
     }
 }

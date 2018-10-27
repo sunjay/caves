@@ -3,7 +3,7 @@
 use std::iter::once;
 
 use specs::{VecStorage, HashMapStorage};
-use sdl2::rect::Rect;
+use sdl2::rect::{Point, Rect};
 
 use texture_manager::TextureId;
 use map::{SpriteImage, Anchor};
@@ -146,6 +146,7 @@ impl AnimationManager {
                     flip_horizontal,
                     flip_vertical: false,
                     anchor: Anchor::Center,
+                    dest_offset: Point::new(0, 0)
                 },
                 duration,
             }).collect();
