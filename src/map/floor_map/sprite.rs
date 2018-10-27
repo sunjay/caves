@@ -151,12 +151,22 @@ pub struct WallSprite {
     pub alt: WallSpriteAlternate,
 }
 
+impl WallSprite {
+    pub fn with_alternate(alt: WallSpriteAlternate) -> Self {
+        Self {
+            alt,
+            ..Default::default()
+        }
+    }
+}
+
 /// Different alternate wall styles for some of the wall sprites
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WallSpriteAlternate {
     Alt0,
     Alt1,
     Alt2,
+    BrickColumn,
 }
 
 impl Default for WallSpriteAlternate {
@@ -246,6 +256,9 @@ impl MapSprites {
                 // NS
                 tile_sprite!(10, 4),
                 tile_sprite!(11, 4),
+
+                // Special wall tiles
+                tile_sprite!(17, 7, tile_size, tile_size*2).anchor_south(),
             ],
             staircase_up_tiles: vec![
                 // bottom step faces right
@@ -281,12 +294,17 @@ impl MapSprites {
             (N: $n:pat, E: $e:pat, S: $s:pat, W: $w:pat) => {
                 w!{N: $n, E: $e, S: $s, W: $w, alt: _}
             };
+            (alt: $a:pat) => {
+                w!{N: _, E: _, S: _, W: _, alt: $a}
+            };
         }
 
         let s = |n| &self.wall_tiles[n];
 
         use self::WallSpriteAlternate::*;
         match sprite {
+            w!{alt: BrickColumn} => s(20),
+
             w!{N: false, E: false, S: false, W: false} => s(0), // no walls adjacent
 
             w!{N: true, E: false, S: false, W: false} => s(12), // N

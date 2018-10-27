@@ -66,9 +66,16 @@ impl Tile {
 
     /// Sets the sprite to the given wall sprite only if the tile is a wall tile
     pub(in map) fn set_wall_sprite(&mut self, wall_sprite: WallSprite) {
-        use self::Tile::*;
         match self {
-            Wall {sprite, ..} => *sprite = wall_sprite,
+            Tile::Wall {sprite, ..} => *sprite = wall_sprite,
+            _ => unreachable!("bug: cannot set a wall sprite for a non-wall tile"),
+        }
+    }
+
+    /// Returns the wall sprite of this tile if and only if the tile is a wall tile
+    pub fn wall_sprite(&self) -> &WallSprite {
+        match self {
+            Tile::Wall {sprite, ..} => sprite,
             _ => unreachable!("bug: cannot set a wall sprite for a non-wall tile"),
         }
     }

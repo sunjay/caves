@@ -42,9 +42,14 @@ impl FloorMap {
         sprites: &MapSprites,
         textures: &TextureManager<U>,
     ) -> Result<(), String> {
+        // Need to paint the default floor under every tile in case the background sprite being
+        // used is actually something that doesn't take up the entire space (e.g. a column tile)
+        let default_floor = sprites.floor_sprite(Default::default());
+
         let tiles = self.tiles_within(region);
         for (pos, _, tile) in tiles {
-            let tile_layers = once(tile.background_sprite(sprites))
+            let tile_layers = once(default_floor)
+                .chain(once(tile.background_sprite(sprites)))
                 .chain(tile.object_sprite(sprites));
             for sprite in tile_layers {
                 let texture = textures.get(sprite.texture_id);

@@ -14,6 +14,10 @@ impl MapGenerator {
             if !map.grid().get(pos).is_wall() {
                 continue;
             }
+            // Sprite already has a predetermined alternate
+            if map.grid().get(pos).wall_sprite().alt != Default::default() {
+                continue;
+            }
 
             let mut wall_sprite = WallSprite::default();
             wall_sprite.alt = rng.gen();
