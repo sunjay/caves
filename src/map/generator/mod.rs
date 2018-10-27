@@ -100,7 +100,6 @@ impl MapGenerator {
         self.generate_rooms(rng, &mut map, level)?;
         self.connect_rooms(rng, &mut map);
         self.place_locks(rng, &mut map);
-        self.layout_floor_wall_sprites(rng, &mut map);
 
         if level < self.levels {
             self.place_to_next_level_tiles(rng, &mut map)?;
@@ -108,6 +107,8 @@ impl MapGenerator {
         if level > 1 {
             self.place_to_prev_level_tiles(rng, &mut map)?;
         }
+
+        self.layout_floor_wall_sprites(rng, &mut map);
 
         self.validate_map(&map);
         println!("{:?}", map);

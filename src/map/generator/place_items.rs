@@ -12,7 +12,10 @@ impl MapGenerator {
         let valid_rooms = |(_, r): &(RoomId, &Room)| r.can_contain_to_next_level();
         // Can only place on vertical edge since we only have sprites for tiles adjacent to those
         let next_pos = |rng: &mut StdRng, rect: TileRect| rect.random_vertical_edge_tile(rng);
-        self.place_object_in_rooms(rng, map, valid_rooms, self.next_prev_tiles, next_pos, TileObject::ToNextLevel)
+        let placed = self.place_object_in_rooms(rng, map, valid_rooms, self.next_prev_tiles,
+            next_pos, TileObject::ToNextLevel)?;
+        self.surround_stairways(&placed, map);
+        Ok(())
     }
 
     pub(in super) fn place_to_prev_level_tiles(
@@ -23,11 +26,27 @@ impl MapGenerator {
         let valid_rooms = |(_, r): &(RoomId, &Room)| r.can_contain_to_prev_level();
         // Can only place on vertical edge since we only have sprites for tiles adjacent to those
         let next_pos = |rng: &mut StdRng, rect: TileRect| rect.random_vertical_edge_tile(rng);
-        self.place_object_in_rooms(rng, map, valid_rooms, self.next_prev_tiles, next_pos, TileObject::ToPrevLevel)
+        let placed = self.place_object_in_rooms(rng, map, valid_rooms, self.next_prev_tiles,
+            next_pos, TileObject::ToPrevLevel)?;
+        self.surround_stairways(&placed, map);
+        Ok(())
+    }
+
+    /// Ensures that there is a wall on each side of a staircase
+    fn surround_stairways(&self, staircases: &[TilePos], map: &mut FloorMap) {
+        let grid = map.grid_mut();
+        for &stairs in staircases {
+            for adj in grid.adjacent_positions(stairs) {
+                // Taking advantage of the fact that all stairways are on vertical edges of rooms
+                if adj.col == stairs.col && !grid.get(adj).is_wall() {
+                    grid.get_mut(adj).become_wall(WallSprite::default());
+                }
+            }
+        }
     }
 
     /// Places `nrooms` copies of a TileObject into `nrooms` randomly choosen rooms from rooms
-    fn place_object_in_rooms<'a>(
+    fn place_object_in_rooms(
         &self,
         rng: &mut StdRng,
         map: &mut FloorMap,
@@ -35,7 +54,7 @@ impl MapGenerator {
         nrooms: usize,
         mut next_pos: impl FnMut(&mut StdRng, TileRect) -> TilePos,
         mut object: impl FnMut(usize) -> TileObject,
-    ) -> Result<(), RanOutOfAttempts> {
+    ) -> Result<Vec<TilePos>, RanOutOfAttempts> {
         // To do this using choose we would need to allocate anyway, so we might as well just use
         // shuffle to do all the random choosing at once
         let mut rooms: Vec<_> = map.rooms()
@@ -47,6 +66,7 @@ impl MapGenerator {
 
         let grid = map.grid_mut();
 
+        let mut placed = Vec::new();
         'place_loop: for (i, (room_id, rect)) in rooms.into_iter().take(nrooms).enumerate() {
             for _ in 0..self.attempts {
                 // Pick a random point on one of the edges of the room
@@ -65,8 +85,12 @@ impl MapGenerator {
 
                 if let Some(inner_room_tile) = self.find_place(grid, pos, room_id) {
                     let tile = grid.get_mut(inner_room_tile);
+
                     // Want to face away from the wall
                     tile.place_object(object(i), Orientation::face_target(pos, inner_room_tile));
+
+                    placed.push(inner_room_tile);
+
                     // Can not simply break because then we would return RanOutOfAttempts
                     continue 'place_loop;
                 }
@@ -75,7 +99,7 @@ impl MapGenerator {
             return Err(RanOutOfAttempts);
         }
 
-        Ok(())
+        Ok(placed)
     }
 
     /// Attempts to find a room tile adjacent to the given tile that we can place the object in
