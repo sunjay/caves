@@ -60,6 +60,7 @@ impl Renderer {
         let window_height = (height as f32 * display_scale) as u32;
         let window = video_subsystem.window("Caves", window_width, window_height)
             .position_centered()
+            .resizable()
             .build()
             .unwrap();
 
