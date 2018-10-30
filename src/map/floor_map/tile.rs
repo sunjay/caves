@@ -99,6 +99,14 @@ impl Tile {
         }
     }
 
+    /// Returns true if this tile is a floor tile
+    pub fn is_floor(&self) -> bool {
+        match self {
+            Tile::Floor {..} => true,
+            _ => false,
+        }
+    }
+
     /// Returns true if this tile is a floor tile from the given room
     pub fn is_room_floor(&self, id: RoomId) -> bool {
         match self {
@@ -154,6 +162,15 @@ impl Tile {
         match self {
             Tile::Floor {object: Some(TileObject::ToNextLevel {..}), ..} |
             Tile::Floor {object: Some(TileObject::ToPrevLevel {..}), ..} => true,
+            _ => false,
+        }
+    }
+
+    /// Returns true if this tile has a doorway or a gate
+    pub fn has_entrance(&self) -> bool {
+        match self {
+            Tile::Floor {object: Some(TileObject::Door {..}), ..} |
+            Tile::Floor {object: Some(TileObject::Gate {..}), ..} => true,
             _ => false,
         }
     }

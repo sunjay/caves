@@ -1,5 +1,6 @@
 use std::env;
 use std::cmp;
+use std::iter::once;
 
 use sdl2::{
     self,
@@ -23,7 +24,7 @@ use specs::{
 
 use texture_manager::TextureManager;
 use components::{Position, Sprite, CameraFocus};
-use map::{GameMap, MapSprites};
+use map::{GameMap, Tile, MapSprites};
 
 #[derive(SystemData)]
 struct RenderData<'a> {
@@ -140,8 +141,43 @@ impl Renderer {
         let screen = Rect::from_center(render_top_left + screen_center, screen_width, screen_height);
 
         let level = map.current_level_map();
+        // Only render tiles that are visible to the camera focus.
+        let focus_pos = level.world_to_tile_pos(camera_focus);
+        let focus_room = level.grid().get(focus_pos).floor_room_id()
+            .expect("bug: camera focus was not on a floor tile");
+
+        let square_depth_of_field = 5usize.pow(2);
+        let visible_tiles = level.grid().depth_first_search(focus_pos, |node, pos| {
+            let grid = level.grid();
+
+            // Stop searching at walls or entrances (but still include them in the result)
+            let tile = grid.get(node);
+            if tile.has_entrance() {
+                return false;
+            }
+
+            let tile = grid.get(pos);
+
+            // A floor tile within the current room
+            if tile.is_floor() && focus_pos.square_distance(pos) <= square_depth_of_field {
+                return true;
+            }
+
+            // Want to match either:
+            // * A wall/entrance that is adjacent to a floor tile in the room
+            // * A wall corner surrounded by walls that are adjacent to a floor tile
+            let mut adjs = grid.adjacent_positions(pos).flat_map(|pt| {
+                once(grid.get(pt)).chain(grid.adjacents(pt))
+            });
+            if tile.is_wall() && adjs.any(|t| t.is_room_floor(focus_room)) {
+                return true;
+            }
+
+            false
+        });
+
         level.render(screen, &mut self.canvas, render_top_left, map_sprites, textures,
-            |_, _| true)?;
+            |pt, _| visible_tiles.contains(&pt))?;
 
         for (&Position(pos), Sprite(ref sprite)) in (&positions, &sprites).join() {
             let pos = pos - render_top_left;
