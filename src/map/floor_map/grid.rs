@@ -143,12 +143,12 @@ impl TileGrid {
 
     /// Executes a depth-first search starting from a given tile
     ///
-    /// Takes a closure that is given the next position "node" to be processed and its
-    /// adjacents. The closure should return the adjacents that you want it to keep searching.
+    /// Takes a closure that is given the next position "node" to be processed and one of its
+    /// adjacent positions. Return true to keep searching the adjacent and false to discard it.
     ///
     /// Returns the positions that were visited
-    pub fn depth_first_search_mut<F>(&mut self, start: TilePos, mut next_adjacents: F) -> HashSet<TilePos>
-        where F: FnMut(&mut Self, TilePos, Vec<TilePos>) -> Vec<TilePos> {
+    pub fn depth_first_search<F>(&self, start: TilePos, mut keep_adjacent: F) -> HashSet<TilePos>
+        where F: FnMut(TilePos, TilePos) -> bool {
 
         let mut seen = HashSet::new();
         let mut open = VecDeque::new();
@@ -160,8 +160,9 @@ impl TileGrid {
             }
             seen.insert(node);
 
-            let adjacents = self.adjacent_positions(node).filter(|pt| !seen.contains(pt)).collect();
-            let mut adjacents = next_adjacents(self, node, adjacents).into_iter();
+            let mut adjacents = self.adjacent_positions(node)
+                .filter(|pt| !seen.contains(pt))
+                .filter(|&pt| keep_adjacent(node, pt));
 
             // This is a depth first search, so we insert the first element and append the rest
             if let Some(adj) = adjacents.next() {
