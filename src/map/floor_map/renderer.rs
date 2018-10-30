@@ -9,7 +9,7 @@ use sdl2::{
     render::{Canvas, RenderTarget},
 };
 
-use super::{FloorMap, MapSprites, TilePos, SpriteImage};
+use super::{FloorMap, MapSprites, TilePos, Tile, SpriteImage};
 use texture_manager::TextureManager;
 
 impl FloorMap {
@@ -27,7 +27,8 @@ impl FloorMap {
         let tile_size = 16;
         let sprites = MapSprites::from_dungeon_spritesheet(map_texture, tile_size);
 
-        self.render(level_boundary, &mut canvas, level_boundary.top_left(), &sprites, &textures)?;
+        self.render(level_boundary, &mut canvas, level_boundary.top_left(), &sprites, &textures,
+            |_, _| true)?;
 
         canvas.into_surface().save(path)?;
         Ok(())
@@ -41,6 +42,7 @@ impl FloorMap {
         render_top_left: Point,
         sprites: &MapSprites,
         textures: &TextureManager<U>,
+        mut should_render: impl FnMut(TilePos, &Tile) -> bool,
     ) -> Result<(), String> {
         // Need to paint the default floor under every tile in case the background sprite being
         // used is actually something that doesn't take up the entire space (e.g. a column tile)
@@ -53,7 +55,17 @@ impl FloorMap {
         let (top_left, size) = self.grid_area_within(region);
         for (row, row_tiles) in self.grid().rows().enumerate().skip(top_left.row).take(size.rows) {
             for (col, tile) in row_tiles.iter().enumerate().skip(top_left.col).take(size.cols) {
-                let pos = TilePos {row, col}.to_point(self.tile_size as i32);
+                let pos = TilePos {row, col};
+
+                if !should_render(pos, tile) {
+                    // Render an empty tile
+                    let pos = pos.to_point(self.tile_size as i32);
+                    let sprite = sprites.empty_tile_sprite();
+                    self.render_sprite(pos, sprite, canvas, render_top_left, textures)?;
+                    continue;
+                }
+
+                let pos = pos.to_point(self.tile_size as i32);
                 let tile_layers = once(default_floor)
                     .chain(once(tile.background_sprite(sprites)));
 
@@ -63,7 +75,14 @@ impl FloorMap {
             }
 
             for (col, tile) in row_tiles.iter().enumerate().skip(top_left.col).take(size.cols) {
-                let pos = TilePos {row, col}.to_point(self.tile_size as i32);
+                let pos = TilePos {row, col};
+
+                if !should_render(pos, tile) {
+                    // Do not render the tile's object
+                    continue;
+                }
+
+                let pos = pos.to_point(self.tile_size as i32);
                 if let Some(sprite) = tile.object_sprite(sprites) {
                     self.render_sprite(pos, sprite, canvas, render_top_left, textures)?;
                 }

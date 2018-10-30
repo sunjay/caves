@@ -140,7 +140,8 @@ impl Renderer {
         let screen = Rect::from_center(render_top_left + screen_center, screen_width, screen_height);
 
         let level = map.current_level_map();
-        level.render(screen, &mut self.canvas, render_top_left, map_sprites, textures)?;
+        level.render(screen, &mut self.canvas, render_top_left, map_sprites, textures,
+            |_, _| true)?;
 
         for (&Position(pos), Sprite(ref sprite)) in (&positions, &sprites).join() {
             let pos = pos - render_top_left;
