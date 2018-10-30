@@ -12,12 +12,6 @@ pub struct TilePos {
 }
 
 impl TilePos {
-    pub fn square_distance(self, other: Self) -> usize {
-        let drow = if self.row >= other.row { self.row - other.row } else { other.row - self.row };
-        let dcol = if self.col >= other.col { self.col - other.col } else { other.col - self.col };
-        drow.pow(2) + dcol.pow(2)
-    }
-
     /// Converts the given tile position to its point in world coordinates
     /// Maps columns to x-coordinates and rows to y-coordinates
     pub fn to_point(self, tile_size: i32) -> Point {

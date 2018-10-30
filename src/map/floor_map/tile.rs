@@ -99,14 +99,6 @@ impl Tile {
         }
     }
 
-    /// Returns true if this tile is a floor tile
-    pub fn is_floor(&self) -> bool {
-        match self {
-            Tile::Floor {..} => true,
-            _ => false,
-        }
-    }
-
     /// Returns true if this tile is a floor tile from the given room
     pub fn is_room_floor(&self, id: RoomId) -> bool {
         match self {

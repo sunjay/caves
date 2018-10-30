@@ -1,6 +1,5 @@
 use std::env;
 use std::cmp;
-use std::iter::once;
 
 use sdl2::{
     self,
@@ -143,41 +142,27 @@ impl Renderer {
         let level = map.current_level_map();
         // Only render tiles that are visible to the camera focus.
         let focus_pos = level.world_to_tile_pos(camera_focus);
-        let focus_room = level.grid().get(focus_pos).floor_room_id()
-            .expect("bug: camera focus was not on a floor tile");
 
-        let square_depth_of_field = 5usize.pow(2);
-        let visible_tiles = level.grid().depth_first_search(focus_pos, |node, pos| {
+        // The returned set will contain all tiles that are directly visible to the camera focus
+        // without passing through entrances that have still not been opened.
+        let visible_tiles = level.grid().depth_first_search(focus_pos, |node, _| {
             let grid = level.grid();
 
-            // Stop searching at walls or entrances (but still include them in the result)
+            // Stop searching at walls or closed entrances (but still include them in the result)
             let tile = grid.get(node);
-            if tile.has_entrance() {
-                return false;
-            }
-
-            let tile = grid.get(pos);
-
-            // A floor tile within the current room
-            if tile.is_floor() && focus_pos.square_distance(pos) <= square_depth_of_field {
-                return true;
-            }
-
-            // Want to match either:
-            // * A wall/entrance that is adjacent to a floor tile in the room
-            // * A wall corner surrounded by walls that are adjacent to a floor tile
-            let mut adjs = grid.adjacent_positions(pos).flat_map(|pt| {
-                once(grid.get(pt)).chain(grid.adjacents(pt))
-            });
-            if tile.is_wall() && adjs.any(|t| t.is_room_floor(focus_room)) {
-                return true;
-            }
-
-            false
+            !tile.is_wall() && !(tile.has_entrance() && !tile.is_traversable())
         });
 
+        let is_visible = |pt, tile: &Tile| {
+            visible_tiles.contains(&pt) ||
+            // Need to specially handle wall corners because they are not *directly* visible.
+            // A corner is a wall tile with at least two visible walls
+            tile.is_wall() && level.grid().adjacent_positions(pt)
+                .filter(|pt| visible_tiles.contains(pt)).count() >= 2
+        };
+
         level.render(screen, &mut self.canvas, render_top_left, map_sprites, textures,
-            |pt, _| visible_tiles.contains(&pt))?;
+            is_visible)?;
 
         for (&Position(pos), Sprite(ref sprite)) in (&positions, &sprites).join() {
             let pos = pos - render_top_left;
