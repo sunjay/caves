@@ -1,6 +1,6 @@
 use rand::{StdRng, Rng};
 
-use super::{MapGenerator, WallSprite};
+use super::{MapGenerator, WallSprite, FLOOR_PATTERNS, TileRect, TilePos, GridSize};
 use map::*;
 
 impl MapGenerator {
@@ -75,6 +75,52 @@ impl MapGenerator {
     }
 
     fn layout_floor_sprites(&self, rng: &mut StdRng, map: &mut FloorMap) {
-        //TODO
+        // No defined patterns to place (good for debugging)
+        if FLOOR_PATTERNS.is_empty() {
+            return;
+        }
+
+        // Will place patterns until this many attempts fail
+        // The higher this number, the higher the probability that more of the floor will get covered
+        let mut remaining_tries = 100;
+
+        let mut placed = Vec::new();
+        'place_pattern: while remaining_tries > 0 {
+            let pattern = rng.choose(FLOOR_PATTERNS).unwrap();
+            let pat_rect = TileRect::new(
+                TilePos {
+                    row: rng.gen_range(0, map.grid().rows_len()),
+                    col: rng.gen_range(0, map.grid().cols_len()),
+                },
+                GridSize {
+                    rows: pattern.len(),
+                    cols: pattern[0].len(),
+                },
+            );
+
+            // Check that the pattern isn't overlapping
+            for &rect in &placed {
+                if pat_rect.has_intersection(rect) {
+                    remaining_tries -= 1;
+                    continue 'place_pattern;
+                }
+            }
+
+            let top_left = pat_rect.top_left();
+            for pos in pat_rect.tile_positions() {
+                if pos.row >= map.grid().rows_len() || pos.col >= map.grid().cols_len() {
+                    continue;
+                }
+
+                let tile = map.grid_mut().get_mut(pos);
+                if !tile.is_floor() {
+                    continue;
+                }
+
+                let sprite = pattern[pos.row - top_left.row][pos.col - top_left.col];
+                tile.set_floor_sprite(sprite);
+            }
+            placed.push(pat_rect);
+        }
     }
 }

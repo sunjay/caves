@@ -145,16 +145,85 @@ impl SpriteImage {
 /// Used to decouple SpriteImage from a specific SpriteTable
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FloorSprite {
-    Type1,
+    Floor1,
+    Floor2,
+    Floor3,
+    Floor4,
+    Floor5,
+    Floor6,
+    Floor7,
+    Floor8,
+    Floor9,
+    Floor10,
+    Floor11,
+    Floor12,
 }
 
 impl Default for FloorSprite {
     fn default() -> Self {
-        // Need a default floor tile sprite because we can't determine the actual floor tile sprite to
-        // use until after all of the tiles are placed.
-        FloorSprite::Type1
+        // Strategy: Fill with a default floor tile and then come back and place patterns after
+        FloorSprite::Floor1
     }
 }
+
+/// These patterns will be placed in a non-overlapping way throughout the tiles on the map
+use self::FloorSprite::*;
+pub static FLOOR_PATTERNS: &[&[&[FloorSprite]]] = &[
+    &[
+        &[Floor1, Floor2, Floor3, Floor1],
+        &[Floor5, Floor6, Floor7, Floor8],
+        &[Floor9, Floor10, Floor11, Floor12],
+        &[Floor1, Floor5, Floor8, Floor1],
+    ],
+    &[
+        &[Floor5, Floor8],
+        &[Floor9, Floor12],
+        &[Floor5, Floor8],
+    ],
+    &[
+        &[Floor1, Floor5, Floor8, Floor1],
+        &[Floor1, Floor2, Floor3, Floor1],
+        &[Floor5, Floor6, Floor6, Floor8],
+        &[Floor1, Floor9, Floor12, Floor1],
+        &[Floor1, Floor5, Floor8, Floor1],
+    ],
+    &[
+        &[Floor5, Floor8],
+        &[Floor9, Floor12],
+    ],
+    &[
+        &[Floor5, Floor8],
+        &[Floor2, Floor3],
+        &[Floor5, Floor8],
+    ],
+    &[
+        &[Floor1, Floor2, Floor3, Floor1, Floor1],
+        &[Floor5, Floor6, Floor6, Floor8, Floor1],
+        &[Floor9, Floor10, Floor11, Floor12, Floor1],
+        &[Floor5, Floor7, Floor6, Floor6, Floor8],
+        &[Floor9, Floor12, Floor9, Floor12, Floor1],
+        &[Floor1, Floor5, Floor8, Floor1, Floor1],
+    ],
+    &[
+        &[Floor1, Floor9, Floor1, Floor1],
+        &[Floor5, Floor6, Floor8, Floor1],
+        &[Floor1, Floor2, Floor3, Floor1],
+        &[Floor5, Floor7, Floor6, Floor8],
+        &[Floor9, Floor10, Floor11, Floor12],
+        &[Floor1, Floor5, Floor8, Floor1],
+    ],
+    &[
+        &[Floor1, Floor9, Floor1],
+        &[Floor5, Floor7, Floor8],
+        &[Floor1, Floor9, Floor1],
+    ],
+    &[
+        &[Floor1, Floor9, Floor1],
+        &[Floor5, Floor6, Floor8],
+        &[Floor1, Floor9, Floor12],
+        &[Floor1, Floor5, Floor8],
+    ],
+];
 
 /// Manages the state of the torch animation
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -323,7 +392,22 @@ impl MapSprites {
 
         Self {
             empty_tile_sprite: tile_sprite!(row: 0, col: 3),
-            floor_tiles: vec![tile_sprite!(row: 0, col: 0)],
+            floor_tiles: vec![
+                tile_sprite!(row: 0, col: 0), // 1
+                tile_sprite!(row: 0, col: 1), // 2
+                tile_sprite!(row: 0, col: 2), // 3
+                tile_sprite!(row: 0, col: 3), // 4
+
+                tile_sprite!(row: 1, col: 0), // 5
+                tile_sprite!(row: 1, col: 1), // 6
+                tile_sprite!(row: 1, col: 2), // 7
+                tile_sprite!(row: 1, col: 3), // 8
+
+                tile_sprite!(row: 2, col: 0), // 9
+                tile_sprite!(row: 2, col: 1), // 10
+                tile_sprite!(row: 2, col: 2), // 11
+                tile_sprite!(row: 2, col: 3), // 12
+            ],
             wall_tiles: vec![
                 tile_sprite!(row: 8, col: 0),
                 tile_sprite!(row: 8, col: 1),
@@ -396,7 +480,18 @@ impl MapSprites {
     pub fn floor_sprite(&self, sprite: FloorSprite) -> &SpriteImage {
         use self::FloorSprite::*;
         match sprite {
-            Type1 => &self.floor_tiles[0],
+            Floor1 => &self.floor_tiles[0],
+            Floor2 => &self.floor_tiles[1],
+            Floor3 => &self.floor_tiles[2],
+            Floor4 => &self.floor_tiles[3],
+            Floor5 => &self.floor_tiles[4],
+            Floor6 => &self.floor_tiles[5],
+            Floor7 => &self.floor_tiles[6],
+            Floor8 => &self.floor_tiles[7],
+            Floor9 => &self.floor_tiles[8],
+            Floor10 => &self.floor_tiles[9],
+            Floor11 => &self.floor_tiles[10],
+            Floor12 => &self.floor_tiles[11],
         }
     }
 
@@ -483,6 +578,24 @@ impl MapSprites {
             Torch2 => &self.torch_tiles[1],
             Torch3 => &self.torch_tiles[2],
             Torch4 => &self.torch_tiles[3],
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn consistent_floor_patterns() {
+        for pat in FLOOR_PATTERNS {
+            let rows = pat.len();
+            assert!(rows > 0, "floor pattern must be non-empty");
+
+            let row_len = pat[0].len();
+            for row in pat.iter() {
+                assert_eq!(row.len(), row_len, "rows must all be same size");
+            }
         }
     }
 }
