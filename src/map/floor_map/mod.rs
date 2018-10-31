@@ -45,6 +45,17 @@ pub struct FloorMap {
 
 impl fmt::Debug for FloorMap {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // Only apply the special formatting if {:#?} is used. This is so that assertion output
+        // does not look super bad on CI.
+        if !f.alternate() {
+            // Return the normal debug output
+            return f.debug_struct("FloorMap")
+                .field("grid", &self.grid)
+                .field("rooms", &self.rooms)
+                .field("tile_size", &self.tile_size)
+                .finish();
+        }
+
         use colored::*;
 
         for row in self.grid().rows() {

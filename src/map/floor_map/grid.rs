@@ -5,7 +5,7 @@ use std::iter::once;
 use super::{Tile, GridSize, TilePos};
 
 /// Represents a 2D grid of tiles
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct TileGrid(Vec<Vec<Tile>>);
 
 impl Index<usize> for TileGrid {

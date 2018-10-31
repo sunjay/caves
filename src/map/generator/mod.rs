@@ -118,7 +118,7 @@ impl MapGenerator {
         self.validate_map(&map);
 
         #[cfg(not(test))]
-        println!("{:?}", map);
+        println!("{:#?}", map);
         Ok(map)
     }
 
