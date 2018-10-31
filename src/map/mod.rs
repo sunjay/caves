@@ -26,6 +26,18 @@ impl GameMap {
         &mut self.levels[self.current_level]
     }
 
+    /// Advances to the next level. Panics if there is no next level
+    pub fn to_next_level(&mut self) {
+        self.current_level += 1;
+        assert!(self.current_level < self.levels.len(), "bug: advanced too many levels");
+    }
+
+    /// Goes back to the previous level. Panics if there is no previous level.
+    pub fn to_prev_level(&mut self) {
+        self.current_level = self.current_level.checked_sub(1)
+            .expect("bug: went back too many levels");
+    }
+
     /// Returns an iterator of the game levels
     pub fn levels(&self) -> impl Iterator<Item=&FloorMap> {
         self.levels.iter()

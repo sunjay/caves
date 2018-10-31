@@ -130,6 +130,38 @@ impl Tile {
         }
     }
 
+    /// Returns the ID of the gate if the tile contains a ToNextLevel object
+    pub fn to_next_level_id(&self) -> Option<usize> {
+        match self.object() {
+            Some(&TileObject::ToNextLevel {id, ..}) => Some(id),
+            _ => None,
+        }
+    }
+
+    /// Returns the ID of the gate if the tile contains a ToPrevLevel object
+    pub fn to_prev_level_id(&self) -> Option<usize> {
+        match self.object() {
+            Some(&TileObject::ToPrevLevel {id, ..}) => Some(id),
+            _ => None,
+        }
+    }
+
+    /// Returns true if the tile contains a ToNextLevel gate with the given ID
+    pub fn is_to_next_level_id(&self, id: usize) -> bool {
+        match self.object() {
+            Some(&TileObject::ToNextLevel {id: gid, ..}) => gid == id,
+            _ => false,
+        }
+    }
+
+    /// Returns true if the tile contains a ToPrevLevel gate with the given ID
+    pub fn is_to_prev_level_id(&self, id: usize) -> bool {
+        match self.object() {
+            Some(&TileObject::ToPrevLevel {id: gid, ..}) => gid == id,
+            _ => false,
+        }
+    }
+
     /// Returns true if the player is allowed to move over top of this tile
     pub fn is_traversable(&self) -> bool {
         match self {
@@ -183,6 +215,14 @@ impl Tile {
     }
 
     /// Returns the object on this tile (if there is any)
+    pub fn object(&self) -> Option<&TileObject> {
+        match self {
+            Tile::Floor {object, ..} => object.as_ref(),
+            _ => None,
+        }
+    }
+
+    /// Returns the object on this tile (if there is any)
     pub fn object_mut(&mut self) -> Option<&mut TileObject> {
         match self {
             Tile::Floor {object, ..} => object.as_mut(),
@@ -192,10 +232,7 @@ impl Tile {
 
     /// Returns true if this tile has an object
     pub fn has_object(&self) -> bool {
-        match self {
-            Tile::Floor {object, ..} => object.is_some(),
-            _ => false,
-        }
+        self.object().is_some()
     }
 
     /// Returns true if this tile has a staircase
