@@ -52,6 +52,11 @@ impl TileGrid {
         self.0.iter().map(|r| r.as_slice())
     }
 
+    /// Returns an iterator over each row
+    pub fn rows_mut(&mut self) -> impl Iterator<Item=&mut [Tile]> {
+        self.0.iter_mut().map(|r| r.as_mut())
+    }
+
     /// Gets the tile at the given position (or None if empty)
     pub fn get(&self, TilePos {row, col}: TilePos) -> &Tile {
         &self[row][col]
