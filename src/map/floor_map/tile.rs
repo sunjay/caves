@@ -1,4 +1,4 @@
-use super::{RoomId, FloorSprite, WallSprite, MapSprites, SpriteImage, TileObject};
+use super::{RoomId, FloorSprite, WallSprite, WallSpriteAlternate, MapSprites, SpriteImage, TileObject};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum WallDecoration {
@@ -87,7 +87,10 @@ impl Tile {
     /// Sets the wall decoration to a torch. Panics if this is not a wall tile.
     pub fn place_wall_torch(&mut self) {
         match self {
-            Tile::Wall {decoration, ..} => *decoration = Some(WallDecoration::Torch),
+            Tile::Wall {decoration, sprite} => {
+                *decoration = Some(WallDecoration::Torch);
+                sprite.alt = WallSpriteAlternate::TorchLit;
+            },
             _ => unreachable!("bug: cannot set wall decoration on non-wall tile"),
         }
     }
