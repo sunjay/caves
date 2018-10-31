@@ -111,6 +111,14 @@ impl Tile {
         }
     }
 
+    /// Sets the sprite to the given floor sprite only if the tile is a floor tile
+    pub(in map) fn set_floor_sprite(&mut self, floor_sprite: FloorSprite) {
+        match self {
+            Tile::Floor {sprite, ..} => *sprite = floor_sprite,
+            _ => unreachable!("bug: cannot set a floor sprite for a non-floor tile"),
+        }
+    }
+
     /// Sets the wall decoration to a torch. Panics if this is not a wall tile.
     pub fn place_wall_torch(&mut self) {
         match self {
