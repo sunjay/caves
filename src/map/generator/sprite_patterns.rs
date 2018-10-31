@@ -60,7 +60,7 @@ impl MapGenerator {
 
                 let has_south_floor = pos.adjacent_south(map.grid().rows_len())
                     .map(|pt| map.grid().get(pt))
-                    .map(|t| t.is_floor())
+                    .map(|t| t.is_floor() && !t.has_object())
                     .unwrap_or(false);
                 if !has_south_floor {
                     continue;
