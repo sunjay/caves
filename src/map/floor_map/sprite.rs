@@ -222,6 +222,8 @@ pub struct MapSprites {
     staircase_down_tiles: Vec<SpriteImage>,
     /// Sprites for each orientation of a door
     door_tiles: Vec<SpriteImage>,
+    /// Sprites for torch animations
+    torch_tiles: Vec<SpriteImage>,
 }
 
 impl MapSprites {
@@ -306,6 +308,9 @@ impl MapSprites {
                 tile_sprite!(row: 11, col: 14),
                 // vertical door (closed)
                 tile_sprite!(row: 10, col: 15, width: tile_size, height: tile_size*2).anchor_south(),
+            ],
+            torch_tiles: vec![
+                tile_sprite!(row: 15, col: 0),
             ],
         }
     }
@@ -394,5 +399,9 @@ impl MapSprites {
             // Just hide open doors (tried rendering a sprite for this but it didn't work out)
             (Door::Open, _) => None,
         }
+    }
+
+    pub fn torch_sprite(&self) -> &SpriteImage {
+        &self.torch_tiles[0]
     }
 }

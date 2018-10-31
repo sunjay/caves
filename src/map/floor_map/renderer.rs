@@ -82,8 +82,20 @@ impl FloorMap {
                     continue;
                 }
 
+                // Do not want to render the wall decoration if we are not going to render the
+                // tile south of this wall. Reason: Objects within a room should only be visible
+                // when that room is visible
+                if tile.is_wall() {
+                    let should_render_south = pos.adjacent_south(self.grid().rows_len())
+                        .map(|south| should_render(south, self.grid().get(south)))
+                        .unwrap_or(false);
+                    if !should_render_south {
+                        continue;
+                    }
+                }
+
                 let pos = pos.to_point(self.tile_size as i32);
-                if let Some(sprite) = tile.object_sprite(sprites) {
+                if let Some(sprite) = tile.foreground_sprite(sprites) {
                     self.render_sprite(pos, sprite, canvas, render_top_left, textures)?;
                 }
             }
