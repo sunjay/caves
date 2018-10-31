@@ -9,10 +9,22 @@ use super::{
     TileObject,
 };
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum WallDecoration {
     Torch(TorchAnimation),
     //TODO: Enemy spawn, arrow shooter, portal, spikes, etc.
+}
+
+impl PartialEq for WallDecoration {
+    fn eq(&self, other: &Self) -> bool {
+        use self::WallDecoration::*;
+        match (self, other) {
+            // Animation state does not matter for equality. This is important for the test that
+            // ensures that map generation is deterministic. With this, we can randomly vary the
+            // torch animation while still allowing two maps to count as the same.
+            (Torch(_), Torch(_)) => true,
+        }
+    }
 }
 
 impl WallDecoration {
