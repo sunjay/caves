@@ -1,9 +1,24 @@
-use super::{RoomId, FloorSprite, WallSprite, WallSpriteAlternate, MapSprites, SpriteImage, TileObject};
+use super::{
+    RoomId,
+    FloorSprite,
+    WallSprite,
+    WallSpriteAlternate,
+    TorchAnimation,
+    MapSprites,
+    SpriteImage,
+    TileObject,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum WallDecoration {
-    Torch,
+    Torch(TorchAnimation),
     //TODO: Enemy spawn, arrow shooter, portal, spikes, etc.
+}
+
+impl WallDecoration {
+    pub fn torch() -> Self {
+        WallDecoration::Torch(TorchAnimation::default())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -62,7 +77,7 @@ impl Tile {
                 _ => unimplemented!(),
             },
             Tile::Wall {decoration: Some(decoration), ..} => match decoration {
-                WallDecoration::Torch => Some(sprites.torch_sprite()),
+                WallDecoration::Torch(animation) => Some(sprites.torch_sprite(animation.current_step())),
             },
             _ => None,
         }
@@ -88,7 +103,7 @@ impl Tile {
     pub fn place_wall_torch(&mut self) {
         match self {
             Tile::Wall {decoration, sprite} => {
-                *decoration = Some(WallDecoration::Torch);
+                *decoration = Some(WallDecoration::torch());
                 sprite.alt = WallSpriteAlternate::TorchLit;
             },
             _ => unreachable!("bug: cannot set wall decoration on non-wall tile"),
@@ -197,6 +212,18 @@ impl Tile {
             Tile::Floor {object: obj@None, ..} => *obj = Some(object),
             Tile::Floor {..} => unreachable!("bug: attempt to place an object on a tile that already had an object"),
             _ => unreachable!("bug: attempt to place an object on a tile that does not support objects"),
+        }
+    }
+
+    /// Advances the animation of this tile by the given number of frames.
+    /// If this tile is not animated, does nothing.
+    pub fn advance_animation(&mut self, frames: usize) {
+        use self::WallDecoration::*;
+        match self {
+            Tile::Wall {decoration: Some(Torch(animation)), ..} => {
+                animation.advance(frames);
+            },
+            _ => {},
         }
     }
 }

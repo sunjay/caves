@@ -1,9 +1,10 @@
 use std::borrow::Cow;
 
-use specs::{System, Join, ReadExpect, ReadStorage, WriteStorage, Entities};
+use specs::{System, Join, ReadExpect, WriteExpect, ReadStorage, WriteStorage, Entities};
 
 use components::{Movement, MovementDirection::*, Sprite, Animation, AnimationManager};
 use resources::{ActionQueue, Action::*, FramesElapsed};
+use map::GameMap;
 
 /// The number of frames that an entity can be idle before the idle animation starts
 const IDLE_LENGTH: usize = 300;
@@ -17,6 +18,7 @@ pub struct AnimatorData<'a> {
     sprites: WriteStorage<'a, Sprite>,
     animations: WriteStorage<'a, Animation>,
     animation_managers: WriteStorage<'a, AnimationManager>,
+    map: WriteExpect<'a, GameMap>,
 }
 
 pub struct Animator;
@@ -33,6 +35,7 @@ impl<'a> System<'a> for Animator {
             mut sprites,
             mut animations,
             mut animation_managers,
+            mut map,
         } = data;
 
         let FramesElapsed(frames_elapsed) = *frames;
@@ -119,7 +122,7 @@ impl<'a> System<'a> for Animator {
             }
         }
 
-        // Update the sprites based on teh current animation frame
+        // Update the sprites based on the current animation frame
         for (sprite, animation) in (&mut sprites, &mut animations).join() {
             animation.frame_counter += frames_elapsed;
 
@@ -137,6 +140,14 @@ impl<'a> System<'a> for Animator {
 
             // Update the sprite with the current step
             sprite.update_from_frame(&animation.steps[animation.current_step]);
+        }
+
+        // Update any tile animations
+        let level = map.current_level_map_mut();
+        for row in level.grid_mut().rows_mut() {
+            for tile in row {
+                tile.advance_animation(frames_elapsed);
+            }
         }
     }
 }
