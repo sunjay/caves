@@ -38,6 +38,40 @@ impl MapGenerator {
 
             map.grid_mut().get_mut(pos).set_wall_sprite(wall_sprite);
         }
+
+        self.layout_wall_torch_sprites(map);
+    }
+
+    fn layout_wall_torch_sprites(&self, map: &mut FloorMap) {
+        // For every span of wall tiles of this size, we will try to put a torch approximately in
+        // the middle of them. Only wall tiles where a torch could actually be placed count towards
+        // this total.
+        let torch_frequency = 4;
+        // No need to add torches to last row of walls
+        for row in 0..map.grid().rows_len()-1 {
+            // Count of walls that could have a torch
+            let mut can_torch = 0;
+
+            for col in 0..map.grid().cols_len() {
+                let pos = TilePos {row, col};
+                if !map.grid().get(pos).is_wall() {
+                    continue;
+                }
+
+                let has_south_floor = pos.adjacent_south(map.grid().rows_len())
+                    .map(|pt| map.grid().get(pt))
+                    .map(|t| t.is_floor())
+                    .unwrap_or(false);
+                if !has_south_floor {
+                    continue;
+                }
+
+                can_torch += 1;
+                if can_torch % torch_frequency == torch_frequency / 2 {
+                    map.grid_mut().get_mut(pos).place_wall_torch();
+                }
+            }
+        }
     }
 
     fn layout_floor_sprites(&self, rng: &mut StdRng, map: &mut FloorMap) {

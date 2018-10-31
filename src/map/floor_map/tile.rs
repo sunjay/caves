@@ -53,13 +53,16 @@ impl Tile {
     }
 
     /// Returns the sprite that should be drawn on top of the background of this sprite
-    pub fn object_sprite<'a>(&self, sprites: &'a MapSprites) -> Option<&'a SpriteImage> {
+    pub fn foreground_sprite<'a>(&self, sprites: &'a MapSprites) -> Option<&'a SpriteImage> {
         match self {
             Tile::Floor {object: Some(object), ..} => match object {
                 &TileObject::ToNextLevel {direction, ..} => Some(sprites.staircase_down_sprite(direction)),
                 &TileObject::ToPrevLevel {direction, ..} => Some(sprites.staircase_up_sprite(direction)),
                 &TileObject::Door {state, orientation} => sprites.door_sprite(state, orientation),
                 _ => unimplemented!(),
+            },
+            Tile::Wall {decoration: Some(decoration), ..} => match decoration {
+                WallDecoration::Torch => Some(sprites.torch_sprite()),
             },
             _ => None,
         }
@@ -81,6 +84,14 @@ impl Tile {
         }
     }
 
+    /// Sets the wall decoration to a torch. Panics if this is not a wall tile.
+    pub fn place_wall_torch(&mut self) {
+        match self {
+            Tile::Wall {decoration, ..} => *decoration = Some(WallDecoration::Torch),
+            _ => unreachable!("bug: cannot set wall decoration on non-wall tile"),
+        }
+    }
+
     /// Returns the room ID of the tile if it is a floor tile or None if it is not
     pub fn floor_room_id(&self) -> Option<RoomId> {
         match self {
@@ -96,6 +107,14 @@ impl Tile {
             Tile::Floor {object, ..} => object.as_ref().map(|obj| obj.is_traversable()).unwrap_or(true),
             Tile::Wall {..} |
             Tile::Empty => false,
+        }
+    }
+
+    /// Returns true if this tile is any floor tile
+    pub fn is_floor(&self) -> bool {
+        match self {
+            Tile::Floor {..} => true,
+            _ => false,
         }
     }
 
