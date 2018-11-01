@@ -159,6 +159,9 @@ impl FloorMap {
         let row = y as usize / self.tile_size as usize;
         let col = x as usize / self.tile_size as usize;
 
+        assert!(row < self.grid().rows_len() && col < self.grid().cols_len(),
+            "bug: point was not on the grid");
+
         TilePos {row, col}
     }
 
