@@ -58,10 +58,13 @@ impl<'a> System<'a> for Keyboard {
 
         // Set to true if the user has requested to interact with the tile it is facing
         let mut interact = false;
+        // Set to true if the user has initiated an attack
+        let mut attack = false;
 
         for event in &*events {
             match event {
                 KeyUp(A) => interact = true,
+                KeyUp(B) => attack = true,
 
                 // We only want the user to be able to move in one of the cardinal directions at
                 // once. We override each movement based on the order in which the events arrive.
@@ -82,6 +85,9 @@ impl<'a> System<'a> for Keyboard {
         for (entity, movement, _) in (&entities, &mut movements, &keyboard_controlled).join() {
             if interact {
                 actions.0.entry(entity).or_default().push(Action::Interact);
+            }
+            if attack {
+                actions.0.entry(entity).or_default().push(Action::Attack);
             }
 
             if let Some(direction) = self.current_direction() {

@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use specs::{System, Join, ReadExpect, WriteExpect, ReadStorage, WriteStorage, Entities};
 
-use components::{Movement, MovementDirection::*, Sprite, Animation, AnimationManager};
+use components::{Movement, MovementDirection::*, Sprite, Animation, AnimationManager, Wait};
 use resources::{ActionQueue, Action::*, FramesElapsed};
 use map::GameMap;
 
@@ -18,6 +18,7 @@ pub struct AnimatorData<'a> {
     sprites: WriteStorage<'a, Sprite>,
     animations: WriteStorage<'a, Animation>,
     animation_managers: WriteStorage<'a, AnimationManager>,
+    waits: WriteStorage<'a, Wait>,
     map: WriteExpect<'a, GameMap>,
 }
 
@@ -35,6 +36,7 @@ impl<'a> System<'a> for Animator {
             mut sprites,
             mut animations,
             mut animation_managers,
+            mut waits,
             mut map,
         } = data;
 
@@ -102,22 +104,34 @@ impl<'a> System<'a> for Animator {
             }
 
             for action in actions.iter() {
-                match action {
-                    Interact => {},
-                    Attacked => match direction {
-                        North => animation.update_if_different(&manager.attack_up),
-                        East => animation.update_if_different(&manager.attack_right),
-                        South => animation.update_if_different(&manager.attack_down),
-                        West => animation.update_if_different(&manager.attack_left),
-                    },
-                    Hit => match direction {
-                        North => animation.update_if_different(&manager.hit_up),
-                        East => animation.update_if_different(&manager.hit_right),
-                        South => animation.update_if_different(&manager.hit_down),
-                        West => animation.update_if_different(&manager.hit_left),
-                    },
-                    Victorious => animation.update_if_different(&manager.victory),
-                    Defeated => unimplemented!(), //TODO
+                let action_animation = match action {
+                    Interact => None,
+                    Attack => Some(match direction {
+                        North => &manager.attack_up,
+                        East => &manager.attack_right,
+                        South => &manager.attack_down,
+                        West => &manager.attack_left,
+                    }),
+                    Hit => Some(match direction {
+                        North => &manager.hit_up,
+                        East => &manager.hit_right,
+                        South => &manager.hit_down,
+                        West => &manager.hit_left,
+                    }),
+                    Victory => Some(&manager.victory),
+                    Defeat => unimplemented!(), //TODO
+                };
+                if let Some(action_animation) = action_animation {
+                    if animation.has_same_steps(action_animation) {
+                        continue;
+                    }
+
+                    *animation = action_animation.clone();
+                    if !animation.can_interrupt && !animation.should_loop {
+                        // If another wait was already there, this will overwrite it
+                        waits.insert(entity, Wait::new(animation.len()))
+                            .expect("bug: unable to insert wait for animation");
+                    }
                 }
             }
         }

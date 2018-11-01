@@ -16,6 +16,15 @@ pub struct Wait {
     pub frames_elapsed: usize, // frames
 }
 
+impl Wait {
+    pub fn new(duration: usize) -> Self {
+        Self {
+            duration,
+            ..Default::default()
+        }
+    }
+}
+
 /// Renders a sprite from a texture (spritesheet image).
 ///
 /// The sprite is rendered with the region centered on the entity's Position
@@ -64,6 +73,11 @@ impl Animation {
         self.current_step == self.steps.len() - 1
     }
 
+    /// Returns the total length of this animation in frames
+    pub fn len(&self) -> usize {
+        self.steps.iter().map(|f| f.duration).sum()
+    }
+
     /// Returns true if this animation has the same frames as the given animation
     pub fn has_same_steps(&self, other: &Self) -> bool {
         self.steps == other.steps
@@ -71,7 +85,7 @@ impl Animation {
 
     /// Only updates the animation if the provided animation has different steps
     pub fn update_if_different(&mut self, other: &Self) {
-        if self.has_same_steps(&other) {
+        if self.has_same_steps(other) {
             return;
         }
         *self = other.clone();
