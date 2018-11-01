@@ -16,7 +16,7 @@ matrix:
 script:
   - cargo build --verbose --all
   # Our tests fail intermitantly, so we retry a few times.
-  - for i in {1..5}; do cargo test --verbose --all > test.log && break || sleep 1; done
+  - for i in {1..5}; do cargo test --verbose --all 2> test.log && break || sleep 1; done
   # Output last attempt
   - cat test.log
 after_failure:
