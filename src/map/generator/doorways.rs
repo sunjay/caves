@@ -59,9 +59,26 @@ impl MapGenerator {
                 _ => unreachable!("bug: entrance did not have expected walls"),
             };
 
-            let tile = map.grid_mut().get_mut(edge);
-            tile.become_floor(room_id, FloorSprite::default());
-            tile.place_object(TileObject::Door {state: Door::Closed, orientation});
+            {
+                let tile = map.grid_mut().get_mut(edge);
+                tile.become_floor(room_id, FloorSprite::default());
+                tile.place_object(TileObject::Door {state: Door::Closed, orientation});
+            }
+
+            if orientation == HoriVert::Horizontal {
+                // Place entrance walls
+                for adj in map.grid().adjacent_positions(edge) {
+                    let tile = map.grid_mut().get_mut(adj);
+                    if !tile.is_wall() {
+                        continue;
+                    }
+                    tile.wall_sprite_mut().alt = if adj.col < edge.col {
+                        WallSpriteAlternate::EntranceLeft
+                    } else {
+                        WallSpriteAlternate::EntranceRight
+                    };
+                }
+            }
         }
     }
 

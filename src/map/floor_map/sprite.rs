@@ -321,6 +321,8 @@ pub enum WallSpriteAlternate {
     Alt2,
     BrickPillar,
     TorchLit,
+    EntranceLeft,
+    EntranceRight,
 }
 
 impl Default for WallSpriteAlternate {
@@ -445,6 +447,10 @@ impl MapSprites {
 
                 // Torch wall (lit up/bright)
                 tile_sprite!(row: 15, col: 5),
+
+                // Entrance walls
+                tile_sprite!(row: 10, col: 12), // Left
+                tile_sprite!(row: 10, col: 13), // Right
             ],
             staircase_up_tiles: vec![
                 // bottom step faces right
@@ -514,6 +520,8 @@ impl MapSprites {
         match sprite {
             w!{alt: BrickPillar} => s(20),
             w!{alt: TorchLit} => s(21),
+            w!{alt: EntranceLeft} => s(22),
+            w!{alt: EntranceRight} => s(23),
 
             w!{N: false, E: false, S: false, W: false} => s(0), // no walls adjacent
 
