@@ -97,11 +97,11 @@ pub enum Action {
     /// The entity requested to interact with the tile/item it is currently facing
     Interact,
     /// The entity performed its attack
-    Attacked,
+    Attack,
     /// The entity was hit by something and took damage
     Hit,
     /// The entity completed something
-    Victorious,
+    Victory,
     /// The entity was defeated in battle (0 HP)
-    Defeated,
+    Defeat,
 }
