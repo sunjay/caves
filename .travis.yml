@@ -17,4 +17,7 @@ script:
   - cargo build --verbose --all
   # travis_retry retries up to 3 times. Our tests fail intermitantly, so this
   # should help.
-  - travis_retry cargo test --verbose --all
+  - travis_retry 'cargo test --verbose --all > test.log'
+after_failure:
+  # Only want to output one of the failures
+  - cat test.log
