@@ -31,12 +31,15 @@ impl<'a> System<'a> for Interactions {
         for (entity, &Position(pos), &Movement {direction, ..}) in (&*entities, &positions, &movements).join() {
             let actions = actions.0.get(&entity).map(Cow::Borrowed).unwrap_or_default();
 
-            // Process any requests to interact with an adjacent tile
-            if !actions.iter().any(|&a| a == Action::Interact) {
-                continue;
+            for action in actions.iter() {
+                use self::Action::*;
+                match action {
+                    Interact => self.interact_with_tile(&mut map, pos, direction),
+                    Attack => self.attack_tile(&mut map, pos, direction),
+                    // None of these has anything to do with an adjacent tile
+                    Hit | Victory | Defeat => {},
+                }
             }
-
-            self.interact_with_tile(&mut map, pos, direction);
         }
 
         // If the camera focus has entered a special tile, we may need to perform an action
@@ -93,6 +96,7 @@ impl<'a> System<'a> for Interactions {
 }
 
 impl Interactions {
+    /// Process a request to interact with an adjacent tile
     fn interact_with_tile(&mut self, map: &mut GameMap, pos: Point, direction: MovementDirection) {
         let level = map.current_level_map_mut();
 
@@ -112,6 +116,38 @@ impl Interactions {
             // Open a door that was previously closed
             Some(TileObject::Door {state: state@Door::Closed, ..}) => *state = Door::Open,
             _ => {},
+        }
+    }
+
+    /// Attack the adjacent tile in the given direction
+    fn attack_tile(&mut self, map: &mut GameMap, pos: Point, direction: MovementDirection) {
+        let level = map.current_level_map_mut();
+
+        // The tile underneath this position
+        let pos_tile = level.world_to_tile_pos(pos);
+
+        // The tile adjacent to the current position that we will be interacting with
+        use self::MovementDirection::*;
+        let adjacent = match direction {
+            North => pos_tile.adjacent_north(),
+            South => pos_tile.adjacent_south(level.grid().rows_len()),
+            East => pos_tile.adjacent_east(level.grid().cols_len()),
+            West => pos_tile.adjacent_west(),
+        };
+
+        if let Some(adj) = adjacent {
+            match level.grid_mut().get_mut(adj).object_mut() {
+                // Break open a closed door
+                Some(TileObject::Door {state: state@Door::Closed, ..}) => *state = Door::Open,
+                _ => {},
+            }
+
+            //TODO: Attack any nearby entities in the given direction. Lower the HealthPoints
+            // component of anything that gets hit. This is complicated because we can't just look
+            // for entities that we are currently colliding with. We need to properly account for
+            // how some entities may just be "nearby". We also can't just use whatever entity is
+            // within the adjacent tile because there are subtle edge cases where two entities are
+            // actually far from each other but still in adjacent tiles.
         }
     }
 }
