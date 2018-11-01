@@ -9,8 +9,9 @@ use sdl2::{
     render::{Canvas, RenderTarget},
 };
 
-use super::{FloorMap, MapSprites, TilePos, Tile, SpriteImage};
+use super::{FloorMap, TilePos, Tile, SpriteImage};
 use texture_manager::TextureManager;
+use sprites::MapSprites;
 
 impl FloorMap {
     pub fn render_to_file<P: AsRef<Path>>(

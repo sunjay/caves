@@ -1,6 +1,7 @@
 use rand::{StdRng, Rng};
 
-use super::{MapGenerator, WallSprite, FLOOR_PATTERNS, TileRect, TilePos, GridSize};
+use super::{MapGenerator, TileRect, TilePos, GridSize};
+use sprites::{WallSprite, FLOOR_PATTERNS};
 use map::*;
 
 impl MapGenerator {

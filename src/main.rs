@@ -21,6 +21,7 @@ mod renderer;
 mod resources;
 mod texture_manager;
 mod map;
+mod sprites;
 
 use std::{
     thread,
@@ -49,7 +50,8 @@ use components::{
 use resources::{FramesElapsed, ActionQueue, EventQueue, Event, Key};
 use texture_manager::TextureManager;
 use renderer::Renderer;
-use map::{MapGenerator, MapSprites};
+use map::MapGenerator;
+use sprites::MapSprites;
 
 fn map_generator(tile_size: u32) -> MapGenerator {
     MapGenerator {

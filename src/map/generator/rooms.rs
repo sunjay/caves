@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use rand::{StdRng, Rng};
 
 use super::{MapGenerator, RanOutOfAttempts};
+use sprites::{FloorSprite, WallSprite};
 use map::*;
 
 impl MapGenerator {

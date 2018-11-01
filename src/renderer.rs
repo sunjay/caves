@@ -23,7 +23,8 @@ use specs::{
 
 use texture_manager::TextureManager;
 use components::{Position, Sprite, CameraFocus};
-use map::{GameMap, Tile, MapSprites};
+use map::{GameMap, Tile};
+use sprites::MapSprites;
 
 #[derive(SystemData)]
 struct RenderData<'a> {

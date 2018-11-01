@@ -1,13 +1,5 @@
-use super::{
-    RoomId,
-    FloorSprite,
-    WallSprite,
-    WallSpriteAlternate,
-    TorchAnimation,
-    MapSprites,
-    SpriteImage,
-    TileObject,
-};
+use super::{RoomId, SpriteImage, TileObject};
+use sprites::{MapSprites, FloorSprite, WallSprite, WallSpriteAlternate, TorchAnimation};
 
 #[derive(Debug, Clone)]
 pub enum WallDecoration {

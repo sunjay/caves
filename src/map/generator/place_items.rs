@@ -1,6 +1,7 @@
 use rand::{StdRng, Rng};
 
 use super::{MapGenerator, RanOutOfAttempts};
+use sprites::WallSprite;
 use map::*;
 
 fn validate_chosen_staircase(grid: &TileGrid, pos: TilePos) -> bool {
