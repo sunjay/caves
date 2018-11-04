@@ -36,7 +36,7 @@ impl MapGenerator {
     ) -> Result<(), RanOutOfAttempts> {
         let valid_rooms = |(_, r): &(RoomId, &Room)| r.can_contain_to_next_level();
         // Can only place on vertical edge since we only have sprites for tiles adjacent to those
-        let next_pos = |rng: &mut StdRng, rect: TileRect| rect.random_vertical_edge_tile(rng);
+        let next_pos = |rng: &mut StdRng, rect: TileRect| rect.random_right_vertical_edge_tile(rng);
 
         let object = |id, obj_pos, wall_pos| {
             TileObject::ToNextLevel {id, direction: StairsDirection::towards_target(wall_pos, obj_pos)}
@@ -54,7 +54,7 @@ impl MapGenerator {
     ) -> Result<(), RanOutOfAttempts> {
         let valid_rooms = |(_, r): &(RoomId, &Room)| r.can_contain_to_prev_level();
         // Can only place on vertical edge since we only have sprites for tiles adjacent to those
-        let next_pos = |rng: &mut StdRng, rect: TileRect| rect.random_vertical_edge_tile(rng);
+        let next_pos = |rng: &mut StdRng, rect: TileRect| rect.random_left_vertical_edge_tile(rng);
 
         let object = |id, obj_pos, wall_pos| {
             TileObject::ToPrevLevel {id, direction: StairsDirection::towards_target(wall_pos, obj_pos)}
@@ -101,7 +101,11 @@ impl MapGenerator {
         let grid = map.grid_mut();
 
         let mut placed = Vec::new();
-        'place_loop: for (i, (room_id, rect)) in rooms.into_iter().take(nrooms).enumerate() {
+        for (i, (room_id, rect)) in rooms.into_iter().enumerate() {
+            if placed.len() >= nrooms {
+                break;
+            }
+
             for _ in 0..self.attempts {
                 // Pick a random point on one of the edges of the room
                 let pos = next_pos(rng, rect);
@@ -129,11 +133,13 @@ impl MapGenerator {
 
                     placed.push(inner_room_tile);
 
-                    // Can not simply break because then we would return RanOutOfAttempts
-                    continue 'place_loop;
+                    break;
                 }
             }
+        }
 
+        // Could not find enough places
+        if placed.len() < nrooms {
             return Err(RanOutOfAttempts);
         }
 

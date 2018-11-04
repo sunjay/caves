@@ -172,9 +172,26 @@ impl TileRect {
 
     /// Returns a random tile position on one of the vertical (left or right) edges
     pub fn random_vertical_edge_tile<R: Rng>(self, rng: &mut R) -> TilePos {
+        if rng.gen() {
+            self.random_left_vertical_edge_tile(rng)
+        } else {
+            self.random_right_vertical_edge_tile(rng)
+        }
+    }
+
+    /// Returns a random tile position on the left vertical edge
+    pub fn random_left_vertical_edge_tile<R: Rng>(self, rng: &mut R) -> TilePos {
         TilePos {
             row: self.top_left.row + rng.gen_range(0, self.dim.rows),
-            col: self.top_left.col + *rng.choose(&[0, self.dim.cols - 1]).unwrap(),
+            col: self.top_left.col,
+        }
+    }
+
+    /// Returns a random tile position on the right vertical edge
+    pub fn random_right_vertical_edge_tile<R: Rng>(self, rng: &mut R) -> TilePos {
+        TilePos {
+            row: self.top_left.row + rng.gen_range(0, self.dim.rows),
+            col: self.top_left.col + self.dim.cols - 1,
         }
     }
 
