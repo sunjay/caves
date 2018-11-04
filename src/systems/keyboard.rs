@@ -1,6 +1,6 @@
 use specs::{System, Join, ReadExpect, WriteExpect, ReadStorage, WriteStorage, Entities};
 
-use components::{Movement, MovementDirection, KeyboardControlled};
+use components::{Movement, MovementDirection, KeyboardControlled, Wait};
 use resources::{EventQueue, Event, ActionQueue, Action, Key};
 
 const MOVEMENT_SPEED: i32 = 3;
@@ -12,6 +12,7 @@ pub struct KeyboardData<'a> {
     actions: WriteExpect<'a, ActionQueue>,
     keyboard_controlled: ReadStorage<'a, KeyboardControlled>,
     movements: WriteStorage<'a, Movement>,
+    waits: ReadStorage<'a, Wait>,
 }
 
 #[derive(Default)]
@@ -51,10 +52,19 @@ impl Keyboard {
 impl<'a> System<'a> for Keyboard {
     type SystemData = KeyboardData<'a>;
 
-    fn run(&mut self, KeyboardData {entities, events, mut actions, keyboard_controlled, mut movements}: Self::SystemData) {
+    fn run(&mut self, data: Self::SystemData) {
         use self::MovementDirection::*;
         use self::Event::*;
         use self::Key::*;
+
+        let KeyboardData {
+            entities,
+            events,
+            mut actions,
+            keyboard_controlled,
+            mut movements,
+            waits,
+        } = data;
 
         // Set to true if the user has requested to interact with the tile it is facing
         let mut interact = false;
@@ -83,11 +93,13 @@ impl<'a> System<'a> for Keyboard {
         }
 
         for (entity, movement, _) in (&entities, &mut movements, &keyboard_controlled).join() {
-            if interact {
-                actions.0.entry(entity).or_default().push(Action::Interact);
-            }
-            if attack {
-                actions.0.entry(entity).or_default().push(Action::Attack);
+            if waits.get(entity).is_none() {
+                if interact {
+                    actions.0.entry(entity).or_default().push(Action::Interact);
+                }
+                if attack {
+                    actions.0.entry(entity).or_default().push(Action::Attack);
+                }
             }
 
             if let Some(direction) = self.current_direction() {
