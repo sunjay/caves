@@ -118,6 +118,8 @@ impl MapGenerator {
         self.validate_map(&map);
 
         #[cfg(not(test))]
+        println!("Level {}", level);
+        #[cfg(not(test))]
         println!("{:#?}", map);
         Ok(map)
     }
