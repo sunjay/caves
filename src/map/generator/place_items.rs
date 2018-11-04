@@ -100,49 +100,55 @@ impl MapGenerator {
 
         let grid = map.grid_mut();
 
+        // This cycles through all the rooms up until we have gone through `self.attempts` rooms.
+        // We do one attempt per room. Trying to do all of the attempts on every room doesn't make
+        // sense since the number of allowed attempts is way more tiles than that room has anyway.
+        // Some rooms simply do not have a place to put the object, so there is no point wasting
+        // cycles trying to find a place. This method efficiently moves on to the next room as soon
+        // as a single attempt fails, ensuring that the search will either make progress or fail
+        // as soon as we reach the attempt limit.
+        let mut attempts = 0;
         let mut placed = Vec::new();
-        for (i, (room_id, rect)) in rooms.into_iter().enumerate() {
+        for (room_id, rect) in rooms.into_iter().cycle() {
+            // Found enough places
             if placed.len() >= nrooms {
                 break;
             }
 
-            for _ in 0..self.attempts {
-                // Pick a random point on one of the edges of the room
-                let pos = next_pos(rng, rect);
+            if attempts >= self.attempts {
+                return Err(RanOutOfAttempts);
+            }
+            attempts += 1;
 
-                if !grid.get(pos).is_wall() {
-                    // Can happen since rooms overlap
+            // Pick a random point on one of the edges of the room
+            let pos = next_pos(rng, rect);
+
+            if !grid.get(pos).is_wall() {
+                // Can happen since rooms overlap
+                continue;
+            }
+
+            // Cannot place adjacent to corner since corners are only adjacent to other wall
+            // tiles and to other rooms
+            if rect.is_corner(pos) {
+                continue;
+            }
+
+            if let Some(inner_room_tile) = self.find_place(grid, pos, room_id) {
+                if !extra_validation(grid, inner_room_tile) {
                     continue;
                 }
 
-                // Cannot place adjacent to corner since corners are only adjacent to other wall
-                // tiles and to other rooms
-                if rect.is_corner(pos) {
-                    continue;
-                }
+                let tile = grid.get_mut(inner_room_tile);
 
-                if let Some(inner_room_tile) = self.find_place(grid, pos, room_id) {
-                    if !extra_validation(grid, inner_room_tile) {
-                        continue;
-                    }
+                // Want to face away from the wall
+                tile.place_object(object(placed.len(), inner_room_tile, pos));
 
-                    let tile = grid.get_mut(inner_room_tile);
-
-                    // Want to face away from the wall
-                    tile.place_object(object(i, inner_room_tile, pos));
-
-                    placed.push(inner_room_tile);
-
-                    break;
-                }
+                placed.push(inner_room_tile);
             }
         }
 
-        // Could not find enough places
-        if placed.len() < nrooms {
-            return Err(RanOutOfAttempts);
-        }
-
+        debug_assert_eq!(placed.len(), nrooms);
         Ok(placed)
     }
 
