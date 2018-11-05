@@ -2,7 +2,7 @@
 
 use std::iter::once;
 
-use specs::{VecStorage, HashMapStorage};
+use specs::{Component, VecStorage, HashMapStorage};
 use sdl2::rect::{Point, Rect};
 
 use texture_manager::TextureId;
