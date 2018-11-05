@@ -1,6 +1,6 @@
 //! Components that act as markers for specific properties of entities
 
-use specs::NullStorage;
+use specs::{Component, NullStorage};
 
 /// The keyboard controlled player. Only one entity should hold this at a given time.
 #[derive(Debug, Default, Component)]

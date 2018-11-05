@@ -1,6 +1,6 @@
 //! Components for physics-related uses
 
-use specs::{VecStorage, HashMapStorage};
+use specs::{Component, VecStorage, HashMapStorage};
 use sdl2::rect::{Point, Rect};
 
 /// Represents the XY world coordinates of the center of an entity.
