@@ -28,7 +28,7 @@ impl Wait {
 /// Renders a sprite from a texture (spritesheet image).
 ///
 /// The sprite is rendered with the region centered on the entity's Position
-#[derive(Debug, Component)]
+#[derive(Debug, Clone, Component)]
 #[storage(VecStorage)]
 pub struct Sprite(pub SpriteImage);
 
@@ -94,7 +94,7 @@ impl Animation {
 
 /// Modifies the Animation components every frame based on the current movement of the player or
 /// based on events that have occurred (e.g. attacks or gets hit by something)
-#[derive(Debug, Component)]
+#[derive(Debug, Clone, Component)]
 #[storage(HashMapStorage)]
 pub struct AnimationManager {
     // Animations for various scenarios

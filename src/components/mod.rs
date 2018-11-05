@@ -1,7 +1,7 @@
 mod physics;
-mod markers;
+mod character;
 mod graphics;
 
 pub use self::physics::*;
-pub use self::markers::*;
+pub use self::character::*;
 pub use self::graphics::*;

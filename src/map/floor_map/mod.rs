@@ -6,6 +6,7 @@ mod tile_object;
 mod tile_pos;
 mod tile_rect;
 mod tile;
+mod enemy;
 
 // Extension modules: extend FloorMap with additional methods/functionality
 mod renderer;
@@ -18,6 +19,7 @@ pub use self::tile_object::*;
 pub use self::tile_pos::*;
 pub use self::tile_rect::*;
 pub use self::tile::*;
+pub use self::enemy::*;
 
 use std::fmt;
 use std::cmp;
@@ -34,13 +36,25 @@ impl fmt::Display for RoomId {
 }
 
 /// A type that represents the static floor plan of a map
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 pub struct FloorMap {
     grid: TileGrid,
     /// The RoomId is the index into this field
     rooms: Vec<Room>,
+    /// Enemies are cached here while the level is not active
+    enemies: Vec<EnemyState>,
     /// The width and height of every tile
     tile_size: u32,
+}
+
+impl PartialEq for FloorMap {
+    fn eq(&self, other: &Self) -> bool {
+        // The enemies field does not matter for equality. This is important for the test that
+        // ensures that map generation is deterministic. With this, we can randomly vary the
+        // torch animation while still allowing two maps to count as the same.
+        let FloorMap {grid, rooms, enemies: _, tile_size} = self;
+        other.grid.eq(grid) && other.rooms.eq(rooms) && other.tile_size.eq(tile_size)
+    }
 }
 
 impl fmt::Debug for FloorMap {
@@ -91,6 +105,7 @@ impl FloorMap {
         FloorMap {
             grid: TileGrid::new(size),
             rooms: Vec::new(),
+            enemies: Vec::new(),
             tile_size,
         }
     }
@@ -103,6 +118,18 @@ impl FloorMap {
     /// Returns the level boundary in pixels of the current map
     pub fn level_boundary(&self) -> Rect {
         self.grid.dimensions().to_rect(self.tile_size)
+    }
+
+    /// Stores the given enemies into this map
+    pub fn store_enemies(&mut self, enemies: impl Iterator<Item=EnemyState>) {
+        debug_assert_eq!(self.enemies.len(), 0);
+        self.enemies.extend(enemies);
+        self.enemies.shrink_to_fit();
+    }
+
+    /// Retrieves all the enemies stored in this map and clears the stored enemies
+    pub fn clear_enemies(&mut self) -> impl Iterator<Item=EnemyState> + '_ {
+        self.enemies.drain(..)
     }
 
     /// Returns the number of rooms on this map
