@@ -5,7 +5,7 @@ use std::borrow::Cow;
 use sdl2::rect::Point;
 use specs::{System, Join, ReadExpect, WriteExpect, ReadStorage, WriteStorage, Entities};
 
-use components::{Position, Movement, MovementDirection, CameraFocus};
+use components::{Position, Movement, MovementDirection, CameraFocus, HealthPoints};
 use resources::{ActionQueue, Action};
 use map::{GameMap, TileObject, Door};
 
@@ -17,6 +17,7 @@ pub struct InteractionsData<'a> {
     positions: WriteStorage<'a, Position>,
     movements: ReadStorage<'a, Movement>,
     camera_focuses: ReadStorage<'a, CameraFocus>,
+    healths: WriteStorage<'a, HealthPoints>,
 }
 
 #[derive(Default)]
@@ -26,7 +27,15 @@ impl<'a> System<'a> for Interactions {
     type SystemData = InteractionsData<'a>;
 
     fn run(&mut self, data: Self::SystemData) {
-        let InteractionsData {entities, actions, mut map, mut positions, movements, camera_focuses} = data;
+        let InteractionsData {
+            entities,
+            actions,
+            mut map,
+            mut positions,
+            movements,
+            camera_focuses,
+            healths,
+        } = data;
 
         for (entity, &Position(pos), &Movement {direction, ..}) in (&*entities, &positions, &movements).join() {
             let actions = actions.0.get(&entity).map(Cow::Borrowed).unwrap_or_default();
