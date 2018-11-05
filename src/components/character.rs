@@ -2,6 +2,11 @@
 
 use specs::{Component, VecStorage, NullStorage};
 
+/// Represents the amount of health left for a given entity
+#[derive(Debug, Clone, Component)]
+#[storage(VecStorage)]
+pub struct HealthPoints(pub usize);
+
 /// The keyboard controlled player. Only one entity should hold this at a given time.
 #[derive(Debug, Default, Component)]
 #[storage(NullStorage)]

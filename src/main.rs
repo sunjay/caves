@@ -40,6 +40,7 @@ use specs::{
 
 use components::{
     Position,
+    HealthPoints,
     Movement,
     BoundingBox,
     KeyboardControlled,
@@ -115,6 +116,7 @@ fn main() -> Result<(), String> {
         .with(KeyboardControlled)
         .with(CameraFocus)
         .with(Player)
+        .with(HealthPoints(20))
         .with(Position(character_center))
         .with(BoundingBox::BottomHalf {width: 16, height: 8})
         .with(Movement::default())
@@ -132,10 +134,11 @@ fn main() -> Result<(), String> {
     };
     for enemy in enemies {
         // Explicitly pattern matching so that when this struct changes, rustc will tell us here
-        let EnemyState {position, bounding_box, movement, sprite, animation, animation_manager} = enemy;
+        let EnemyState {position, health, bounding_box, movement, sprite, animation, animation_manager} = enemy;
         world.create_entity()
             .with(Enemy)
             .with(position)
+            .with(health)
             .with(bounding_box)
             .with(movement)
             .with(sprite)
