@@ -99,7 +99,8 @@ fn main() -> Result<(), String> {
 
     let mut dispatcher = DispatcherBuilder::new()
         .with(systems::Keyboard::default(), "Keyboard", &[])
-        .with(systems::Physics, "Physics", &["Keyboard"])
+        .with(systems::AI, "AI", &[])
+        .with(systems::Physics, "Physics", &["Keyboard", "AI"])
         .with(systems::Interactions, "Interactions", &["Physics"])
         .with(systems::Animator, "Animator", &["Interactions"])
         .build();
