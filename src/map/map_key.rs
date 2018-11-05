@@ -17,8 +17,6 @@ lazy_static! {
     static ref SEED_ENCODER_CONFIG: base64::Config = base64::Config::new(
         base64::CharacterSet::UrlSafe,
         false,
-        false,
-        base64::LineWrap::NoWrap,
     );
 }
 
