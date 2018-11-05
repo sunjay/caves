@@ -92,14 +92,12 @@ impl<'a> System<'a> for Keyboard {
             }
         }
 
-        for (entity, movement, _) in (&entities, &mut movements, &keyboard_controlled).join() {
-            if waits.get(entity).is_none() {
-                if interact {
-                    actions.0.entry(entity).or_default().push(Action::Interact);
-                }
-                if attack {
-                    actions.0.entry(entity).or_default().push(Action::Attack);
-                }
+        for (entity, movement, _, ()) in (&entities, &mut movements, &keyboard_controlled, !&waits).join() {
+            if interact {
+                actions.0.entry(entity).or_default().push(Action::Interact);
+            }
+            if attack {
+                actions.0.entry(entity).or_default().push(Action::Attack);
             }
 
             if let Some(direction) = self.current_direction() {
