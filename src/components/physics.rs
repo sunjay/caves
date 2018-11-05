@@ -8,14 +8,14 @@ use sdl2::rect::{Point, Rect};
 /// This is distinct from the screen coordinates which are bounded by the size of the display.
 ///
 /// Not to be modified outside of the physics system.
-#[derive(Debug, Component)]
+#[derive(Debug, Clone, Component)]
 #[storage(VecStorage)]
 pub struct Position(pub Point);
 
 /// Represents the direction of movement that a given entity would like to move in
 ///
 /// Used in the physics system to update position every frame
-#[derive(Debug, Component)]
+#[derive(Debug, Clone, Component)]
 #[storage(HashMapStorage)]
 pub struct Movement {
     /// The most recent direction that the entity was moving in

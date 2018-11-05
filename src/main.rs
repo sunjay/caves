@@ -46,6 +46,7 @@ use components::{
     CameraFocus,
     Sprite,
     AnimationManager,
+    Player,
 };
 use resources::{FramesElapsed, ActionQueue, EventQueue, Event, Key};
 use texture_manager::TextureManager;
@@ -112,6 +113,7 @@ fn main() -> Result<(), String> {
     world.create_entity()
         .with(KeyboardControlled)
         .with(CameraFocus)
+        .with(Player)
         .with(Position(character_center))
         .with(BoundingBox::BottomHalf {width: 16, height: 8})
         .with(Movement::default())
