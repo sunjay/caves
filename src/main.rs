@@ -47,11 +47,12 @@ use components::{
     Sprite,
     AnimationManager,
     Player,
+    Enemy,
 };
 use resources::{FramesElapsed, ActionQueue, EventQueue, Event, Key};
 use texture_manager::TextureManager;
 use renderer::Renderer;
-use map::MapGenerator;
+use map::{MapGenerator, GameMap, EnemyState};
 use sprites::MapSprites;
 
 fn map_generator(tile_size: u32) -> MapGenerator {
@@ -121,6 +122,27 @@ fn main() -> Result<(), String> {
         .with(character_animations.default_animation())
         .with(character_animations)
         .build();
+
+    let enemies: Vec<_> = {
+        let mut map = world.write_resource::<GameMap>();
+        let level = map.current_level_map_mut();
+        //TODO: No need to create and return this variable with NLL
+        let enemies = level.clear_enemies().collect();
+        enemies
+    };
+    for enemy in enemies {
+        // Explicitly pattern matching so that when this struct changes, rustc will tell us here
+        let EnemyState {position, bounding_box, movement, sprite, animation, animation_manager} = enemy;
+        world.create_entity()
+            .with(Enemy)
+            .with(position)
+            .with(bounding_box)
+            .with(movement)
+            .with(sprite)
+            .with(animation)
+            .with(animation_manager)
+            .build();
+    }
 
     let mut timer = renderer.timer()?;
 
