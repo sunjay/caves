@@ -223,44 +223,4 @@ mod tests {
         let rect = TileRect::new(TilePos {row: 2, col: 3}, GridSize {rows: 10, cols: 12});
         assert_eq!(rect.expand(2), TileRect::new(TilePos {row: 0, col: 1}, GridSize {rows: 14, cols: 16}));
     }
-
-    #[test]
-    fn split() {
-        let rect = TileRect::new(TilePos {row: 0, col: 0}, GridSize {rows: 11, cols: 15});
-        let center = rect.center_tile();
-
-        {
-            let (top, bottom) = rect.split_horizontal();
-            // Should share their bottom and top edge
-            assert_eq!(top.bottom_left(), bottom.top_left());
-            assert_eq!(top.bottom_right(), bottom.top_right());
-            // Should still reach the original rectangle
-            assert_eq!(top.top_left(), rect.top_left());
-            assert_eq!(top.top_right(), rect.top_right());
-            assert_eq!(bottom.bottom_left(), rect.bottom_left());
-            assert_eq!(bottom.bottom_right(), rect.bottom_right());
-            // Should overlap horizontally
-            assert_eq!(top.dimensions().rows + bottom.dimensions().rows, rect.dimensions().rows + 1);
-            // Check the exact rectangles
-            assert_eq!(top, TileRect::new(rect.top_left(), GridSize {rows: 5, cols: 15}));
-            assert_eq!(bottom, TileRect::new(TilePos {row: center.row - 1, col: 0}, GridSize {rows: 7, cols: 15}));
-        }
-
-        {
-            let (left, right) = rect.split_vertical();
-            // Should share their right and left edge
-            assert_eq!(left.top_right(), right.top_left());
-            assert_eq!(left.bottom_right(), right.bottom_left());
-            // Should still reach the original rectangle
-            assert_eq!(left.top_left(), rect.top_left());
-            assert_eq!(right.top_right(), rect.top_right());
-            assert_eq!(left.bottom_left(), rect.bottom_left());
-            assert_eq!(right.bottom_right(), rect.bottom_right());
-            // Should overlap vertically
-            assert_eq!(left.dimensions().cols + right.dimensions().cols, rect.dimensions().cols + 1);
-            // Check the exact rectangles
-            assert_eq!(left, TileRect::new(rect.top_left(), GridSize {rows: 11, cols: 7}));
-            assert_eq!(right, TileRect::new(TilePos {row: 0, col: center.col - 1}, GridSize {rows: 11, cols: 9}));
-        }
-    }
 }
