@@ -15,8 +15,6 @@ use texture_manager::TextureId;
 /// Used to avoid having to manage sprites in each tile
 #[derive(Debug, Clone)]
 pub struct MapSprites {
-    /// Sprite for Tile::Empty
-    empty_tile_sprite: SpriteImage,
     /// Sprites for each type of floor tile. Each of these must map to a FloorSprite variant
     floor_tiles: Vec<SpriteImage>,
     /// Sprites for each type of wall tile. Each of these must map to a WallSprite variant
@@ -61,7 +59,6 @@ impl MapSprites {
         }
 
         Self {
-            empty_tile_sprite: tile_sprite!(row: 0, col: 3),
             floor_tiles: vec![
                 tile_sprite!(row: 0, col: 0), // 1
                 tile_sprite!(row: 0, col: 1), // 2
@@ -148,7 +145,7 @@ impl MapSprites {
     }
 
     pub fn empty_tile_sprite(&self) -> &SpriteImage {
-        &self.empty_tile_sprite
+        self.floor_sprite(FloorSprite::Floor4)
     }
 
     pub fn floor_sprite(&self, sprite: FloorSprite) -> &SpriteImage {
