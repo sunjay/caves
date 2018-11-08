@@ -194,50 +194,6 @@ impl TileRect {
             col: self.top_left.col + self.dim.cols - 1,
         }
     }
-
-    /// Split the rectangle along the horizontal axis producing two rectangles that share their
-    /// bottom and top edge.
-    pub fn split_horizontal(self) -> (Self, Self) {
-        let GridSize {rows, cols} = self.dim;
-        let top = Self {
-            top_left: self.top_left,
-            dim: GridSize {
-                rows: rows / 2,
-                cols,
-            },
-        };
-        let bottom = Self {
-            top_left: self.top_left + GridSize {rows: rows/2 - 1, cols: 0},
-            dim: GridSize {
-                rows: rows - rows / 2 + 1,
-                cols,
-            },
-        };
-
-        (top, bottom)
-    }
-
-    /// Split the rectangle along the vertical axis producing two rectangles that share their
-    /// right and left edge.
-    pub fn split_vertical(self) -> (Self, Self) {
-        let GridSize {rows, cols} = self.dim;
-        let left = Self {
-            top_left: self.top_left,
-            dim: GridSize {
-                rows,
-                cols: cols / 2,
-            },
-        };
-        let right = Self {
-            top_left: self.top_left + GridSize {rows: 0, cols: cols/2 - 1},
-            dim: GridSize {
-                rows,
-                cols: cols - cols / 2 + 1,
-            },
-        };
-
-        (left, right)
-    }
 }
 
 #[cfg(test)]
