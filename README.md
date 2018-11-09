@@ -1,6 +1,6 @@
 # caves
 [![Build Status](https://travis-ci.com/sunjay/caves.svg?branch=master)](https://travis-ci.com/sunjay/caves)
-[![Lines of Code](https://tokei.rs/b1/github/sunjay/caves)](https://github.com/sunjay/caves).
+[![Lines of Code](https://tokei.rs/b1/github/sunjay/caves)](https://github.com/sunjay/caves)
 
 This is a game written in the [Rust programming language][rust-lang] to
 explicitly target the [GameShell], a small GameBoy sized Linux computer. The
