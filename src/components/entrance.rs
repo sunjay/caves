@@ -4,14 +4,14 @@ use specs::{Component, NullStorage, HashMapStorage};
 #[derive(Debug, Component)]
 #[storage(HashMapStorage)]
 pub struct Door {
-    orientation: HoriVert
+    pub orientation: HoriVert
 }
 
 /// A gate between two rooms
 #[derive(Debug, Component)]
 #[storage(HashMapStorage)]
 pub struct Gate {
-    orientation: HoriVert
+    pub orientation: HoriVert
 }
 
 /// A locked door/gate

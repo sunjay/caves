@@ -21,9 +21,9 @@ use specs::{
     ReadExpect,
 };
 
-use components::{Position, Sprite, CameraFocus};
-use map::{FloorMap, Tile};
-use sprites::MapSprites;
+use components::{Position, Sprite, CameraFocus, Door};
+use map::{FloorMap, Tile, TilePos};
+use sprites::{MapSprites, SpriteImage};
 use super::TextureManager;
 use super::SDLError;
 
@@ -32,6 +32,7 @@ struct RenderData<'a> {
     map: ReadExpect<'a, FloorMap>,
     camera_focuses: ReadStorage<'a, CameraFocus>,
     positions: ReadStorage<'a, Position>,
+    doors: ReadStorage<'a, Door>,
     sprites: ReadStorage<'a, Sprite>,
 }
 
@@ -39,15 +40,17 @@ pub fn setup(res: &mut Resources) {
     RenderData::setup(res);
 }
 
-pub fn render<T: RenderTarget, U>(
+/// Renders the area of the world that is visible to the player
+pub fn render_visible<T: RenderTarget, U>(
     data: RenderData,
     canvas: &mut Canvas<T>,
     textures: &TextureManager<U>,
     map_sprites: &MapSprites,
 ) -> Result<(), SDLError> {
-    canvas.clear();
+    let RenderData {map, positions, camera_focuses, doors, ..} = data;
+    let tile_size = map.tile_size() as i32;
+    let grid = map.grid();
 
-    let RenderData {map, positions, sprites, camera_focuses} = data;
     let mut camera_focuses = (&positions, &camera_focuses).join();
     let (&Position(camera_focus), _) = camera_focuses.next()
         .expect("Renderer was not told which entity to focus on");
@@ -75,33 +78,58 @@ pub fn render<T: RenderTarget, U>(
     );
 
     // Get the tiles surrounding the camera focus
-    let screen = Rect::from_center(render_top_left + screen_center, screen_width, screen_height);
+    let screen = Rect::new(
+        render_top_left.x(),
+        render_top_left.y(),
+        screen_width,
+        screen_height,
+    );
 
     // Only render tiles that are visible to the camera focus.
     let focus_pos = map.world_to_tile_pos(camera_focus);
 
     // The returned set will contain all tiles that are directly visible to the camera focus
     // without passing through entrances that have still not been opened.
-    let visible_tiles = map.grid().depth_first_search(focus_pos, |node, _| {
-        let grid = map.grid();
-
+    let visible_tiles = grid.depth_first_search(focus_pos, |node, _| {
         // Stop searching at walls or closed entrances (but still include them in the result)
-        let tile = grid.get(node);
-        !tile.is_wall() && !(tile.has_entrance() && !tile.is_traversable())
+        let is_wall = grid.get(node).is_wall();
+        let focus_center = focus_pos.center(tile_size);
+        let is_door = (&positions, &doors).join()
+            .find(|(&Position(pos), Door {..})| pos == focus_center)
+            .is_some();
+        !is_wall && !is_door
     });
 
-    let is_visible = |pt, tile: &Tile| {
+    let should_render = |pt, tile: &Tile| {
         visible_tiles.contains(&pt) ||
         // Need to specially handle wall corners because they are not *directly* visible.
         // A corner is a wall tile with at least two visible walls
-        tile.is_wall() && map.grid().adjacent_positions(pt)
+        tile.is_wall() && grid.adjacent_positions(pt)
             .filter(|pt| visible_tiles.contains(pt)).count() >= 2
     };
 
-    map.render(screen, canvas, render_top_left, map_sprites, textures,
-        is_visible)?;
+    render_area(data, screen, canvas, map_sprites, textures, should_render)
+}
 
+pub fn render_area<T: RenderTarget, U>(
+    data: RenderData,
+    region: Rect,
+    canvas: &mut Canvas<T>,
+    map_sprites: &MapSprites,
+    textures: &TextureManager<U>,
+    mut should_render: impl FnMut(TilePos, &Tile) -> bool,
+) -> Result<(), SDLError> {
+    let RenderData {map, positions, sprites, camera_focuses, ..} = data;
+    let render_top_left = region.top_left();
+
+    canvas.clear();
+    render_background(&*map, region, canvas, map_sprites, textures, should_render)?;
     for (&Position(pos), Sprite(ref sprite)) in (&positions, &sprites).join() {
+        let tile_pos = map.world_to_tile_pos(pos);
+        if !should_render(tile_pos, map.grid().get(tile_pos)) {
+            continue;
+        }
+
         let pos = pos - render_top_left;
         let texture = textures.get(sprite.texture_id);
         let source_rect = sprite.region;
@@ -124,43 +152,46 @@ pub fn render<T: RenderTarget, U>(
     Ok(())
 }
 
-/// Renders the tiles of the map within the given region
-pub fn render_map<T: RenderTarget, U>(
+/// Renders the tiles of the background (map) within the given region
+fn render_background<T: RenderTarget, U>(
     map: &FloorMap,
     region: Rect,
     canvas: &mut Canvas<T>,
-    render_top_left: Point,
-    sprites: &MapSprites,
+    map_sprites: &MapSprites,
     textures: &TextureManager<U>,
     mut should_render: impl FnMut(TilePos, &Tile) -> bool,
 ) -> Result<(), SDLError> {
+    let render_top_left = region.top_left();
     // Need to paint the default floor under every tile in case the background sprite being
     // used is actually something that doesn't take up the entire space (e.g. a column tile)
-    let default_floor = sprites.floor_sprite(Default::default());
+    let default_floor = map_sprites.floor_sprite(Default::default());
 
     // Rendering strategy: For each row, first render all the backgrounds, then render all of
     // objects at once right after. This allows an object to overlap the background of the tile
     // on its right.
 
-    let (top_left, size) = self.grid_area_within(region);
-    for (row, row_tiles) in self.grid().rows().enumerate().skip(top_left.row).take(size.rows) {
+    let tile_size = map.tile_size() as i32;
+    let grid = map.grid();
+
+    let (top_left, size) = map.grid_area_within(region);
+    for (row, row_tiles) in grid.rows().enumerate().skip(top_left.row).take(size.rows) {
         for (col, tile) in row_tiles.iter().enumerate().skip(top_left.col).take(size.cols) {
             let pos = TilePos {row, col};
 
             if !should_render(pos, tile) {
                 // Render an empty tile
-                let pos = pos.to_point(self.tile_size as i32);
-                let sprite = sprites.empty_tile_sprite();
-                self.render_sprite(pos, sprite, canvas, render_top_left, textures)?;
+                let pos = pos.top_left(tile_size);
+                let sprite = map_sprites.empty_tile_sprite();
+                render_sprite(pos, tile_size as u32, sprite, canvas, render_top_left, textures)?;
                 continue;
             }
 
-            let pos = pos.to_point(self.tile_size as i32);
+            let pos = pos.top_left(tile_size);
             let tile_layers = once(default_floor)
-                .chain(once(tile.background_sprite(sprites)));
+                .chain(once(tile.background_sprite(map_sprites)));
 
             for sprite in tile_layers {
-                self.render_sprite(pos, sprite, canvas, render_top_left, textures)?;
+                render_sprite(pos, tile_size as u32, sprite, canvas, render_top_left, textures)?;
             }
         }
 
@@ -176,17 +207,17 @@ pub fn render_map<T: RenderTarget, U>(
             // tile south of this wall. Reason: Objects within a room should only be visible
             // when that room is visible
             if tile.is_wall() {
-                let should_render_south = pos.adjacent_south(self.grid().rows_len())
-                    .map(|south| should_render(south, self.grid().get(south)))
+                let should_render_south = pos.adjacent_south(grid.rows_len())
+                    .map(|south| should_render(south, grid.get(south)))
                     .unwrap_or(false);
                 if !should_render_south {
                     continue;
                 }
             }
 
-            let pos = pos.to_point(self.tile_size as i32);
-            if let Some(sprite) = tile.foreground_sprite(sprites) {
-                self.render_sprite(pos, sprite, canvas, render_top_left, textures)?;
+            let pos = pos.top_left(tile_size);
+            if let Some(sprite) = tile.foreground_sprite(map_sprites) {
+                render_sprite(pos, tile_size as u32, sprite, canvas, render_top_left, textures)?;
             }
         }
     }
@@ -196,6 +227,7 @@ pub fn render_map<T: RenderTarget, U>(
 
 fn render_sprite<T: RenderTarget, U>(
     pos: Point,
+    tile_size: u32,
     sprite: &SpriteImage,
     canvas: &mut Canvas<T>,
     render_top_left: Point,
@@ -215,8 +247,8 @@ fn render_sprite<T: RenderTarget, U>(
         // with the position of this sprite on the screen in screen coordinates
         pos.x() - render_top_left.x(),
         pos.y() - render_top_left.y(),
-        self.tile_size,
-        self.tile_size,
+        tile_size,
+        tile_size,
     );
     let mut dest_rect = sprite.apply_anchor(dest);
 

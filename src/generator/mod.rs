@@ -56,7 +56,7 @@ impl<'a, 'b> GenGame<'a, 'b> {
 
         let tile_size = map.tile_size() as i32;
         // Start in the middle of the tile
-        let player_start = center.to_point(tile_size).offset(tile_size/2, tile_size/2);
+        let player_start = center.top_left(tile_size).offset(tile_size/2, tile_size/2);
 
         GenGame {key, levels, player_start}
     }

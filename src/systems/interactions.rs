@@ -75,7 +75,7 @@ impl<'a> System<'a> for Interactions {
                     let target_pos = level.grid().adjacent_positions(tile_pos)
                         .find(|&pt| level.grid().get(pt).is_traversable())
                         .expect("bug: no traversable tile beside ToPrevLevel gate");
-                    *pos = target_pos.to_point(level.tile_size() as i32) + tile_center;
+                    *pos = target_pos.top_left(level.tile_size() as i32) + tile_center;
                 }
             }
 
@@ -97,7 +97,7 @@ impl<'a> System<'a> for Interactions {
                     let target_pos = level.grid().adjacent_positions(tile_pos)
                         .find(|&pt| level.grid().get(pt).is_traversable())
                         .expect("bug: no traversable tile beside ToNextLevel gate");
-                    *pos = target_pos.to_point(level.tile_size() as i32) + tile_center;
+                    *pos = target_pos.top_left(level.tile_size() as i32) + tile_center;
                 }
             }
         }

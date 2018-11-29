@@ -144,11 +144,20 @@ impl FloorMap {
         &mut self.grid
     }
 
-    /// Returns the position in world coordinates of the center of a given tile
-    pub fn tile_center(&self, pos: TilePos) -> Point {
-        let x = pos.col as u32 * self.tile_size + self.tile_size / 2;
-        let y = pos.row as u32 * self.tile_size + self.tile_size / 2;
-        Point::new(x as i32, y as i32)
+    /// Returns the rectangle in world coordinates contained by the given top-left and bottom-right
+    /// tiles. The entirity of both corners will be included in the rectangle.
+    pub fn tile_rect(&self, top_left: TilePos, bottom_right: TilePos) -> Rect {
+        debug_assert!(top_left.row <= bottom_right.row && top_left.col <= bottom_right.col,
+            "bug: expected top_left to be above and to the left of bottom right");
+        let top_left = top_left.top_left(self.tile_size as i32);
+        let bottom_right = bottom_right.bottom_right(self.tile_size as i32);
+
+        Rect::new(
+            top_left.x(),
+            top_left.y(),
+            (bottom_right.x() - top_left.x()) as u32,
+            (bottom_right.y() - top_left.y()) as u32,
+        )
     }
 
     /// Finds the tile position on the grid that the given point in world coordinates represents.
@@ -174,13 +183,13 @@ impl FloorMap {
 
         self.grid().tile_positions_within(pos, size).map(move |pos| {
             // The position of the tile in world coordinates
-            (pos.to_point(self.tile_size as i32), pos, self.grid().get(pos))
+            (pos.top_left(self.tile_size as i32), pos, self.grid().get(pos))
         })
     }
 
     /// Returns the top left tile position and grid size of the area within (or around) the region
     /// defined by the given bounds
-    fn grid_area_within(&self, bounds: Rect) -> (TilePos, GridSize) {
+    pub fn grid_area_within(&self, bounds: Rect) -> (TilePos, GridSize) {
         // While the caller is allowed to ask for tiles within a boundary Rect that starts at
         // negative coordinates, the top left of the map is defined as (0, 0). That means that we
         // can at most request tiles up to that top left corner. The calls to `max()` here help
