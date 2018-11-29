@@ -12,9 +12,21 @@ pub struct TilePos {
 }
 
 impl TilePos {
-    /// Converts the given tile position to its point in world coordinates
+    /// Returns the position in world coordinates of the center of this tile
     /// Maps columns to x-coordinates and rows to y-coordinates
-    pub fn to_point(self, tile_size: i32) -> Point {
+    pub fn center(&self, tile_size: i32) -> Point {
+        self.top_left(tile_size).offset(tile_size / 2, tile_size / 2)
+    }
+
+    /// Returns the position in world coordinates of the bottom right of this tile
+    /// Maps columns to x-coordinates and rows to y-coordinates
+    pub fn bottom_right(&self, tile_size: i32) -> Point {
+        self.top_left(tile_size).offset(tile_size, tile_size)
+    }
+
+    /// Returns the position in world coordinates of the top left of this tile
+    /// Maps columns to x-coordinates and rows to y-coordinates
+    pub fn top_left(self, tile_size: i32) -> Point {
         // It's easy to mix up the ordering in this Point constructor, so this method
         // helps avoid that in some cases.
         Point::new(

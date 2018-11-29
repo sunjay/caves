@@ -66,7 +66,7 @@ impl GameGenerator {
             map.grid_mut().get_mut(edge).become_floor(room_id, FloorSprite::default());
 
             // Place a door on top of the floor tile
-            let pos = map.tile_center(edge);
+            let pos = edge.center(map.tile_size() as i32);
             world.create_entity()
                 .with(Position(pos))
                 .with(Door {orientation})

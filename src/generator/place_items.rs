@@ -41,8 +41,8 @@ impl GameGenerator {
         // Can only place on vertical edge since we only have sprites for tiles adjacent to those
         let next_pos = |rng: &mut StdRng, rect: TileRect| rect.random_right_vertical_edge_tile(rng);
 
-        let object = |map: &FloorMap, id, obj_pos, wall_pos| {
-            let pos = map.tile_center(obj_pos);
+        let object = |map: &FloorMap, id, obj_pos: TilePos, wall_pos| {
+            let pos = obj_pos.center(map.tile_size() as i32);
             let direction = StairsDirection::towards_target(wall_pos, obj_pos);
             world.create_entity()
                 .with(Position(pos))
@@ -65,8 +65,8 @@ impl GameGenerator {
         // Can only place on vertical edge since we only have sprites for tiles adjacent to those
         let next_pos = |rng: &mut StdRng, rect: TileRect| rect.random_left_vertical_edge_tile(rng);
 
-        let object = |map: &FloorMap, id, obj_pos, wall_pos| {
-            let pos = map.tile_center(obj_pos);
+        let object = |map: &FloorMap, id, obj_pos: TilePos, wall_pos| {
+            let pos = obj_pos.center(map.tile_size() as i32);
             let direction = StairsDirection::towards_target(wall_pos, obj_pos);
             world.create_entity()
                 .with(Position(pos))
