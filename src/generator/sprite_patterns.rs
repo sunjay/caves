@@ -1,10 +1,10 @@
 use rand::{rngs::StdRng, Rng};
 
-use super::{MapGenerator, TileRect, TilePos, GridSize};
+use super::{GameGenerator, TileRect, TilePos, GridSize};
 use sprites::{WallSprite, FLOOR_PATTERNS};
 use map::*;
 
-impl MapGenerator {
+impl GameGenerator {
     pub(in super) fn layout_floor_wall_sprites(&self, rng: &mut StdRng, map: &mut FloorMap) {
         self.layout_wall_sprites(rng, map);
         self.layout_floor_sprites(rng, map);

@@ -7,13 +7,13 @@ use specs::{System, Join, ReadExpect, WriteExpect, ReadStorage, WriteStorage, En
 
 use components::{Position, Movement, MovementDirection, CameraFocus, HealthPoints};
 use resources::{ActionQueue, Action};
-use map::{GameMap, TileObject, Door};
+use map::FloorMap;
 
 #[derive(SystemData)]
 pub struct InteractionsData<'a> {
     entities: Entities<'a>,
     actions: ReadExpect<'a, ActionQueue>,
-    map: WriteExpect<'a, GameMap>,
+    map: WriteExpect<'a, FloorMap>,
     positions: WriteStorage<'a, Position>,
     movements: ReadStorage<'a, Movement>,
     camera_focuses: ReadStorage<'a, CameraFocus>,

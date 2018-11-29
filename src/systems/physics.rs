@@ -3,7 +3,7 @@ use specs::{System, Join, ReadExpect, ReadStorage, WriteStorage, Entities, LazyU
 
 use components::{Movement, Position, Wait, BoundingBox};
 use resources::FramesElapsed;
-use map::GameMap;
+use map::FloorMap;
 
 // Collisions within this threshold will be *ignored*
 const COLLISION_THRESHOLD: u32 = 1;
@@ -12,7 +12,7 @@ const COLLISION_THRESHOLD: u32 = 1;
 pub struct PhysicsData<'a> {
     entities: Entities<'a>,
     frames: ReadExpect<'a, FramesElapsed>,
-    map: ReadExpect<'a, GameMap>,
+    map: ReadExpect<'a, FloorMap>,
     movements: ReadStorage<'a, Movement>,
     bounding_boxes: ReadStorage<'a, BoundingBox>,
     waits: WriteStorage<'a, Wait>,
@@ -28,8 +28,7 @@ impl<'a> System<'a> for Physics {
     fn run(&mut self, data: Self::SystemData) {
         let PhysicsData {entities, frames, map, movements, bounding_boxes, mut positions, mut waits, updater} = data;
         let FramesElapsed(frames_elapsed) = *frames;
-        let level = map.current_level_map();
-        let tile_size = level.tile_size();
+        let tile_size = map.tile_size();
 
         // Need to do updating in a separate phase so we can read all the positions in a nested loop
         let mut updates = Vec::new();
@@ -54,7 +53,7 @@ impl<'a> System<'a> for Physics {
 
                 // Check if any of the tiles that this new position intersects with is a wall or
                 // any other tile that should not be traversed
-                let potential_collisions = level.tiles_within(bounds)
+                let potential_collisions = map.tiles_within(bounds)
                     .filter(|(_, _, tile)| !tile.is_traversable())
                     .map(|(pos, _, _)| Rect::new(
                         pos.x(),

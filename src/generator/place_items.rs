@@ -1,6 +1,6 @@
 use rand::{rngs::StdRng, Rng};
 
-use super::{MapGenerator, RanOutOfAttempts};
+use super::{GameGenerator, RanOutOfAttempts};
 use sprites::WallSprite;
 use map::*;
 
@@ -28,7 +28,7 @@ fn validate_chosen_staircase(grid: &TileGrid, pos: TilePos) -> bool {
     open_sides == 1
 }
 
-impl MapGenerator {
+impl GameGenerator {
     pub(in super) fn place_to_next_level_tiles(
         &self,
         rng: &mut StdRng,

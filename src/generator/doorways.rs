@@ -2,11 +2,11 @@ use std::collections::HashMap;
 
 use rand::{rngs::StdRng, Rng};
 
-use super::{MapGenerator, RanOutOfAttempts};
+use super::{GameGenerator, RanOutOfAttempts};
 use sprites::{FloorSprite, WallSpriteAlternate};
 use map::*;
 
-impl MapGenerator {
+impl GameGenerator {
     pub(in super) fn connect_rooms(&self, rng: &mut StdRng, map: &mut FloorMap) {
         // A mapping from the rooms that were connected to the edge tile that connected them
         let mut connected_rooms = HashMap::new();

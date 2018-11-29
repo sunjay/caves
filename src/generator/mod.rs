@@ -9,7 +9,10 @@ mod place_items;
 mod doorways;
 mod validation;
 
+mod map_key;
 mod bounds;
+
+pub use self::map_key::*;
 pub use self::bounds::*;
 
 use rand::{random, rngs::StdRng, Rng, SeedableRng};
@@ -17,13 +20,14 @@ use specs::World;
 use rayon::prelude::*;
 
 use map::*;
+use game::{Game};
 
 /// Represents when we have run out of attempts to generate the map from a given key
 /// This can happen if a loop trying to generate something runs too many times
 #[derive(Debug, Clone, Copy)]
 struct RanOutOfAttempts;
 
-pub struct MapGenerator {
+pub struct GameGenerator {
     /// The number of attempts before giving up on placing something randomly
     ///
     /// After this many attempts, the level generator will give up and generate a new seed based
@@ -59,12 +63,12 @@ pub struct MapGenerator {
     pub next_prev_tiles: usize,
 }
 
-impl MapGenerator {
-    pub fn generate(self) -> GameMap {
-        self.generate_with_key(random())
+impl GameGenerator {
+    pub fn generate(self, setup_world: impl FnMut() -> World) -> Game {
+        self.generate_with_key(random(), setup_world)
     }
 
-    pub fn generate_with_key(self, key: MapKey) -> GameMap {
+    pub fn generate_with_key(self, key: MapKey, setup_world: impl FnMut() -> World) -> Game {
         #[cfg(not(test))]
         println!("{}", key);
         let mut rng = key.to_rng();
@@ -76,11 +80,11 @@ impl MapGenerator {
                 .map(|level| (level, StdRng::from_seed(rng.gen())))
                 .collect();
             let levels: Result<Vec<_>, _> = rngs.into_par_iter()
-                .map(|(level, mut rng)| self.generate_level(&mut rng, level))
+                .map(move |(level, mut rng)| self.generate_level(&mut rng, level, setup_world))
                 .collect();
 
             match levels {
-                Ok(levels) => return GameMap {
+                Ok(levels) => return Game {
                     key,
                     levels,
                     current_level: 0,
@@ -95,28 +99,32 @@ impl MapGenerator {
         panic!("Never succeeded in generating a map with key `{}`!", key);
     }
 
-    fn generate_level(&self, rng: &mut StdRng, level: usize) -> Result<FloorMap, RanOutOfAttempts> {
+    fn generate_level(&self, rng: &mut StdRng, level: usize, setup_world: impl FnMut() -> World) -> Result<World, RanOutOfAttempts> {
+        let world = setup_world();
+
+        // Levels are generated in "phases". The following calls runs each of those in succession.
         let mut map = FloorMap::new(
             GridSize {rows: self.rows, cols: self.cols},
             self.tile_size,
         );
 
-        // Levels are generated in "phases". The following calls runs each of those in succession.
-
         self.generate_rooms(rng, &mut map, level)?;
-        self.connect_rooms(rng, &mut map);
-        self.place_locks(rng, &mut map);
+
+        self.connect_rooms(rng, &mut map, &mut world);
+        self.place_locks(rng, &map, &mut world);
 
         if level < self.levels {
-            self.place_to_next_level_tiles(rng, &mut map)?;
+            self.place_to_next_level_tiles(rng, &map, &mut world)?;
         }
         if level > 1 {
-            self.place_to_prev_level_tiles(rng, &mut map)?;
+            self.place_to_prev_level_tiles(rng, &map, &mut world)?;
         }
 
         self.layout_floor_wall_sprites(rng, &mut map);
 
         self.validate_map(&map);
+
+        world.add_resource(map.clone());
 
         #[cfg(not(test))]
         println!("Level {}", level);
@@ -125,7 +133,7 @@ impl MapGenerator {
         Ok(map)
     }
 
-    // NOTE: This impl block is only for the public interface of MapGenerator + some top-level
+    // NOTE: This impl block is only for the public interface of GameGenerator + some top-level
     // logic that has to do with that. As much as possible, we want to move level generation into
     // other submodules that each file stays small and understandable. Each submodule usually
     // corresponds to a single phase of level generation. The submodule methods do not typically

@@ -2,11 +2,11 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use rand::{rngs::StdRng, Rng};
 
-use super::{MapGenerator, RanOutOfAttempts};
+use super::{GameGenerator, RanOutOfAttempts};
 use sprites::{FloorSprite, WallSprite};
 use map::*;
 
-impl MapGenerator {
+impl GameGenerator {
     pub(in super) fn generate_rooms(
         &self,
         rng: &mut StdRng,
