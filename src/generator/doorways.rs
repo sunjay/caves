@@ -1,13 +1,15 @@
 use std::collections::HashMap;
 
-use rand::{rngs::StdRng, Rng};
+use rand::{rngs::StdRng, Rng, seq::SliceRandom};
+use specs::{World, Builder};
 
-use super::{GameGenerator, RanOutOfAttempts};
+use super::GameGenerator;
 use sprites::{FloorSprite, WallSpriteAlternate};
+use components::{Position, Door, HoriVert};
 use map::*;
 
 impl GameGenerator {
-    pub(in super) fn connect_rooms(&self, rng: &mut StdRng, map: &mut FloorMap) {
+    pub(in super) fn connect_rooms(&self, rng: &mut StdRng, map: &mut FloorMap, world: &mut World) {
         // A mapping from the rooms that were connected to the edge tile that connected them
         let mut connected_rooms = HashMap::new();
 
@@ -29,7 +31,7 @@ impl GameGenerator {
                     .map(|pair| (edge, pair)))
         }).collect();
 
-        while let Some(&(edge, pair)) = rng.choose(&doorways[..]) {
+        while let Some(&(edge, pair)) = doorways.choose(&mut rng) {
             connected_rooms.insert(pair, edge);
 
             // Only retain the doorways that connect rooms we haven't added a doorway for yet
@@ -60,11 +62,15 @@ impl GameGenerator {
                 _ => unreachable!("bug: entrance did not have expected walls"),
             };
 
-            {
-                let tile = map.grid_mut().get_mut(edge);
-                tile.become_floor(room_id, FloorSprite::default());
-                tile.place_object(TileObject::Door {state: Door::Closed, orientation});
-            }
+            // Make the wall into a floor tile
+            map.grid_mut().get_mut(edge).become_floor(room_id, FloorSprite::default());
+
+            // Place a door on top of the floor tile
+            let pos = map.tile_center(edge);
+            world.create_entity()
+                .with(Position(pos))
+                .with(Door {orientation})
+                .build();
 
             if orientation == HoriVert::Horizontal {
                 // Place entrance walls
@@ -114,9 +120,5 @@ impl GameGenerator {
         };
 
         Some(pair)
-    }
-
-    pub(in super) fn place_locks(&self, rng: &mut StdRng, map: &mut FloorMap) {
-
     }
 }

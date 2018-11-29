@@ -10,7 +10,7 @@ pub use self::map_sprites::*;
 
 use sdl2::rect::{Point, Rect};
 
-use texture_manager::TextureId;
+use ui::TextureId;
 
 /// Defines how a sprite is aligned (or "anchored") relative to its destination rectangle
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

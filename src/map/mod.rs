@@ -99,18 +99,6 @@ impl FloorMap {
         self.grid.dimensions().to_rect(self.tile_size)
     }
 
-    /// Stores the given enemies into this map
-    pub fn store_enemies(&mut self, enemies: impl Iterator<Item=EnemyState>) {
-        debug_assert_eq!(self.enemies.len(), 0);
-        self.enemies.extend(enemies);
-        self.enemies.shrink_to_fit();
-    }
-
-    /// Retrieves all the enemies stored in this map and clears the stored enemies
-    pub fn clear_enemies(&mut self) -> impl Iterator<Item=EnemyState> + '_ {
-        self.enemies.drain(..)
-    }
-
     /// Returns the number of rooms on this map
     pub fn nrooms(&self) -> usize {
         self.rooms.len()
@@ -146,12 +134,21 @@ impl FloorMap {
         RoomId(self.rooms.len() - 1)
     }
 
+    /// Returns a reference to this level's grid of tiles
     pub fn grid(&self) -> &TileGrid {
         &self.grid
     }
 
+    /// Returns a mutable reference to this level's grid of tiles
     pub fn grid_mut(&mut self) -> &mut TileGrid {
         &mut self.grid
+    }
+
+    /// Returns the position in world coordinates of the center of a given tile
+    pub fn tile_center(&self, pos: TilePos) -> Point {
+        let x = pos.col as u32 * self.tile_size + self.tile_size / 2;
+        let y = pos.row as u32 * self.tile_size + self.tile_size / 2;
+        Point::new(x as i32, y as i32)
     }
 
     /// Finds the tile position on the grid that the given point in world coordinates represents.

@@ -5,8 +5,8 @@ use std::iter::once;
 use specs::{Component, VecStorage, HashMapStorage};
 use sdl2::rect::{Point, Rect};
 
-use texture_manager::TextureId;
-use map::{SpriteImage, Anchor};
+use ui::TextureId;
+use sprites::{SpriteImage, Anchor};
 
 /// An entity that is unable to move until the given duration has elapsed
 #[derive(Debug, Default, Component)]

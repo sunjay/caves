@@ -1,12 +1,12 @@
 use specs::{System, Join, ReadExpect, ReadStorage, WriteStorage, Entities};
 
 use components::{Movement, BoundingBox, Position, Player, Enemy, Wait};
-use map::GameMap;
+use map::FloorMap;
 
 #[derive(SystemData)]
 pub struct AIData<'a> {
     entities: Entities<'a>,
-    map: ReadExpect<'a, GameMap>,
+    map: ReadExpect<'a, FloorMap>,
     movements: WriteStorage<'a, Movement>,
     bounding_boxes: ReadStorage<'a, BoundingBox>,
     positions: ReadStorage<'a, Position>,

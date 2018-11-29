@@ -7,22 +7,9 @@ use sdl2::{
     EventPump,
     image::{Sdl2ImageContext, INIT_PNG},
     pixels::Color,
-    rect::{Point, Rect},
     render::{TextureCreator, Canvas},
     video::{Window as SDLWindow, WindowContext},
 };
-use specs::{
-    Join,
-    ReadStorage,
-    World,
-    Resources,
-    SystemData,
-    ReadExpect,
-};
-
-use components::{Position, Sprite, CameraFocus};
-use map::{GameMap, Tile};
-use sprites::MapSprites;
 
 pub struct Window {
     sdl_context: Sdl,

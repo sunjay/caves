@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use specs::{Component, HashMapStorage, NullStorage};
+use specs::{Component, HashMapStorage};
 
 use map::TilePos;
 

@@ -1,5 +1,5 @@
-use super::{RoomId, SpriteImage, TileObject};
-use sprites::{MapSprites, FloorSprite, WallSprite, WallSpriteAlternate, TorchAnimation};
+use super::{RoomId};
+use sprites::{SpriteImage, MapSprites, FloorSprite, WallSprite, WallSpriteAlternate};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Tile {

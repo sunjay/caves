@@ -1,7 +1,9 @@
-use rand::{rngs::StdRng, Rng};
+use rand::{rngs::StdRng, Rng, seq::SliceRandom};
+use specs::{World, Builder};
 
 use super::{GameGenerator, RanOutOfAttempts};
 use sprites::WallSprite;
+use components::{Position, Stairs, StairsDirection};
 use map::*;
 
 fn validate_chosen_staircase(grid: &TileGrid, pos: TilePos) -> bool {
@@ -32,14 +34,20 @@ impl GameGenerator {
     pub(in super) fn place_to_next_level_tiles(
         &self,
         rng: &mut StdRng,
-        map: &mut FloorMap,
+        map: &FloorMap,
+        world: &mut World,
     ) -> Result<(), RanOutOfAttempts> {
         let valid_rooms = |(_, r): &(RoomId, &Room)| r.can_contain_to_next_level();
         // Can only place on vertical edge since we only have sprites for tiles adjacent to those
         let next_pos = |rng: &mut StdRng, rect: TileRect| rect.random_right_vertical_edge_tile(rng);
 
-        let object = |id, obj_pos, wall_pos| {
-            TileObject::ToNextLevel {id, direction: StairsDirection::towards_target(wall_pos, obj_pos)}
+        let object = |map: &FloorMap, id, obj_pos, wall_pos| {
+            let pos = map.tile_center(obj_pos);
+            let direction = StairsDirection::towards_target(wall_pos, obj_pos);
+            world.create_entity()
+                .with(Position(pos))
+                .with(Stairs::ToNextLevel {id, direction})
+                .build();
         };
         let placed = self.place_object_in_rooms(rng, map, valid_rooms, self.next_prev_tiles,
             next_pos, validate_chosen_staircase, object)?;
@@ -50,14 +58,20 @@ impl GameGenerator {
     pub(in super) fn place_to_prev_level_tiles(
         &self,
         rng: &mut StdRng,
-        map: &mut FloorMap,
+        map: &FloorMap,
+        world: &mut World,
     ) -> Result<(), RanOutOfAttempts> {
         let valid_rooms = |(_, r): &(RoomId, &Room)| r.can_contain_to_prev_level();
         // Can only place on vertical edge since we only have sprites for tiles adjacent to those
         let next_pos = |rng: &mut StdRng, rect: TileRect| rect.random_left_vertical_edge_tile(rng);
 
-        let object = |id, obj_pos, wall_pos| {
-            TileObject::ToPrevLevel {id, direction: StairsDirection::towards_target(wall_pos, obj_pos)}
+        let object = |map: &FloorMap, id, obj_pos, wall_pos| {
+            let pos = map.tile_center(obj_pos);
+            let direction = StairsDirection::towards_target(wall_pos, obj_pos);
+            world.create_entity()
+                .with(Position(pos))
+                .with(Stairs::ToPrevLevel {id, direction})
+                .build();
         };
         let placed = self.place_object_in_rooms(rng, map, valid_rooms, self.next_prev_tiles,
             next_pos, validate_chosen_staircase, object)?;
@@ -66,7 +80,7 @@ impl GameGenerator {
     }
 
     /// Ensures that there is a wall on each side of a staircase
-    fn surround_stairways(&self, staircases: &[TilePos], map: &mut FloorMap) {
+    fn surround_stairways(&self, staircases: &[TilePos], map: &FloorMap) {
         let grid = map.grid_mut();
         for &stairs in staircases {
             for adj in grid.adjacent_positions(stairs) {
@@ -82,12 +96,12 @@ impl GameGenerator {
     fn place_object_in_rooms(
         &self,
         rng: &mut StdRng,
-        map: &mut FloorMap,
+        map: &FloorMap,
         room_filter: impl FnMut(&(RoomId, &Room)) -> bool,
         nrooms: usize,
         mut next_pos: impl FnMut(&mut StdRng, TileRect) -> TilePos,
         mut extra_validation: impl FnMut(&TileGrid, TilePos) -> bool,
-        mut object: impl FnMut(usize, TilePos, TilePos) -> TileObject,
+        mut place_object: impl FnMut(&FloorMap, usize, TilePos, TilePos),
     ) -> Result<Vec<TilePos>, RanOutOfAttempts> {
         // To do this using choose we would need to allocate anyway, so we might as well just use
         // shuffle to do all the random choosing at once
@@ -96,7 +110,7 @@ impl GameGenerator {
             .map(|(id, r)| (id, *r.boundary()))
             .collect();
         assert!(rooms.len() >= nrooms, "Not enough rooms to place items");
-        rng.shuffle(&mut rooms);
+        rooms.shuffle(&mut rng);
 
         let grid = map.grid_mut();
 
@@ -142,7 +156,7 @@ impl GameGenerator {
                 let tile = grid.get_mut(inner_room_tile);
 
                 // Want to face away from the wall
-                tile.place_object(object(placed.len(), inner_room_tile, pos));
+                tile.place_object(place_object(map, placed.len(), inner_room_tile, pos));
 
                 placed.push(inner_room_tile);
             }
