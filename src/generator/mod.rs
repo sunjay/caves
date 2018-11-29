@@ -111,7 +111,6 @@ impl GameGenerator {
         self.generate_rooms(rng, &mut map, level)?;
 
         self.connect_rooms(rng, &mut map, &mut world);
-        self.place_locks(rng, &map, &mut world);
 
         if level < self.levels {
             self.place_to_next_level_tiles(rng, &map, &mut world)?;
@@ -124,13 +123,13 @@ impl GameGenerator {
 
         self.validate_map(&map);
 
-        world.add_resource(map.clone());
+        world.add_resource(map);
 
         #[cfg(not(test))]
         println!("Level {}", level);
         #[cfg(not(test))]
         println!("{:#?}", map);
-        Ok(map)
+        Ok(world)
     }
 
     // NOTE: This impl block is only for the public interface of GameGenerator + some top-level

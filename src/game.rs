@@ -1,10 +1,9 @@
 use sdl2::rect::Point;
 use specs::World;
 
-use map::FloorMap;
 use generator::MapKey;
+use map::FloorMap;
 
-#[derive(Debug, Clone)]
 pub struct Game {
     key: MapKey,
     levels: Vec<World>,
@@ -30,7 +29,7 @@ impl Game {
     }
 
     /// Returns an iterator of the game levels
-    pub fn levels(&self) -> impl Iterator<Item=&FloorMap> {
+    pub fn levels(&self) -> impl Iterator<Item=&World> {
         self.levels.iter()
     }
 
@@ -38,16 +37,17 @@ impl Game {
     /// first level and the player should only be spawned at this point on the first level.
     pub fn game_start(&self) -> Point {
         let first_level = self.levels.first().expect("bug: should be at least one level");
+        let map = first_level.read_resource::<FloorMap>();
 
-        let (room_id, level_start_room) = first_level.rooms()
+        let (room_id, level_start_room) = map.rooms()
             .find(|(_, room)| room.is_player_start())
             .expect("bug: should have had a player start level on the first level");
         // Start in the middle of the level start room
         let center = level_start_room.boundary().center_tile();
-        assert!(first_level.grid().get(center).is_room_floor(room_id),
+        assert!(map.grid().get(center).is_room_floor(room_id),
             "bug: the center of the player start room was not a tile in that room");
 
-        let tile_size = first_level.tile_size();
+        let tile_size = map.tile_size();
         // Start in the middle of the tile
         center.to_point(tile_size as i32).offset(tile_size as i32/2, tile_size as i32/2)
     }

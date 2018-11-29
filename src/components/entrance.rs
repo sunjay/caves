@@ -1,14 +1,14 @@
 use specs::{Component, NullStorage, HashMapStorage};
 
 /// A door between two rooms
-#[derive(Debug, Default, Component)]
+#[derive(Debug, Component)]
 #[storage(HashMapStorage)]
 pub struct Door {
     orientation: HoriVert
 }
 
 /// A gate between two rooms
-#[derive(Debug, Default, Component)]
+#[derive(Debug, Component)]
 #[storage(HashMapStorage)]
 pub struct Gate {
     orientation: HoriVert
