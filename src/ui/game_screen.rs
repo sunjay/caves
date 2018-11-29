@@ -1,49 +1,62 @@
 use std::path::Path;
 
-use sdl2::{
-    image::{SaveSurface},
-    pixels::{PixelFormatEnum},
-    surface::Surface,
-    render::{Canvas, RenderTarget},
-};
+use sdl2::{rect::Point, render::{Canvas, RenderTarget}};
 
 use sprites::MapSprites;
-use game::Game;
+use generator::GenLevel;
 
-use super::renderer;
-use super::{TextureManager, SDLError};
+use super::{TextureManager, SDLError, LevelScreen};
 
-pub struct GameScreen {
-    game: Game,
+pub struct GameScreen<'a, 'b> {
+    player_start: Point,
+    levels: Vec<LevelScreen<'a, 'b>>,
+    current_level: usize,
 }
 
-impl GameScreen {
-    pub fn new(game: Game) -> Self {
-        GameScreen {game}
+impl<'a, 'b> GameScreen<'a, 'b> {
+    pub fn new(player_start: Point, levels: Vec<GenLevel<'a, 'b>>) -> Self {
+        Self {
+            player_start,
+            levels: levels.into_iter().map(Into::into).collect(),
+            current_level: 0,
+        }
     }
 
-    /// Render the entire state of the level (the entire map) to the given filename.
+    /// Returns the current level screen
+    pub fn current_level(&self) -> &LevelScreen<'a, 'b> {
+        &self.levels[self.current_level]
+    }
+
+    /// Advances to the next level. Panics if there is no next level
+    pub fn to_next_level(&mut self) {
+        self.current_level += 1;
+        assert!(self.current_level < self.levels.len(), "bug: advanced too many levels");
+    }
+
+    /// Goes back to the previous level. Panics if there is no previous level.
+    pub fn to_prev_level(&mut self) {
+        self.current_level = self.current_level.checked_sub(1)
+            .expect("bug: went back too many levels");
+    }
+
+    /// Returns an iterator of the level screens
+    pub fn levels(&self) -> impl Iterator<Item=&LevelScreen<'a, 'b>> {
+        self.levels.iter()
+    }
+
+    /// Render the entire state of the current level (the entire map) to the given filename.
     ///
     /// Useful for debugging. This function is fairly "slow", so use sparingly.
     pub fn render_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), SDLError> {
-        let level_boundary = self.level_boundary();
-        let mut canvas = Surface::new(level_boundary.width(), level_boundary.height(),
-            PixelFormatEnum::RGBA8888)?.into_canvas()?;
-        let texture_creator = canvas.texture_creator();
-
-        let mut textures = TextureManager::new(&texture_creator);
-        let map_texture = textures.create_png_texture("assets/dungeon.png")?;
-        let tile_size = 16;
-        let sprites = MapSprites::from_dungeon_spritesheet(map_texture, tile_size);
-
-        self.render(level_boundary, &mut canvas, level_boundary.top_left(), &sprites, &textures,
-            |_, _| true)?;
-
-        canvas.into_surface().save(path)?;
-        Ok(())
+        self.current_level().render_to_file(path)
     }
 
-    pub fn render<T: RenderTarget>(&self, canvas: &mut Canvas<T>) -> Result<(), SDLError> {
-        renderer::render(self.game.current_level().system_data())
+    pub fn render<T: RenderTarget>(
+        &self,
+        canvas: &mut Canvas<T>,
+        textures: &TextureManager<T>,
+        map_sprites: &MapSprites,
+    ) -> Result<(), SDLError> {
+        self.current_level().render(canvas, textures, map_sprites)
     }
 }

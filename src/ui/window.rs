@@ -11,6 +11,8 @@ use sdl2::{
     video::{Window as SDLWindow, WindowContext},
 };
 
+use super::SDLError;
+
 pub struct Window {
     sdl_context: Sdl,
     /// Required to use images, but not used for anything after it is created
@@ -19,9 +21,9 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn init(width: u32, height: u32) -> Result<Self, String> {
-        let sdl_context = sdl2::init()?;
-        let video_subsystem = sdl_context.video()?;
+    pub fn init(width: u32, height: u32) -> Result<Self, SDLError> {
+        let sdl_context = sdl2::init().map_err(SDLError)?;
+        let video_subsystem = sdl_context.video().map_err(SDLError)?;
         let _image_context = sdl2::image::init(INIT_PNG).unwrap();
 
         // Scale display if a certain environment variable is set
