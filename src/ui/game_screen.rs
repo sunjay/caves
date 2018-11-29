@@ -4,6 +4,7 @@ use sdl2::{rect::Point, render::{Canvas, RenderTarget}};
 
 use sprites::MapSprites;
 use generator::GenLevel;
+use resources::{FramesElapsed, Event};
 
 use super::{TextureManager, SDLError, LevelScreen};
 
@@ -44,6 +45,11 @@ impl<'a, 'b> GameScreen<'a, 'b> {
         self.levels.iter()
     }
 
+    /// Dispatch the given events and update the state based on the frames that have elapsed
+    pub fn dispatch(&mut self, frames_elapsed: FramesElapsed, events: Vec<Event>) {
+        self.current_level().dispatch(frames_elapsed, events);
+    }
+
     /// Render the entire state of the current level (the entire map) to the given filename.
     ///
     /// Useful for debugging. This function is fairly "slow", so use sparingly.
@@ -51,10 +57,10 @@ impl<'a, 'b> GameScreen<'a, 'b> {
         self.current_level().render_to_file(path)
     }
 
-    pub fn render<T: RenderTarget>(
+    pub fn render<T: RenderTarget, U>(
         &self,
         canvas: &mut Canvas<T>,
-        textures: &TextureManager<T>,
+        textures: &TextureManager<U>,
         map_sprites: &MapSprites,
     ) -> Result<(), SDLError> {
         self.current_level().render(canvas, textures, map_sprites)

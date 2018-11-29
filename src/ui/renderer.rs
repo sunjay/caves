@@ -39,16 +39,15 @@ pub fn setup(res: &mut Resources) {
     RenderData::setup(res);
 }
 
-pub fn render<T: RenderTarget>(
+pub fn render<T: RenderTarget, U>(
     data: RenderData,
     canvas: &mut Canvas<T>,
-    textures: &TextureManager<T>,
+    textures: &TextureManager<U>,
     map_sprites: &MapSprites,
 ) -> Result<(), SDLError> {
     canvas.clear();
 
     let RenderData {map, positions, sprites, camera_focuses} = data;
-    let level = map.current_level_map();
     let mut camera_focuses = (&positions, &camera_focuses).join();
     let (&Position(camera_focus), _) = camera_focuses.next()
         .expect("Renderer was not told which entity to focus on");
@@ -64,7 +63,7 @@ pub fn render<T: RenderTarget>(
     let render_top_left = camera_focus - screen_center;
 
     // Need to make sure the camera stays within the level boundary
-    let level_boundary = level.level_boundary();
+    let level_boundary = map.level_boundary();
 
     // The valid ranges for the top-left corner of the screen
     let (min_x, max_x) = (0, level_boundary.x() + level_boundary.width() as i32 - screen_width as i32);
@@ -79,12 +78,12 @@ pub fn render<T: RenderTarget>(
     let screen = Rect::from_center(render_top_left + screen_center, screen_width, screen_height);
 
     // Only render tiles that are visible to the camera focus.
-    let focus_pos = level.world_to_tile_pos(camera_focus);
+    let focus_pos = map.world_to_tile_pos(camera_focus);
 
     // The returned set will contain all tiles that are directly visible to the camera focus
     // without passing through entrances that have still not been opened.
-    let visible_tiles = level.grid().depth_first_search(focus_pos, |node, _| {
-        let grid = level.grid();
+    let visible_tiles = map.grid().depth_first_search(focus_pos, |node, _| {
+        let grid = map.grid();
 
         // Stop searching at walls or closed entrances (but still include them in the result)
         let tile = grid.get(node);
@@ -95,11 +94,11 @@ pub fn render<T: RenderTarget>(
         visible_tiles.contains(&pt) ||
         // Need to specially handle wall corners because they are not *directly* visible.
         // A corner is a wall tile with at least two visible walls
-        tile.is_wall() && level.grid().adjacent_positions(pt)
+        tile.is_wall() && map.grid().adjacent_positions(pt)
             .filter(|pt| visible_tiles.contains(pt)).count() >= 2
     };
 
-    level.render(screen, canvas, render_top_left, map_sprites, textures,
+    map.render(screen, canvas, render_top_left, map_sprites, textures,
         is_visible)?;
 
     for (&Position(pos), Sprite(ref sprite)) in (&positions, &sprites).join() {

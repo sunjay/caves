@@ -107,7 +107,7 @@ fn main() -> Result<(), SDLError> {
 
     // Add the character
     {
-        let first_level = levels.first().expect("bug: should be at least one level");
+        let first_level = levels.first().expect("bug: should be at least one level").world_mut();
         let character_texture = textures.create_png_texture("assets/hero.png")?;
         let character_animations = AnimationManager::standard_character_animations(fps as usize, character_texture);
         first_level.create_entity()
@@ -124,9 +124,9 @@ fn main() -> Result<(), SDLError> {
             .build();
     }
 
-    let game_screen = GameScreen::new(game);
+    let game_screen = GameScreen::new(player_start, levels);
 
-    for (i, level) in game.levels().enumerate() {
+    for (i, level) in game_screen.levels().enumerate() {
         game_screen.render_to_file(format!("level{}.png", i+1))?;
     }
 
@@ -164,17 +164,9 @@ fn main() -> Result<(), SDLError> {
 
         // At least one frame must have passed for us to do anything
         if frames_elapsed_delta >= 1 {
-            *world.write_resource::<FramesElapsed>() = FramesElapsed(frames_elapsed_delta);
-            *world.write_resource::<ActionQueue>() = ActionQueue::default();
-            *world.write_resource::<EventQueue>() = EventQueue(events.drain(..).collect());
-
-            dispatcher.dispatch(&mut world.res);
-
+            game_screen.dispatch(FramesElapsed(frames_elapsed_delta), events.drain(..).collect());
             game_screen.render(window.canvas_mut(), &textures, &sprites)?;
             last_frames_elapsed = frames_elapsed;
-
-            // Register any updates
-            world.maintain();
         } else {
             let ms_per_frame = (1000.0 / fps) as u64;
             let ms_elapsed = (timer.ticks() - ticks) as u64;
@@ -196,7 +188,7 @@ mod tests {
     fn map_generation() {
         // See if we can generate lots of maps without failing
         (0..500).into_par_iter().for_each(|_| {
-            map_generator(16).generate();
+            game_generator(16).generate(Default::default);
         });
     }
 
@@ -205,8 +197,8 @@ mod tests {
         (0..10).into_par_iter().for_each(|_| {
             // The same key should produce the same map over and over again
             let key = random();
-            let map1 = map_generator(16).generate_with_key(key);
-            let map2 = map_generator(16).generate_with_key(key);
+            let map1 = game_generator(16).generate_with_key(key);
+            let map2 = game_generator(16).generate_with_key(key);
             assert_eq!(map1, map2);
         });
     }
