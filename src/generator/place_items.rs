@@ -1,4 +1,4 @@
-use rand::{StdRng, Rng};
+use rand::{rngs::StdRng, Rng};
 
 use super::{MapGenerator, RanOutOfAttempts};
 use sprites::WallSprite;

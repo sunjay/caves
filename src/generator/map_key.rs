@@ -2,9 +2,9 @@ use std::str::FromStr;
 use std::fmt;
 
 use rand::{
-    StdRng,
     Rng,
     SeedableRng,
+    rngs::StdRng,
     distributions::{
         Distribution,
         Standard,

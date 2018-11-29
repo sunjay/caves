@@ -17,10 +17,10 @@ extern crate rayon;
 
 mod systems;
 mod components;
-mod renderer;
+mod generator;
 mod resources;
-mod texture_manager;
 mod map;
+mod ui;
 mod sprites;
 
 use std::{
@@ -72,7 +72,7 @@ fn map_generator(tile_size: u32) -> MapGenerator {
     }
 }
 
-fn main() -> Result<(), String> {
+fn main() -> Result<(), SDLError> {
     let fps = 30.0;
 
     let mut renderer = Renderer::init(320, 240)?;
@@ -191,8 +191,7 @@ fn main() -> Result<(), String> {
 
             // Register any updates
             world.maintain();
-        }
-        else {
+        } else {
             let ms_per_frame = (1000.0 / fps) as u64;
             let ms_elapsed = (timer.ticks() - ticks) as u64;
             thread::sleep(Duration::from_millis(ms_per_frame - ms_elapsed));
