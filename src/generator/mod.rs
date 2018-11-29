@@ -7,7 +7,6 @@ mod rooms;
 mod sprite_patterns;
 mod place_items;
 mod doorways;
-mod validation;
 
 mod map_key;
 mod bounds;
@@ -16,11 +15,46 @@ pub use self::map_key::*;
 pub use self::bounds::*;
 
 use rand::{random, rngs::StdRng, Rng, SeedableRng};
-use specs::World;
+use specs::{World, Dispatcher};
+use sdl2::rect::Point;
 use rayon::prelude::*;
 
 use map::*;
-use game::{Game};
+
+pub struct GenLevel<'a, 'b> {
+    pub world: World,
+    pub dispatcher: Dispatcher<'a, 'b>,
+}
+
+pub struct GenGame<'a, 'b> {
+    pub key: MapKey,
+    pub levels: Vec<GenLevel<'a, 'b>>,
+    /// The point that the player spawns at when the game begins. This point is only valid on the
+    /// first level and the player should only be spawned at this point on the first level.
+    pub player_start: Point,
+}
+
+impl<'a, 'b> GenGame<'a, 'b> {
+    fn new(key: MapKey, levels: Vec<GenLevel<'a, 'b>>) -> Self {
+        // Calculate the player start position
+        let first_level = levels.first().expect("bug: should be at least one level");
+        let map = first_level.world.read_resource::<FloorMap>();
+
+        let (room_id, level_start_room) = map.rooms()
+            .find(|(_, room)| room.is_player_start())
+            .expect("bug: should have had a player start room on the first level");
+        // Start in the middle of the level start room
+        let center = level_start_room.boundary().center_tile();
+        assert!(map.grid().get(center).is_room_floor(room_id),
+            "bug: the center of the player start room was not a tile in that room");
+
+        let tile_size = map.tile_size() as i32;
+        // Start in the middle of the tile
+        let player_start = center.to_point(tile_size).offset(tile_size/2, tile_size/2);
+
+        GenGame {key, levels, player_start}
+    }
+}
 
 /// Represents when we have run out of attempts to generate the map from a given key
 /// This can happen if a loop trying to generate something runs too many times
@@ -64,11 +98,11 @@ pub struct GameGenerator {
 }
 
 impl GameGenerator {
-    pub fn generate(self, setup_world: impl FnMut() -> World) -> Game {
+    pub fn generate<'a, 'b>(self, setup_world: impl Fn() -> (Dispatcher<'a, 'b>, World)) -> GenGame<'a, 'b> {
         self.generate_with_key(random(), setup_world)
     }
 
-    pub fn generate_with_key(self, key: MapKey, setup_world: impl FnMut() -> World) -> Game {
+    pub fn generate_with_key<'a, 'b>(self, key: MapKey, setup_world: impl Fn() -> (Dispatcher<'a, 'b>, World)) -> GenGame<'a, 'b> {
         #[cfg(not(test))]
         println!("{}", key);
         let mut rng = key.to_rng();
@@ -76,19 +110,20 @@ impl GameGenerator {
         // If this takes more than 10 attempts, we can conclude that it was essentially impossible
         // to generate the map.
         for _ in 0..10 {
-            let rngs: Vec<_> = (1..=self.levels)
-                .map(|level| (level, StdRng::from_seed(rng.gen())))
+            let (rngs_worlds, dispatchers): (Vec<_>, Vec<_>) = (1..=self.levels).map(|level| {
+                let (dispatcher, world) = setup_world();
+                ((level, StdRng::from_seed(rng.gen()), world), dispatcher)
+            }).unzip();
+            let levels: Result<Vec<_>, _> = rngs_worlds.into_par_iter()
+                .map(move |(level, mut rng, world)| self.populate_level(&mut rng, level, world))
                 .collect();
-            let levels: Result<Vec<_>, _> = rngs.into_par_iter()
-                .map(move |(level, mut rng)| self.generate_level(&mut rng, level, setup_world))
-                .collect();
+            let levels = levels.map(|levels| levels.into_iter()
+                .zip(dispatchers.into_iter())
+                .map(|(world, dispatcher)| GenLevel {world, dispatcher})
+                .collect());
 
             match levels {
-                Ok(levels) => return Game {
-                    key,
-                    levels,
-                    current_level: 0,
-                },
+                Ok(levels) => return GenGame::new(key, levels),
                 // Reseed the rng using itself
                 Err(RanOutOfAttempts) => {
                     rng = StdRng::from_seed(rng.gen());
@@ -99,9 +134,7 @@ impl GameGenerator {
         panic!("Never succeeded in generating a map with key `{}`!", key);
     }
 
-    fn generate_level(&self, rng: &mut StdRng, level: usize, setup_world: impl FnMut() -> World) -> Result<World, RanOutOfAttempts> {
-        let world = setup_world();
-
+    fn populate_level(&self, rng: &mut StdRng, level: usize, world: World) -> Result<World, RanOutOfAttempts> {
         // Levels are generated in "phases". The following calls runs each of those in succession.
         let mut map = FloorMap::new(
             GridSize {rows: self.rows, cols: self.cols},
@@ -120,8 +153,6 @@ impl GameGenerator {
         }
 
         self.layout_floor_wall_sprites(rng, &mut map);
-
-        self.validate_map(&map);
 
         world.add_resource(map);
 

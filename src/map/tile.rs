@@ -45,7 +45,7 @@ impl Tile {
     }
 
     /// Sets the sprite to the given wall sprite only if the tile is a wall tile
-    pub(in map) fn set_wall_sprite(&mut self, wall_sprite: WallSprite) {
+    pub fn set_wall_sprite(&mut self, wall_sprite: WallSprite) {
         match self {
             Tile::Wall {sprite, ..} => *sprite = wall_sprite,
             _ => unreachable!("bug: cannot set a wall sprite for a non-wall tile"),
@@ -69,7 +69,7 @@ impl Tile {
     }
 
     /// Sets the sprite to the given floor sprite only if the tile is a floor tile
-    pub(in map) fn set_floor_sprite(&mut self, floor_sprite: FloorSprite) {
+    pub fn set_floor_sprite(&mut self, floor_sprite: FloorSprite) {
         match self {
             Tile::Floor {sprite, ..} => *sprite = floor_sprite,
             _ => unreachable!("bug: cannot set a floor sprite for a non-floor tile"),

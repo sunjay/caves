@@ -22,7 +22,6 @@ mod resources;
 mod map;
 mod ui;
 mod sprites;
-mod game;
 
 use std::{
     thread,
@@ -52,7 +51,7 @@ use components::{
 };
 use resources::{FramesElapsed, ActionQueue, EventQueue, Event, Key};
 use ui::{Window, TextureManager, GameScreen, SDLError};
-use generator::GameGenerator;
+use generator::{GameGenerator, GenGame};
 use sprites::MapSprites;
 
 fn game_generator(tile_size: u32) -> GameGenerator {
@@ -74,42 +73,41 @@ fn game_generator(tile_size: u32) -> GameGenerator {
 fn main() -> Result<(), SDLError> {
     let fps = 30.0;
 
-    let mut renderer = Window::init(320, 240)?;
-    let texture_creator = renderer.texture_creator();
+    let mut window = Window::init(320, 240)?;
+    let texture_creator = window.texture_creator();
     let mut textures = TextureManager::new(&texture_creator);
-    let mut event_pump = renderer.event_pump()?;
+    let mut event_pump = window.event_pump()?;
 
     let tile_size = 16;
     let map_texture = textures.create_png_texture("assets/dungeon.png")?;
     let sprites = MapSprites::from_dungeon_spritesheet(map_texture, tile_size);
 
-    let mut dispatcher = DispatcherBuilder::new()
-        .with(systems::Keyboard::default(), "Keyboard", &[])
-        .with(systems::AI, "AI", &[])
-        .with(systems::Physics, "Physics", &["Keyboard", "AI"])
-        .with(systems::Interactions, "Interactions", &["Physics"])
-        .with(systems::Animator, "Animator", &["Interactions"])
-        .build();
-
-    let game = game_generator(tile_size).generate(|| {
+    let GenGame {key, levels, player_start} = game_generator(tile_size).generate(|| {
         let mut world = World::new();
 
         world.add_resource(FramesElapsed(1));
         world.add_resource(EventQueue::default());
         world.add_resource(ActionQueue::default());
 
+        let mut dispatcher = DispatcherBuilder::new()
+            .with(systems::Keyboard::default(), "Keyboard", &[])
+            .with(systems::AI, "AI", &[])
+            .with(systems::Physics, "Physics", &["Keyboard", "AI"])
+            .with(systems::Interactions, "Interactions", &["Physics"])
+            .with(systems::Animator, "Animator", &["Interactions"])
+            .build();
+
         dispatcher.setup(&mut world.res);
         // Renderer is not called in the dispatcher, so we need to separately set up the component
         // storages for anything it uses.
         ui::setup(&mut world.res);
 
-        world
+        (dispatcher, world)
     });
 
     // Add the character
     {
-        let first_level = game.current_level();
-        let character_center = game.game_start();
+        let first_level = levels.first().expect("bug: should be at least one level");
         let character_texture = textures.create_png_texture("assets/hero.png")?;
         let character_animations = AnimationManager::standard_character_animations(fps as usize, character_texture);
         first_level.create_entity()
@@ -117,7 +115,7 @@ fn main() -> Result<(), SDLError> {
             .with(CameraFocus)
             .with(Player)
             .with(HealthPoints(20))
-            .with(Position(character_center))
+            .with(Position(player_start))
             .with(BoundingBox::BottomHalf {width: 16, height: 8})
             .with(Movement::default())
             .with(Sprite(character_animations.default_sprite()))
@@ -129,10 +127,10 @@ fn main() -> Result<(), SDLError> {
     let game_screen = GameScreen::new(game);
 
     for (i, level) in game.levels().enumerate() {
-        level.render_to_file(format!("level{}.png", i+1))?;
+        game_screen.render_to_file(format!("level{}.png", i+1))?;
     }
 
-    let mut timer = renderer.timer()?;
+    let mut timer = window.timer()?;
 
     // Frames elapsed since the last render
     let mut last_frames_elapsed = 0;
@@ -172,7 +170,7 @@ fn main() -> Result<(), SDLError> {
 
             dispatcher.dispatch(&mut world.res);
 
-            renderer.render(&world, &textures, &sprites)?;
+            game_screen.render(window.canvas_mut(), &textures, &sprites)?;
             last_frames_elapsed = frames_elapsed;
 
             // Register any updates

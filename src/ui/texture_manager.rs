@@ -8,6 +8,8 @@ use sdl2::{
     render::{TextureCreator, Texture},
 };
 
+use ui::SDLError;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TextureId(usize);
 
@@ -35,13 +37,13 @@ impl<'a, T> TextureManager<'a, T> {
         &self.textures[index]
     }
 
-    pub fn create_png_texture<P: AsRef<Path>>(&mut self, path: P) -> Result<TextureId, String> {
+    pub fn create_png_texture<P: AsRef<Path>>(&mut self, path: P) -> Result<TextureId, SDLError> {
         let path = path.as_ref();
         if self.path_textures.contains_key(path) {
             return Ok(self.path_textures[path])
         }
 
-        let texture = self.texture_creator.load_texture(path)?;
+        let texture = self.texture_creator.load_texture(path).map_err(SDLError)?;
         self.textures.push(texture);
 
         let id = TextureId(self.textures.len() - 1);

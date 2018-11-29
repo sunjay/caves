@@ -1,4 +1,4 @@
-use rand::{rngs::StdRng, Rng};
+use rand::{rngs::StdRng, Rng, seq::SliceRandom};
 
 use super::{GameGenerator, TileRect, TilePos, GridSize};
 use sprites::{WallSprite, FLOOR_PATTERNS};
@@ -87,7 +87,7 @@ impl GameGenerator {
 
         let mut placed = Vec::new();
         'place_pattern: while remaining_tries > 0 {
-            let pattern = rng.choose(FLOOR_PATTERNS).unwrap();
+            let pattern = FLOOR_PATTERNS.choose(&mut rng).unwrap();
             let pat_rect = TileRect::new(
                 TilePos {
                     row: rng.gen_range(0, map.grid().rows_len()),
