@@ -13,7 +13,7 @@ use generator::GenLevel;
 use map::FloorMap;
 use resources::{FramesElapsed, Event, ActionQueue, EventQueue};
 
-use super::renderer;
+use super::renderer::{render_area, render_player_visible};
 use super::{TextureManager, SDLError};
 
 pub struct LevelScreen<'a, 'b> {
@@ -56,19 +56,19 @@ impl<'a, 'b> LevelScreen<'a, 'b> {
         let tile_size = 16;
         let sprites = MapSprites::from_dungeon_spritesheet(map_texture, tile_size);
 
-        render(level_boundary, &mut canvas, level_boundary.top_left(), &sprites, &textures,
+        render_area(self.world.system_data(), level_boundary, &mut canvas, &sprites, &textures,
             |_, _| true)?;
 
         canvas.into_surface().save(path).map_err(SDLError)?;
         Ok(())
     }
 
-    pub fn render<T: RenderTarget, U>(
+    pub fn render<T: RenderTarget>(
         &self,
         canvas: &mut Canvas<T>,
-        textures: &TextureManager<U>,
+        textures: &TextureManager<<T as RenderTarget>::Context>,
         map_sprites: &MapSprites,
     ) -> Result<(), SDLError> {
-        renderer::render(self.world.system_data(), canvas, textures, map_sprites)
+        render_player_visible(self.world.system_data(), canvas, textures, map_sprites)
     }
 }
