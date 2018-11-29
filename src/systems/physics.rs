@@ -1,7 +1,7 @@
 use sdl2::rect::Rect;
 use specs::{System, Join, ReadExpect, ReadStorage, WriteStorage, Entities, LazyUpdate};
 
-use components::{Movement, Position, Wait, BoundingBox};
+use components::{Movement, Position, Wait, BoundingBox, Ghost};
 use resources::FramesElapsed;
 use map::FloorMap;
 
@@ -15,6 +15,7 @@ pub struct PhysicsData<'a> {
     map: ReadExpect<'a, FloorMap>,
     movements: ReadStorage<'a, Movement>,
     bounding_boxes: ReadStorage<'a, BoundingBox>,
+    ghosts: ReadStorage<'a, Ghost>,
     waits: WriteStorage<'a, Wait>,
     positions: WriteStorage<'a, Position>,
     updater: ReadExpect<'a, LazyUpdate>,
@@ -26,7 +27,7 @@ impl<'a> System<'a> for Physics {
     type SystemData = PhysicsData<'a>;
 
     fn run(&mut self, data: Self::SystemData) {
-        let PhysicsData {entities, frames, map, movements, bounding_boxes, mut positions, mut waits, updater} = data;
+        let PhysicsData {entities, frames, map, movements, bounding_boxes, ghosts, mut positions, mut waits, updater} = data;
         let FramesElapsed(frames_elapsed) = *frames;
         let tile_size = map.tile_size();
 
@@ -62,8 +63,8 @@ impl<'a> System<'a> for Physics {
                         tile_size,
                     ));
                 let potential_collisions = potential_collisions
-                    .chain((&entities, &positions, &bounding_boxes).join()
-                    .filter_map(|(other, &Position(other_pos), &bounds_box)| {
+                    .chain((&entities, &positions, &bounding_boxes, !&ghosts).join()
+                    .filter_map(|(other, &Position(other_pos), &bounds_box, ())| {
                         // Do not collide with self
                         if entity == other { return None; }
 
