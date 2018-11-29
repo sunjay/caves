@@ -1,7 +1,12 @@
 //! Components for physics-related uses
 
-use specs::{Component, VecStorage, HashMapStorage};
+use specs::{Component, VecStorage, HashMapStorage, NullStorage};
 use sdl2::rect::{Point, Rect};
+
+/// An entity with this component does not count in collisions and can thus be rendered over
+#[derive(Debug, Default, Component)]
+#[storage(NullStorage)]
+pub struct Ghost;
 
 /// Represents the XY world coordinates of the center of an entity.
 ///

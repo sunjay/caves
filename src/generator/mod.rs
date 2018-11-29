@@ -12,7 +12,8 @@ mod validation;
 mod bounds;
 pub use self::bounds::*;
 
-use rand::{random, StdRng, Rng, SeedableRng};
+use rand::{random, rngs::StdRng, Rng, SeedableRng};
+use specs::World;
 use rayon::prelude::*;
 
 use map::*;

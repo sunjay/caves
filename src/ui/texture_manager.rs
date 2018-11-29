@@ -11,7 +11,7 @@ use sdl2::{
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TextureId(usize);
 
-// NOTE: Ideally, this would just be managed in the renderer, but we can't do that because
+// NOTE: Ideally, this would just be managed in the Window, but we can't do that because
 // we can't have a field in a struct that refers to another field. Textures are dependent
 // on the TextureCreator and they need to be stored separately in order for this to work.
 pub struct TextureManager<'a, T: 'a> {

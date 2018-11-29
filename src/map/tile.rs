@@ -1,43 +1,16 @@
 use super::{RoomId, SpriteImage, TileObject};
 use sprites::{MapSprites, FloorSprite, WallSprite, WallSpriteAlternate, TorchAnimation};
 
-#[derive(Debug, Clone)]
-pub enum WallDecoration {
-    Torch(TorchAnimation),
-    //TODO: Enemy spawn, arrow shooter, portal, spikes, etc.
-}
-
-impl PartialEq for WallDecoration {
-    fn eq(&self, other: &Self) -> bool {
-        use self::WallDecoration::*;
-        match (self, other) {
-            // Animation state does not matter for equality. This is important for the test that
-            // ensures that map generation is deterministic. With this, we can randomly vary the
-            // torch animation while still allowing two maps to count as the same.
-            (Torch(_), Torch(_)) => true,
-        }
-    }
-}
-
-impl WallDecoration {
-    pub fn torch() -> Self {
-        WallDecoration::Torch(TorchAnimation::default())
-    }
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum Tile {
     /// Tiles that can be traversed
     Floor {
         room_id: RoomId,
-        ///
-        object: Option<TileObject>,
         /// The floor sprite to use
         sprite: FloorSprite,
     },
     /// Tiles that cannot be traversed, not associated to a particular room
     Wall {
-        decoration: Option<WallDecoration>,
         // The wall sprite to use
         sprite: WallSprite,
     },
@@ -46,14 +19,14 @@ pub enum Tile {
 }
 
 impl Tile {
-    /// Creates a new floor tile with no object and the given sprite
+    /// Creates a new floor tile with the given sprite
     pub fn new_floor(room_id: RoomId, sprite: FloorSprite) -> Self {
-        Tile::Floor {room_id, object: None, sprite}
+        Tile::Floor {room_id, sprite}
     }
 
-    /// Creates a new wall tile with no decoration and the given sprite
+    /// Creates a new wall tile with the given sprite
     pub fn new_wall(sprite: WallSprite) -> Self {
-        Tile::Wall {decoration: None, sprite}
+        Tile::Wall {sprite}
     }
 
     /// Creates a new empty tile
@@ -68,22 +41,6 @@ impl Tile {
             Floor {sprite, ..} => &sprites.floor_sprite(sprite),
             Wall {sprite, ..} => &sprites.wall_sprite(sprite),
             Empty => sprites.empty_tile_sprite(),
-        }
-    }
-
-    /// Returns the sprite that should be drawn on top of the background of this sprite
-    pub fn foreground_sprite<'a>(&self, sprites: &'a MapSprites) -> Option<&'a SpriteImage> {
-        match self {
-            Tile::Floor {object: Some(object), ..} => match object {
-                &TileObject::ToNextLevel {direction, ..} => Some(sprites.staircase_down_sprite(direction)),
-                &TileObject::ToPrevLevel {direction, ..} => Some(sprites.staircase_up_sprite(direction)),
-                &TileObject::Door {state, orientation} => sprites.door_sprite(state, orientation),
-                _ => unimplemented!(),
-            },
-            Tile::Wall {decoration: Some(decoration), ..} => match decoration {
-                WallDecoration::Torch(animation) => Some(sprites.torch_sprite(animation.current_step())),
-            },
-            _ => None,
         }
     }
 

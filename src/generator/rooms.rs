@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use rand::{StdRng, Rng};
+use rand::{rngs::StdRng, Rng};
 
 use super::{MapGenerator, RanOutOfAttempts};
 use sprites::{FloorSprite, WallSprite};
