@@ -22,6 +22,7 @@ mod resources;
 mod map;
 mod ui;
 mod sprites;
+mod game;
 
 use std::{
     thread,
@@ -48,16 +49,14 @@ use components::{
     Sprite,
     AnimationManager,
     Player,
-    Enemy,
 };
 use resources::{FramesElapsed, ActionQueue, EventQueue, Event, Key};
-use texture_manager::TextureManager;
-use renderer::Renderer;
-use map::{MapGenerator, GameMap, EnemyState};
+use ui::{Window, TextureManager, GameScreen, SDLError};
+use generator::GameGenerator;
 use sprites::MapSprites;
 
-fn map_generator(tile_size: u32) -> MapGenerator {
-    MapGenerator {
+fn game_generator(tile_size: u32) -> GameGenerator {
+    GameGenerator {
         attempts: 2000,
         levels: 10,
         rows: 40,
@@ -75,27 +74,14 @@ fn map_generator(tile_size: u32) -> MapGenerator {
 fn main() -> Result<(), SDLError> {
     let fps = 30.0;
 
-    let mut renderer = Renderer::init(320, 240)?;
+    let mut renderer = Window::init(320, 240)?;
     let texture_creator = renderer.texture_creator();
     let mut textures = TextureManager::new(&texture_creator);
     let mut event_pump = renderer.event_pump()?;
 
-    let map_texture = textures.create_png_texture("assets/dungeon.png")?;
     let tile_size = 16;
+    let map_texture = textures.create_png_texture("assets/dungeon.png")?;
     let sprites = MapSprites::from_dungeon_spritesheet(map_texture, tile_size);
-
-    let map = map_generator(tile_size).generate();
-
-    for (i, level) in map.levels().enumerate() {
-        level.render_to_file(format!("level{}.png", i+1))?;
-    }
-
-    let mut world = World::new();
-
-    world.add_resource(map.clone());
-    world.add_resource(FramesElapsed(1));
-    world.add_resource(EventQueue::default());
-    world.add_resource(ActionQueue::default());
 
     let mut dispatcher = DispatcherBuilder::new()
         .with(systems::Keyboard::default(), "Keyboard", &[])
@@ -104,48 +90,46 @@ fn main() -> Result<(), SDLError> {
         .with(systems::Interactions, "Interactions", &["Physics"])
         .with(systems::Animator, "Animator", &["Interactions"])
         .build();
-    dispatcher.setup(&mut world.res);
-    // Renderer is not called in the dispatcher, so we need to separately set up the component
-    // storages for anything it uses.
-    Renderer::setup(&mut world.res);
+
+    let game = game_generator(tile_size).generate(|| {
+        let mut world = World::new();
+
+        world.add_resource(FramesElapsed(1));
+        world.add_resource(EventQueue::default());
+        world.add_resource(ActionQueue::default());
+
+        dispatcher.setup(&mut world.res);
+        // Renderer is not called in the dispatcher, so we need to separately set up the component
+        // storages for anything it uses.
+        ui::setup(&mut world.res);
+
+        world
+    });
 
     // Add the character
-    let character_center = map.game_start();
-    let character_texture = textures.create_png_texture("assets/hero.png")?;
-    let character_animations = AnimationManager::standard_character_animations(fps as usize, character_texture);
-    world.create_entity()
-        .with(KeyboardControlled)
-        .with(CameraFocus)
-        .with(Player)
-        .with(HealthPoints(20))
-        .with(Position(character_center))
-        .with(BoundingBox::BottomHalf {width: 16, height: 8})
-        .with(Movement::default())
-        .with(Sprite(character_animations.default_sprite()))
-        .with(character_animations.default_animation())
-        .with(character_animations)
-        .build();
-
-    let enemies: Vec<_> = {
-        let mut map = world.write_resource::<GameMap>();
-        let level = map.current_level_map_mut();
-        //TODO: No need to create and return this variable with NLL
-        let enemies = level.clear_enemies().collect();
-        enemies
-    };
-    for enemy in enemies {
-        // Explicitly pattern matching so that when this struct changes, rustc will tell us here
-        let EnemyState {position, health, bounding_box, movement, sprite, animation, animation_manager} = enemy;
-        world.create_entity()
-            .with(Enemy)
-            .with(position)
-            .with(health)
-            .with(bounding_box)
-            .with(movement)
-            .with(sprite)
-            .with(animation)
-            .with(animation_manager)
+    {
+        let first_level = game.current_level();
+        let character_center = game.game_start();
+        let character_texture = textures.create_png_texture("assets/hero.png")?;
+        let character_animations = AnimationManager::standard_character_animations(fps as usize, character_texture);
+        first_level.create_entity()
+            .with(KeyboardControlled)
+            .with(CameraFocus)
+            .with(Player)
+            .with(HealthPoints(20))
+            .with(Position(character_center))
+            .with(BoundingBox::BottomHalf {width: 16, height: 8})
+            .with(Movement::default())
+            .with(Sprite(character_animations.default_sprite()))
+            .with(character_animations.default_animation())
+            .with(character_animations)
             .build();
+    }
+
+    let game_screen = GameScreen::new(game);
+
+    for (i, level) in game.levels().enumerate() {
+        level.render_to_file(format!("level{}.png", i+1))?;
     }
 
     let mut timer = renderer.timer()?;
@@ -164,12 +148,14 @@ fn main() -> Result<(), SDLError> {
                     running = false;
                 },
                 SDLEvent::KeyDown {scancode: Some(scancode), repeat: false, ..} => {
-                    Key::from_scancode(scancode)
-                        .map(|scancode| events.push(Event::KeyDown(scancode)));
+                    if let Some(scancode) = Key::from_scancode(scancode) {
+                        events.push(Event::KeyDown(scancode));
+                    }
                 },
                 SDLEvent::KeyUp {scancode: Some(scancode), repeat: false, ..} => {
-                    Key::from_scancode(scancode)
-                        .map(|scancode| events.push(Event::KeyUp(scancode)));
+                    if let Some(scancode) = Key::from_scancode(scancode) {
+                        events.push(Event::KeyUp(scancode));
+                    }
                 },
                 _ => {},
             }

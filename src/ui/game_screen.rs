@@ -1,56 +1,49 @@
-use generator::MapKey;
-use super::LevelScreen;
+use std::path::Path;
 
-#[derive(Debug, Clone)]
+use sdl2::{
+    image::{SaveSurface},
+    pixels::{PixelFormatEnum},
+    surface::Surface,
+    render::{Canvas, RenderTarget},
+};
+
+use sprites::MapSprites;
+use game::Game;
+
+use super::renderer;
+use super::{TextureManager, SDLError};
+
 pub struct GameScreen {
-    key: MapKey,
-    levels: Vec<LevelScreen>,
-    current_level: usize,
+    game: Game,
 }
 
 impl GameScreen {
-    /// Returns the current level screen
-    pub fn current_level(&self) -> &LevelScreen {
-        &self.levels[self.current_level]
+    pub fn new(game: Game) -> Self {
+        GameScreen {game}
     }
 
-    /// Returns a mutable reference to the floor map of the current level
-    pub fn current_level_map_mut(&mut self) -> &mut FloorMap {
-        &mut self.levels[self.current_level]
+    /// Render the entire state of the level (the entire map) to the given filename.
+    ///
+    /// Useful for debugging. This function is fairly "slow", so use sparingly.
+    pub fn render_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), SDLError> {
+        let level_boundary = self.level_boundary();
+        let mut canvas = Surface::new(level_boundary.width(), level_boundary.height(),
+            PixelFormatEnum::RGBA8888)?.into_canvas()?;
+        let texture_creator = canvas.texture_creator();
+
+        let mut textures = TextureManager::new(&texture_creator);
+        let map_texture = textures.create_png_texture("assets/dungeon.png")?;
+        let tile_size = 16;
+        let sprites = MapSprites::from_dungeon_spritesheet(map_texture, tile_size);
+
+        self.render(level_boundary, &mut canvas, level_boundary.top_left(), &sprites, &textures,
+            |_, _| true)?;
+
+        canvas.into_surface().save(path)?;
+        Ok(())
     }
 
-    /// Advances to the next level. Panics if there is no next level
-    pub fn to_next_level(&mut self) {
-        self.current_level += 1;
-        assert!(self.current_level < self.levels.len(), "bug: advanced too many levels");
-    }
-
-    /// Goes back to the previous level. Panics if there is no previous level.
-    pub fn to_prev_level(&mut self) {
-        self.current_level = self.current_level.checked_sub(1)
-            .expect("bug: went back too many levels");
-    }
-
-    /// Returns an iterator of the game levels
-    pub fn levels(&self) -> impl Iterator<Item=&FloorMap> {
-        self.levels.iter()
-    }
-
-    /// Return the point that represents the start of the game. This point is always on the
-    /// first level and the player should only be spawned at this point on the first level.
-    pub fn game_start(&self) -> Point {
-        let first_level = self.levels.first().expect("bug: should be at least one level");
-
-        let (room_id, level_start_room) = first_level.rooms()
-            .find(|(_, room)| room.is_player_start())
-            .expect("bug: should have had a player start level on the first level");
-        // Start in the middle of the level start room
-        let center = level_start_room.boundary().center_tile();
-        assert!(first_level.grid().get(center).is_room_floor(room_id),
-            "bug: the center of the player start room was not a tile in that room");
-
-        let tile_size = first_level.tile_size();
-        // Start in the middle of the tile
-        center.to_point(tile_size as i32).offset(tile_size as i32/2, tile_size as i32/2)
+    pub fn render<T: RenderTarget>(&self, canvas: &mut Canvas<T>) -> Result<(), SDLError> {
+        renderer::render(self.game.current_level().system_data())
     }
 }

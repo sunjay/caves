@@ -40,8 +40,8 @@ pub fn setup(res: &mut Resources) {
 }
 
 pub fn render<T: RenderTarget>(
-    canvas: &mut Canvas<T>,
     data: RenderData,
+    canvas: &mut Canvas<T>,
     textures: &TextureManager<T>,
     map_sprites: &MapSprites,
 ) -> Result<(), SDLError> {
