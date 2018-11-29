@@ -11,6 +11,7 @@ use specs::{Dispatcher, World};
 use sprites::MapSprites;
 use generator::GenLevel;
 use map::FloorMap;
+use resources::{FramesElapsed, Event, ActionQueue, EventQueue};
 
 use super::renderer;
 use super::{TextureManager, SDLError};
@@ -27,6 +28,18 @@ impl<'a, 'b> From<GenLevel<'a, 'b>> for LevelScreen<'a, 'b> {
 }
 
 impl<'a, 'b> LevelScreen<'a, 'b> {
+    /// Dispatch the given events and update the state based on the frames that have elapsed
+    pub fn dispatch(&mut self, frames_elapsed: FramesElapsed, events: Vec<Event>) {
+        *self.world.write_resource::<FramesElapsed>() = frames_elapsed;
+        *self.world.write_resource::<ActionQueue>() = ActionQueue::default();
+        *self.world.write_resource::<EventQueue>() = EventQueue(events);
+
+        self.dispatcher.dispatch(&mut self.world.res);
+
+        // Register any updates
+        self.world.maintain();
+    }
+
     /// Render the entire state of the level (the entire map) to the given filename.
     ///
     /// Useful for debugging. This function is fairly "slow", so use sparingly.
@@ -50,10 +63,10 @@ impl<'a, 'b> LevelScreen<'a, 'b> {
         Ok(())
     }
 
-    pub fn render<T: RenderTarget>(
+    pub fn render<T: RenderTarget, U>(
         &self,
         canvas: &mut Canvas<T>,
-        textures: &TextureManager<T>,
+        textures: &TextureManager<U>,
         map_sprites: &MapSprites,
     ) -> Result<(), SDLError> {
         renderer::render(self.world.system_data(), canvas, textures, map_sprites)
