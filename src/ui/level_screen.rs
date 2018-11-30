@@ -11,7 +11,7 @@ use specs::{Dispatcher, World};
 use sprites::MapSprites;
 use generator::GenLevel;
 use map::FloorMap;
-use resources::{FramesElapsed, Event, ActionQueue, EventQueue};
+use resources::{FramesElapsed, Event, ChangeGameState, ActionQueue, EventQueue};
 
 use super::renderer::{render_area, render_player_visible};
 use super::{TextureManager, SDLError};
@@ -31,6 +31,7 @@ impl<'a, 'b> LevelScreen<'a, 'b> {
     /// Dispatch the given events and update the state based on the frames that have elapsed
     pub fn dispatch(&mut self, frames_elapsed: FramesElapsed, events: Vec<Event>) {
         *self.world.write_resource::<FramesElapsed>() = frames_elapsed;
+        *self.world.write_resource::<ChangeGameState>() = ChangeGameState::default();
         *self.world.write_resource::<ActionQueue>() = ActionQueue::default();
         *self.world.write_resource::<EventQueue>() = EventQueue(events);
 

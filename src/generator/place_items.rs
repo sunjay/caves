@@ -3,7 +3,7 @@ use specs::{World, Builder};
 
 use super::{GameGenerator, RanOutOfAttempts};
 use sprites::WallSprite;
-use components::{Position, Stairs, StairsDirection};
+use components::{Position, Ghost, BoundingBox, Sprite, Stairs, StairsDirection};
 use map::*;
 
 fn validate_chosen_staircase(grid: &TileGrid, pos: TilePos) -> bool {
@@ -45,8 +45,11 @@ impl GameGenerator {
             let pos = obj_pos.center(map.tile_size() as i32);
             let direction = StairsDirection::towards_target(wall_pos, obj_pos);
             world.create_entity()
+                .with(Ghost) // Allow the player to walk on top of stairs
                 .with(Position(pos))
+                .with(BoundingBox::Full {width: self.tile_size, height: self.tile_size})
                 .with(Stairs::ToNextLevel {id, direction})
+                .with(Sprite {/*TODO*/})
                 .build();
         };
         let placed = self.place_object_in_rooms(rng, map, valid_rooms, self.next_prev_tiles,

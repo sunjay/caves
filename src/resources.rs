@@ -85,6 +85,33 @@ impl Key {
     }
 }
 
+/// Resource that represents an intention to change the game state
+#[derive(Debug, Default)]
+pub struct ChangeGameState(Option<GameState>);
+
+impl ChangeGameState {
+    /// Replaces the
+    pub fn replace(&mut self, state: GameState) -> Option<GameState> {
+        //TODO: Can replace this with a single call to Option::replace once that is stablized.
+        // https://doc.rust-lang.org/std/option/enum.Option.html#method.replace
+        let prev = self.0.take();
+        self.0 = Some(state);
+        prev
+    }
+}
+
+/// Changes to the game state
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GameState {
+    /// Game should change to the next level (and move the player and its components there)
+    GoToNextLevel {id: usize},
+    /// Game should change to the previous level (and move the player and its components there)
+    GoToPrevLevel {id: usize},
+    /// Game should pause, but stay on the same level
+    Pause,
+    //TODO: PauseToShowMessage or something for when we want to show some info
+}
+
 /// Resource that represents any actions that have happened during the current frame.
 ///
 /// This queue resets every frame

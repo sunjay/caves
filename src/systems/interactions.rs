@@ -3,21 +3,79 @@
 use std::borrow::Cow;
 
 use sdl2::rect::Point;
-use specs::{System, Join, ReadExpect, WriteExpect, ReadStorage, WriteStorage, Entities};
+use specs::{Entity, System, Join, ReadExpect, WriteExpect, ReadStorage, WriteStorage, Entities};
 
-use components::{Position, Movement, MovementDirection, CameraFocus, HealthPoints};
-use resources::{ActionQueue, Action};
+use components::{
+    Position,
+    BoundingBox,
+    Movement,
+    MovementDirection,
+    Player,
+    Stairs,
+    Door,
+    HealthPoints,
+};
+use resources::{ActionQueue, Action, ChangeGameState, GameState};
 use map::FloorMap;
 
 #[derive(SystemData)]
 pub struct InteractionsData<'a> {
     entities: Entities<'a>,
+    change_game_state: WriteExpect<'a, ChangeGameState>,
     actions: ReadExpect<'a, ActionQueue>,
-    map: WriteExpect<'a, FloorMap>,
-    positions: WriteStorage<'a, Position>,
+    map: ReadExpect<'a, FloorMap>,
+    positions: ReadStorage<'a, Position>,
+    bounding_boxes: ReadStorage<'a, BoundingBox>,
     movements: ReadStorage<'a, Movement>,
-    camera_focuses: ReadStorage<'a, CameraFocus>,
+    players: ReadStorage<'a, Player>,
+    stairs: ReadStorage<'a, Stairs>,
+    doors: WriteStorage<'a, Door>,
     healths: WriteStorage<'a, HealthPoints>,
+}
+
+impl<'a> InteractionsData<'a> {
+    /// Attempts to interact with an entity adjacent to this entity in the given direction
+    pub fn interact_with_adjacent(&mut self, entity: Entity, pos: Point, direction: MovementDirection) {
+        for (other_entity, other_pos, other_bounds) in self.nearest_in_direction(entity, pos, direction) {
+            if self.doors.get(other_entity).is_some() {
+                self.doors.remove(other_entity);
+                break; // stop at the first interaction
+            }
+        }
+    }
+
+    /// Attempts to attack an entity adjacent to this entity in the given direction
+    pub fn attack_adjacent(&mut self, entity: Entity, pos: Point, direction: MovementDirection) {
+        for (other_entity, other_pos, other_bounds) in self.nearest_in_direction(entity, pos, direction) {
+            if self.doors.get(other_entity).is_some() {
+                self.doors.remove(other_entity);
+            }
+
+            //TODO: Attack any nearby entities in the given direction. Lower the HealthPoints
+            // component of anything that gets hit. Anyone nearby in the direction of the method
+            // should be hit.
+        }
+    }
+
+    /// Returns the nearest entities in the given direction. Only entities that are up to tile_size
+    /// away are returned. Result is sorted nearest to farthest.
+    fn nearest_in_direction(
+        &self,
+        entity: Entity,
+        pos: Point,
+        direction: MovementDirection,
+    ) -> Vec<(Entity, Point, Option<BoundingBox>)> {
+        //TODO: Maybe instead of a (tile_size)x(tile_size) box we should consider a custom radius.
+        // This might be useful because we know that attacks don't necessary take up the entire
+        // adjacent tile. We also don't want to interact with things that are too far away.
+        //TODO: Filter by entity != other_entity so the entity being searched for isn't returned.
+        //TODO: If entity has a bounding box, start from the `direction` side of that box and
+        // construct a Rect of dimensions (tile_size)x(tile_size) in the given direction
+        //TODO: If both entity and other_entity have bounding boxes, we need to use those to find
+        // the distance instead of just the point itself. The algorithm will find the distance
+        // between two rectangles instead of just two points
+        unimplemented!();
+    }
 }
 
 #[derive(Default)]
@@ -29,12 +87,16 @@ impl<'a> System<'a> for Interactions {
     fn run(&mut self, data: Self::SystemData) {
         let InteractionsData {
             entities,
+            mut change_game_state,
             actions,
-            mut map,
-            mut positions,
+            map,
+            positions,
+            bounding_boxes,
             movements,
-            camera_focuses,
-            healths,
+            players,
+            stairs,
+            mut healths,
+            ..
         } = data;
 
         for (entity, &Position(pos), &Movement {direction, ..}) in (&*entities, &positions, &movements).join() {
@@ -43,120 +105,30 @@ impl<'a> System<'a> for Interactions {
             for action in actions.iter() {
                 use self::Action::*;
                 match action {
-                    Interact => self.interact_with_tile(&mut map, pos, direction),
-                    Attack => self.attack_tile(&mut map, pos, direction),
+                    Interact => data.interact_with_adjacent(entity, pos, direction),
+                    Attack => data.attack_adjacent(entity, pos, direction),
                     // None of these has anything to do with an adjacent tile
                     Hit | Victory | Defeat => {},
                 }
             }
         }
 
-        // If the camera focus has entered a special tile, we may need to perform an action
-
-        // Used to center the camera focus at its destination tile
-        let half_tile_size = map.current_level_map().tile_size() as i32 / 2;
-        let tile_center = Point::new(half_tile_size, half_tile_size);
-        for (Position(ref mut pos), _) in (&mut positions, &camera_focuses).join() {
-            {
-                // Check if we stepped on a ToNextLevel tile
-                let next_level_id = {
-                    let level = map.current_level_map();
-                    let pos = level.world_to_tile_pos(*pos);
-                    level.grid().get(pos).to_next_level_id()
-                };
-                if let Some(id) = next_level_id {
-                    map.to_next_level();
-
-                    let level = map.current_level_map();
-                    // Find the opposite gate with the same ID
-                    let tile_pos = level.grid().find_to_prev_level(id)
-                        .expect("bug: could not find matching previous level gate");
-                    // Find the only traversable adjacent
-                    let target_pos = level.grid().adjacent_positions(tile_pos)
-                        .find(|&pt| level.grid().get(pt).is_traversable())
-                        .expect("bug: no traversable tile beside ToPrevLevel gate");
-                    *pos = target_pos.top_left(level.tile_size() as i32) + tile_center;
+        // If the player is intersecting with anything interesting, we may be need to do something
+        for (&Position(pos), bounds, _) in (&positions, &bounding_boxes, &players).join() {
+            let player_box = bounds.to_rect(pos);
+            for (other_entity, &Position(other_pos), other_bounds, ()) in (&*entities, &positions, &bounding_boxes, !&players).join() {
+                let other_box = other_bounds.to_rect(other_pos);
+                if player_box.has_intersection(other_box) {
+                    // If player entered a staircase, we need to move to the next/prev level
+                    if let Some(staircase) = stairs.get(other_entity) {
+                        let change = match staircase {
+                            &Stairs::ToNextLevel {id, ..} => GameState::GoToNextLevel {id},
+                            &Stairs::ToPrevLevel {id, ..} => GameState::GoToPrevLevel {id},
+                        };
+                        change_game_state.replace(change);
+                    }
                 }
             }
-
-            {
-                // Check if we stepped on a ToPrevLevel tile
-                let prev_level_id = {
-                    let level = map.current_level_map();
-                    let pos = level.world_to_tile_pos(*pos);
-                    level.grid().get(pos).to_prev_level_id()
-                };
-                if let Some(id) = prev_level_id {
-                    map.to_prev_level();
-
-                    let level = map.current_level_map();
-                    // Find the opposite gate with the same ID
-                    let tile_pos = level.grid().find_to_next_level(id)
-                        .expect("bug: could not find matching next level gate");
-                    // Find the only traversable adjacent
-                    let target_pos = level.grid().adjacent_positions(tile_pos)
-                        .find(|&pt| level.grid().get(pt).is_traversable())
-                        .expect("bug: no traversable tile beside ToNextLevel gate");
-                    *pos = target_pos.top_left(level.tile_size() as i32) + tile_center;
-                }
-            }
-        }
-    }
-}
-
-impl Interactions {
-    /// Process a request to interact with an adjacent tile
-    fn interact_with_tile(&mut self, map: &mut GameMap, pos: Point, direction: MovementDirection) {
-        let level = map.current_level_map_mut();
-
-        // The tile underneath this position
-        let pos_tile = level.world_to_tile_pos(pos);
-
-        // The tile adjacent to the current position that we will be interacting with
-        use self::MovementDirection::*;
-        let adjacent = match direction {
-            North => pos_tile.adjacent_north(),
-            South => pos_tile.adjacent_south(level.grid().rows_len()),
-            East => pos_tile.adjacent_east(level.grid().cols_len()),
-            West => pos_tile.adjacent_west(),
-        };
-
-        match adjacent.and_then(|adj| level.grid_mut().get_mut(adj).object_mut()) {
-            // Open a door that was previously closed
-            Some(TileObject::Door {state: state@Door::Closed, ..}) => *state = Door::Open,
-            _ => {},
-        }
-    }
-
-    /// Attack the adjacent tile in the given direction
-    fn attack_tile(&mut self, map: &mut GameMap, pos: Point, direction: MovementDirection) {
-        let level = map.current_level_map_mut();
-
-        // The tile underneath this position
-        let pos_tile = level.world_to_tile_pos(pos);
-
-        // The tile adjacent to the current position that we will be interacting with
-        use self::MovementDirection::*;
-        let adjacent = match direction {
-            North => pos_tile.adjacent_north(),
-            South => pos_tile.adjacent_south(level.grid().rows_len()),
-            East => pos_tile.adjacent_east(level.grid().cols_len()),
-            West => pos_tile.adjacent_west(),
-        };
-
-        if let Some(adj) = adjacent {
-            match level.grid_mut().get_mut(adj).object_mut() {
-                // Break open a closed door
-                Some(TileObject::Door {state: state@Door::Closed, ..}) => *state = Door::Open,
-                _ => {},
-            }
-
-            //TODO: Attack any nearby entities in the given direction. Lower the HealthPoints
-            // component of anything that gets hit. This is complicated because we can't just look
-            // for entities that we are currently colliding with. We need to properly account for
-            // how some entities may just be "nearby". We also can't just use whatever entity is
-            // within the adjacent tile because there are subtle edge cases where two entities are
-            // actually far from each other but still in adjacent tiles.
         }
     }
 }
