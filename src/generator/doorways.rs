@@ -5,7 +5,7 @@ use specs::{World, Builder};
 
 use super::GameGenerator;
 use sprites::{FloorSprite, WallSpriteAlternate};
-use components::{Position, Door, HoriVert};
+use components::{Position, BoundingBox, Sprite, Door, HoriVert};
 use map::*;
 
 impl GameGenerator {
@@ -66,10 +66,13 @@ impl GameGenerator {
             map.grid_mut().get_mut(edge).become_floor(room_id, FloorSprite::default());
 
             // Place a door on top of the floor tile
-            let pos = edge.center(map.tile_size() as i32);
+            let tile_size = map.tile_size();
+            let pos = edge.center(tile_size as i32);
             world.create_entity()
                 .with(Position(pos))
                 .with(Door {orientation})
+                .with(BoundingBox::Full {width: tile_size, height: tile_size})
+                .with(Sprite {/*TODO*/})
                 .build();
 
             if orientation == HoriVert::Horizontal {
