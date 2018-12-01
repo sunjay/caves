@@ -5,10 +5,10 @@ use specs::{World, Builder};
 
 use super::GameGenerator;
 use map_sprites::{FloorSprite, WallSpriteAlternate};
-use components::{Position, BoundingBox, Sprite, Door, HoriVert};
+use components::{Position, BoundingBox, Sprite, Door};
 use map::*;
 
-impl GameGenerator {
+impl<'a> GameGenerator<'a> {
     pub(in super) fn connect_rooms(&self, rng: &mut StdRng, map: &mut FloorMap, world: &mut World) {
         // A mapping from the rooms that were connected to the edge tile that connected them
         let mut connected_rooms = HashMap::new();
@@ -56,9 +56,9 @@ impl GameGenerator {
             }
             // This code assumes that entrances are of width 1. We expect them to have walls either
             // in the same row or in the same column, never both.
-            let orientation = match (row_walls, col_walls) {
-                (2, 0) => HoriVert::Horizontal,
-                (0, 2) => HoriVert::Vertical,
+            let (is_horizontal, sprite) = match (row_walls, col_walls) {
+                (2, 0) => (true, self.sprites.door_horizontal()),
+                (0, 2) => (false, self.sprites.door_vertical()),
                 _ => unreachable!("bug: entrance did not have expected walls"),
             };
 
@@ -70,12 +70,12 @@ impl GameGenerator {
             let pos = edge.center(tile_size as i32);
             world.create_entity()
                 .with(Position(pos))
-                .with(Door {orientation})
+                .with(Door)
                 .with(BoundingBox::Full {width: tile_size, height: tile_size})
-                .with(Sprite {/*TODO*/})
+                .with(Sprite(sprite))
                 .build();
 
-            if orientation == HoriVert::Horizontal {
+            if is_horizontal {
                 // Place entrance walls
                 for adj in map.grid().adjacent_positions(edge) {
                     let tile = map.grid_mut().get_mut(adj);

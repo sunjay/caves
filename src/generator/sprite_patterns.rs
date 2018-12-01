@@ -1,14 +1,13 @@
 use rand::{rngs::StdRng, Rng, seq::SliceRandom};
-use specs::{World, ReadStorage, Join};
-use sdl2::rect::Rect;
+use specs::{World, Builder};
 
 use super::{GameGenerator, TileRect, TilePos, GridSize};
 use super::world_helpers::world_contains_any_entity;
 use map_sprites::{WallSprite, WallSpriteAlternate, FLOOR_PATTERNS};
-use components::{Position, WallDecoration};
+use components::{Position, Animation, Sprite};
 use map::*;
 
-impl GameGenerator {
+impl<'a> GameGenerator<'a> {
     pub(in super) fn layout_floor_wall_sprites(&self, rng: &mut StdRng, map: &mut FloorMap) {
         self.layout_wall_sprites(rng, map);
         self.layout_floor_sprites(rng, map);
@@ -122,8 +121,16 @@ impl GameGenerator {
                 can_torch += 1;
                 if can_torch % torch_frequency == torch_frequency / 2 {
                     map.grid_mut().get_mut(pos).wall_sprite_mut().alt = WallSpriteAlternate::TorchLit;
-                    //TODO: Add Sprite + Animation component to world for torch animation
-                    //TODO: This will result in TorchSprite and TorchAnimation going away
+
+                    let pos = pos.center(map.tile_size() as i32);
+                    let mut torch_animation = self.sprites.torch_animation().clone();
+                    // Able to use the thread rng here because this does NOT need to be deterministic
+                    torch_animation.current_step = rand::thread_rng().gen_range(0, torch_animation.steps.len());
+                    world.create_entity()
+                        .with(Position(pos))
+                        .with(Sprite(torch_animation.current_sprite()))
+                        .with(torch_animation)
+                        .build();
                 }
             }
         }

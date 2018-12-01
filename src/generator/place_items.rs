@@ -5,7 +5,7 @@ use super::{GameGenerator, RanOutOfAttempts};
 use super::world_helpers::world_contains_any_entity;
 use map::TilePos;
 use map_sprites::WallSprite;
-use components::{Position, Ghost, BoundingBox, Sprite, Stairs, StairsDirection};
+use components::{Position, Ghost, BoundingBox, Sprite, Stairs};
 use map::*;
 
 fn validate_chosen_staircase(grid: &TileGrid, world: &World, pos: TilePos, tile_size: u32) -> bool {
@@ -40,7 +40,7 @@ fn validate_chosen_staircase(grid: &TileGrid, world: &World, pos: TilePos, tile_
     open_sides == 1
 }
 
-impl GameGenerator {
+impl<'a> GameGenerator<'a> {
     pub(in super) fn place_to_next_level_tiles(
         &self,
         rng: &mut StdRng,
@@ -51,17 +51,8 @@ impl GameGenerator {
         // Can only place on vertical edge since we only have sprites for tiles adjacent to those
         let next_pos = |rng: &mut StdRng, rect: TileRect| rect.random_right_vertical_edge_tile(rng);
 
-        let place_object = |world: &mut World, map: &FloorMap, id, obj_pos: TilePos, wall_pos| {
-            let pos = obj_pos.center(map.tile_size() as i32);
-            // Want to face away from the wall
-            let direction = StairsDirection::towards_target(wall_pos, obj_pos);
-            world.create_entity()
-                .with(Ghost) // Allow the player to walk on top of stairs
-                .with(Position(pos))
-                .with(BoundingBox::Full {width: self.tile_size, height: self.tile_size})
-                .with(Stairs::ToNextLevel {id, direction})
-                .with(Sprite {/*TODO*/})
-                .build();
+        let place_object = |world, map, obj_pos, wall_pos, id| {
+            self.place_stairs(world, map, obj_pos, wall_pos, Stairs::ToNextLevel {id})
         };
         let placed = self.place_object_in_rooms(rng, map, world, valid_rooms, self.next_prev_tiles,
             next_pos, validate_chosen_staircase, place_object)?;
@@ -79,22 +70,44 @@ impl GameGenerator {
         // Can only place on vertical edge since we only have sprites for tiles adjacent to those
         let next_pos = |rng: &mut StdRng, rect: TileRect| rect.random_left_vertical_edge_tile(rng);
 
-        let place_object = |world: &mut World, map: &FloorMap, id, obj_pos: TilePos, wall_pos| {
-            let pos = obj_pos.center(map.tile_size() as i32);
-            // Want to face away from the wall
-            let direction = StairsDirection::towards_target(wall_pos, obj_pos);
-            world.create_entity()
-                .with(Ghost) // Allow the player to walk on top of stairs
-                .with(Position(pos))
-                .with(BoundingBox::Full {width: self.tile_size, height: self.tile_size})
-                .with(Stairs::ToPrevLevel {id, direction})
-                .with(Sprite {/*TODO*/})
-                .build();
+        let place_object = |world, map, obj_pos, wall_pos, id| {
+            self.place_stairs(world, map, obj_pos, wall_pos, Stairs::ToPrevLevel {id})
         };
         let placed = self.place_object_in_rooms(rng, map, world, valid_rooms, self.next_prev_tiles,
             next_pos, validate_chosen_staircase, place_object)?;
         self.surround_stairways(&placed, map);
         Ok(())
+    }
+
+    fn place_stairs(
+        &self,
+        world: &mut World,
+        map: &FloorMap,
+        obj_pos: TilePos,
+        wall_pos: TilePos,
+        stairs: Stairs,
+    ) {
+        let pos = obj_pos.center(map.tile_size() as i32);
+        // Want to face away from the wall
+        let stairs_entrance_to_right = match wall_pos.difference(obj_pos) {
+            (0, 0) => unreachable!("bug: a position cannot face itself"),
+            (0, a) if a > 0 => true,
+            (0, a) if a < 0 => false,
+            _ => unreachable!("bug: stairs only support facing left or right"),
+        };
+        let sprite = match stairs {
+            Stairs::ToNextLevel {..} if stairs_entrance_to_right => self.sprites.staircase_down_right(),
+            Stairs::ToNextLevel {..} => self.sprites.staircase_down_left(),
+            Stairs::ToPrevLevel {..} if stairs_entrance_to_right => self.sprites.staircase_up_right(),
+            Stairs::ToPrevLevel {..} => self.sprites.staircase_up_left(),
+        };
+        world.create_entity()
+            .with(Ghost) // Allow the player to walk on top of stairs
+            .with(Position(pos))
+            .with(BoundingBox::Full {width: self.tile_size, height: self.tile_size})
+            .with(stairs)
+            .with(Sprite(sprite))
+            .build();
     }
 
     /// Ensures that there is a wall on each side of a staircase
@@ -111,16 +124,16 @@ impl GameGenerator {
     }
 
     /// Places `nrooms` copies of a TileObject into `nrooms` randomly choosen rooms from rooms
-    fn place_object_in_rooms(
+    fn place_object_in_rooms<'b>(
         &self,
         rng: &mut StdRng,
-        map: &FloorMap,
-        world: &mut World,
+        map: &'b FloorMap,
+        world: &'b mut World,
         room_filter: impl FnMut(&(RoomId, &Room)) -> bool,
         nrooms: usize,
         mut next_pos: impl FnMut(&mut StdRng, TileRect) -> TilePos,
-        mut extra_validation: impl FnMut(&TileGrid, &World, TilePos, u32) -> bool,
-        mut place_object: impl FnMut(&mut World, &FloorMap, usize, TilePos, TilePos),
+        mut extra_validation: impl FnMut(&'b TileGrid, &'b World, TilePos, u32) -> bool,
+        mut place_object: impl FnMut(&'b mut World, &'b FloorMap, TilePos, TilePos, usize),
     ) -> Result<Vec<TilePos>, RanOutOfAttempts> {
         // To do this using choose we would need to allocate anyway, so we might as well just use
         // shuffle to do all the random choosing at once
@@ -174,7 +187,7 @@ impl GameGenerator {
                 }
 
                 let tile = grid.get_mut(inner_room_tile);
-                place_object(world, map, placed.len(), inner_room_tile, pos);
+                place_object(world, map, inner_room_tile, pos, placed.len());
                 placed.push(inner_room_tile);
             }
         }

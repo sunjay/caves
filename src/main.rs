@@ -56,7 +56,7 @@ use ui::{Window, GameScreen, SDLError};
 use generator::{GameGenerator, GenGame};
 use map_sprites::MapSprites;
 
-fn game_generator(tile_size: u32) -> GameGenerator {
+fn game_generator(tile_size: u32, map_sprites: &MapSprites) -> GameGenerator {
     GameGenerator {
         attempts: 2000,
         levels: 10,
@@ -69,6 +69,7 @@ fn game_generator(tile_size: u32) -> GameGenerator {
         max_overlap: 0.35,
         doors: (1, 3).into(),
         next_prev_tiles: 2,
+        sprites: map_sprites,
     }
 }
 
@@ -85,7 +86,7 @@ fn main() -> Result<(), SDLError> {
     let map_texture = textures.create_png_texture("assets/dungeon.png")?;
     let map_sprites = MapSprites::from_dungeon_spritesheet(map_texture, &mut sprites, tile_size);
 
-    let GenGame {key, levels, player_start} = game_generator(tile_size).generate(|| {
+    let GenGame {key, levels, player_start} = game_generator(tile_size, &map_sprites).generate(|| {
         let mut world = World::new();
 
         world.add_resource(FramesElapsed(1));
@@ -110,7 +111,9 @@ fn main() -> Result<(), SDLError> {
 
     // Add the character
     {
-        let first_level = levels.first().expect("bug: should be at least one level").world_mut();
+        let first_level = levels.first().as_mut()
+            .expect("bug: should be at least one level")
+            .world_mut();
         let character_texture = textures.create_png_texture("assets/hero.png")?;
         let character_animations = AnimationManager::standard_character_animations(fps as usize, character_texture, &mut sprites);
         first_level.create_entity()
@@ -127,10 +130,10 @@ fn main() -> Result<(), SDLError> {
             .build();
     }
 
-    let game_screen = GameScreen::new(player_start, levels);
+    let mut game_screen = GameScreen::new(player_start, levels);
 
     for (i, level) in game_screen.levels().enumerate() {
-        game_screen.render_to_file(format!("level{}.png", i+1))?;
+        level.render_to_file(format!("level{}.png", i+1))?;
     }
 
     let mut timer = window.timer()?;
@@ -191,7 +194,7 @@ mod tests {
     fn map_generation() {
         // See if we can generate lots of maps without failing
         (0..500).into_par_iter().for_each(|_| {
-            game_generator(16).generate(Default::default);
+            game_generator(16, unimplemented!()).generate(Default::default);
         });
     }
 
@@ -200,8 +203,8 @@ mod tests {
         (0..10).into_par_iter().for_each(|_| {
             // The same key should produce the same map over and over again
             let key = random();
-            let map1 = game_generator(16).generate_with_key(key);
-            let map2 = game_generator(16).generate_with_key(key);
+            let map1 = game_generator(16, unimplemented!()).generate_with_key(key);
+            let map2 = game_generator(16, unimplemented!()).generate_with_key(key);
             assert_eq!(map1, map2);
         });
     }

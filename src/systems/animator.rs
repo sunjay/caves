@@ -150,7 +150,7 @@ impl<'a> System<'a> for Animator {
             }
 
             // Update the sprite with the current step
-            sprite.update_from_frame(&animation.steps[animation.current_step]);
+            sprite.0 = animation.current_sprite();
         }
     }
 }
