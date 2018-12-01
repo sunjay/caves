@@ -168,7 +168,7 @@ fn main() -> Result<(), SDLError> {
         // At least one frame must have passed for us to do anything
         if frames_elapsed_delta >= 1 {
             game_screen.dispatch(FramesElapsed(frames_elapsed_delta), events.drain(..).collect());
-            game_screen.render(window.canvas_mut(), &textures, &map_sprites)?;
+            game_screen.render(window.canvas_mut(), &textures, &sprites, &map_sprites)?;
             last_frames_elapsed = frames_elapsed;
         } else {
             let ms_per_frame = (1000.0 / fps) as u64;

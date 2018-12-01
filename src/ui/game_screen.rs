@@ -5,7 +5,7 @@ use sdl2::{rect::Point, render::{Canvas, RenderTarget}};
 use map_sprites::MapSprites;
 use generator::GenLevel;
 use resources::{FramesElapsed, Event};
-use assets::TextureManager;
+use assets::{TextureManager, SpriteManager};
 
 use super::{SDLError, LevelScreen};
 
@@ -58,12 +58,13 @@ impl<'a, 'b> GameScreen<'a, 'b> {
         self.current_level().render_to_file(path)
     }
 
-    pub fn render<T: RenderTarget, U>(
+    pub fn render<T: RenderTarget>(
         &self,
         canvas: &mut Canvas<T>,
-        textures: &TextureManager<U>,
+        textures: &TextureManager<<T as RenderTarget>::Context>,
+        sprites: &SpriteManager,
         map_sprites: &MapSprites,
     ) -> Result<(), SDLError> {
-        self.current_level().render(canvas, textures, map_sprites)
+        self.current_level().render(canvas, textures, sprites, map_sprites)
     }
 }
