@@ -129,16 +129,6 @@ impl TileGrid {
         ))
     }
 
-    /// Attempts to find a ToPrevLevel tile with the given ID
-    pub fn find_to_prev_level(&self, id: usize) -> Option<TilePos> {
-        self.tile_positions().find(|&pos| self.get(pos).is_to_prev_level_id(id))
-    }
-
-    /// Attempts to find a ToNextLevel tile with the given ID
-    pub fn find_to_next_level(&self, id: usize) -> Option<TilePos> {
-        self.tile_positions().find(|&pos| self.get(pos).is_to_next_level_id(id))
-    }
-
     /// Returns an iterator of tile positions adjacent to the given tile in the four cardinal
     /// directions. Only returns valid cell positions.
     pub fn adjacent_positions(&self, pos: TilePos) -> impl Iterator<Item=TilePos> {

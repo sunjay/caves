@@ -31,7 +31,6 @@ impl<'a> System<'a> for AI {
             enemies,
             waits,
         } = data;
-        let level = map.current_level_map();
 
         for (entity, movement, _, ()) in (&entities, &mut movements, &enemies, !&waits).join() {
         }

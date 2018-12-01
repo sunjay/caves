@@ -152,29 +152,29 @@ impl MapSprites {
         }
     }
 
-    pub fn empty_tile_sprite(&self) -> &SpriteId {
+    pub fn empty_tile_sprite(&self) -> SpriteId {
         self.floor_sprite(FloorSprite::Floor4)
     }
 
-    pub fn floor_sprite(&self, sprite: FloorSprite) -> &SpriteId {
+    pub fn floor_sprite(&self, sprite: FloorSprite) -> SpriteId {
         use self::FloorSprite::*;
         match sprite {
-            Floor1 => &self.floor_tiles[0],
-            Floor2 => &self.floor_tiles[1],
-            Floor3 => &self.floor_tiles[2],
-            Floor4 => &self.floor_tiles[3],
-            Floor5 => &self.floor_tiles[4],
-            Floor6 => &self.floor_tiles[5],
-            Floor7 => &self.floor_tiles[6],
-            Floor8 => &self.floor_tiles[7],
-            Floor9 => &self.floor_tiles[8],
-            Floor10 => &self.floor_tiles[9],
-            Floor11 => &self.floor_tiles[10],
-            Floor12 => &self.floor_tiles[11],
+            Floor1 => self.floor_tiles[0],
+            Floor2 => self.floor_tiles[1],
+            Floor3 => self.floor_tiles[2],
+            Floor4 => self.floor_tiles[3],
+            Floor5 => self.floor_tiles[4],
+            Floor6 => self.floor_tiles[5],
+            Floor7 => self.floor_tiles[6],
+            Floor8 => self.floor_tiles[7],
+            Floor9 => self.floor_tiles[8],
+            Floor10 => self.floor_tiles[9],
+            Floor11 => self.floor_tiles[10],
+            Floor12 => self.floor_tiles[11],
         }
     }
 
-    pub fn wall_sprite(&self, sprite: WallSprite) -> &SpriteId {
+    pub fn wall_sprite(&self, sprite: WallSprite) -> SpriteId {
         macro_rules! w {
             (N: $n:pat, E: $e:pat, S: $s:pat, W: $w:pat, alt: $a:pat) => {
                 WallSprite {wall_north: $n, wall_east: $e, wall_south: $s, wall_west: $w, alt: $a}
@@ -187,7 +187,7 @@ impl MapSprites {
             };
         }
 
-        let s = |n| &self.wall_tiles[n];
+        let s = |n| self.wall_tiles[n];
 
         use self::WallSpriteAlternate::*;
         match sprite {
@@ -225,40 +225,40 @@ impl MapSprites {
         }
     }
 
-    pub fn staircase_up_sprite(&self, direction: StairsDirection) -> &SpriteId {
+    pub fn staircase_up_sprite(&self, direction: StairsDirection) -> SpriteId {
         use self::StairsDirection::*;
         match direction {
-            Right => &self.staircase_up_tiles[0],
-            Left => &self.staircase_up_tiles[1],
+            Right => self.staircase_up_tiles[0],
+            Left => self.staircase_up_tiles[1],
         }
     }
 
-    pub fn staircase_down_sprite(&self, direction: StairsDirection) -> &SpriteId {
+    pub fn staircase_down_sprite(&self, direction: StairsDirection) -> SpriteId {
         use self::StairsDirection::*;
         match direction {
-            Right => &self.staircase_down_tiles[0],
-            Left => &self.staircase_down_tiles[1],
+            Right => self.staircase_down_tiles[0],
+            Left => self.staircase_down_tiles[1],
         }
     }
 
-    pub fn door_sprite(&self, state: Door, orientation: HoriVert) -> Option<&SpriteId> {
+    pub fn door_sprite(&self, state: Door, orientation: HoriVert) -> Option<SpriteId> {
         match (state, orientation) {
             (Door::Locked, HoriVert::Horizontal) |
-            (Door::Closed, HoriVert::Horizontal) => Some(&self.door_tiles[0]),
+            (Door::Closed, HoriVert::Horizontal) => Some(self.door_tiles[0]),
             (Door::Locked, HoriVert::Vertical) |
-            (Door::Closed, HoriVert::Vertical) => Some(&self.door_tiles[1]),
+            (Door::Closed, HoriVert::Vertical) => Some(self.door_tiles[1]),
             // Just hide open doors (tried rendering a sprite for this but it didn't work out)
             (Door::Open, _) => None,
         }
     }
 
-    pub fn torch_sprite(&self, frame: TorchSprite) -> &SpriteId {
+    pub fn torch_sprite(&self, frame: TorchSprite) -> SpriteId {
         use self::TorchSprite::*;
         match frame {
-            Torch1 => &self.torch_tiles[0],
-            Torch2 => &self.torch_tiles[1],
-            Torch3 => &self.torch_tiles[2],
-            Torch4 => &self.torch_tiles[3],
+            Torch1 => self.torch_tiles[0],
+            Torch2 => self.torch_tiles[1],
+            Torch3 => self.torch_tiles[2],
+            Torch4 => self.torch_tiles[3],
         }
     }
 }

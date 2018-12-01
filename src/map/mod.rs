@@ -55,15 +55,12 @@ impl fmt::Debug for FloorMap {
             for tile in row {
                 use self::Tile::*;
                 write!(f, "{}", match tile {
-                    &Floor {room_id, ref object, ..} => {
-                        let object = object.as_ref().map(|object| object.to_string())
-                            .unwrap_or_else(|| " ".to_string());
-
+                    &Floor {room_id, ..} => {
                         match self.room(room_id).room_type() {
-                            RoomType::Normal => object.on_blue(),
-                            RoomType::Challenge => object.on_red(),
-                            RoomType::PlayerStart => object.on_bright_blue(),
-                            RoomType::TreasureChamber => object.on_yellow(),
+                            RoomType::Normal => " ".on_blue(),
+                            RoomType::Challenge => " ".on_red(),
+                            RoomType::PlayerStart => " ".on_bright_blue(),
+                            RoomType::TreasureChamber => " ".on_yellow(),
                         }
                     },
                     Wall {..} => "\u{25a2}".on_black(),
@@ -84,7 +81,6 @@ impl FloorMap {
         FloorMap {
             grid: TileGrid::new(size),
             rooms: Vec::new(),
-            enemies: Vec::new(),
             tile_size,
         }
     }
