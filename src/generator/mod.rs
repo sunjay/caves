@@ -21,6 +21,7 @@ use sdl2::rect::Point;
 use rayon::prelude::*;
 
 use map::*;
+use map_sprites::MapSprites;
 
 pub struct GenLevel<'a, 'b> {
     pub world: World,
@@ -68,7 +69,7 @@ impl<'a, 'b> GenGame<'a, 'b> {
 #[derive(Debug, Clone, Copy)]
 struct RanOutOfAttempts;
 
-pub struct GameGenerator {
+pub struct GameGenerator<'a> {
     /// The number of attempts before giving up on placing something randomly
     ///
     /// After this many attempts, the level generator will give up and generate a new seed based
@@ -102,14 +103,16 @@ pub struct GameGenerator {
     /// This will create `next_prev_tiles` number of ToNextLevel tiles and
     /// `next_prev_tiles` number of ToPrevLevel tiles
     pub next_prev_tiles: usize,
+    /// Sprites from the spritesheet
+    pub sprites: &'a MapSprites,
 }
 
-impl GameGenerator {
-    pub fn generate<'a, 'b>(self, setup_world: impl Fn() -> (Dispatcher<'a, 'b>, World)) -> GenGame<'a, 'b> {
+impl<'a> GameGenerator<'a> {
+    pub fn generate<'b, 'c>(self, setup_world: impl Fn() -> (Dispatcher<'b, 'c>, World)) -> GenGame<'b, 'c> {
         self.generate_with_key(random(), setup_world)
     }
 
-    pub fn generate_with_key<'a, 'b>(self, key: MapKey, setup_world: impl Fn() -> (Dispatcher<'a, 'b>, World)) -> GenGame<'a, 'b> {
+    pub fn generate_with_key<'b, 'c>(self, key: MapKey, setup_world: impl Fn() -> (Dispatcher<'b, 'c>, World)) -> GenGame<'b, 'c> {
         #[cfg(not(test))]
         println!("{}", key);
         let mut rng = key.to_rng();

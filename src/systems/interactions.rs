@@ -1,7 +1,5 @@
 //! Manages interactions between entities and adjacent tiles
 
-use std::borrow::Cow;
-
 use sdl2::rect::Point;
 use specs::{Entity, System, Join, ReadExpect, WriteExpect, ReadStorage, WriteStorage, Entities};
 
@@ -35,7 +33,11 @@ pub struct InteractionsData<'a> {
 
 impl<'a> InteractionsData<'a> {
     /// Attempts to interact with an entity adjacent to this entity in the given direction
-    pub fn interact_with_adjacent(&mut self, entity: Entity, pos: Point, direction: MovementDirection) {
+    pub fn interact_with_adjacent(&mut self, entity: Entity) {
+        let (pos, direction) = match self.positions.get(entity).and_then(|p| self.movements.get(entity).map(|m| (p, m))) {
+            Some((&Position(pos), &movement)) => (pos, movement.direction),
+            None => unreachable!("bug: only entities with positions and movement directions can interact"),
+        };
         for (other_entity, other_pos, other_bounds) in self.nearest_in_direction(entity, pos, direction) {
             if self.doors.get(other_entity).is_some() {
                 self.doors.remove(other_entity);
@@ -45,7 +47,11 @@ impl<'a> InteractionsData<'a> {
     }
 
     /// Attempts to attack an entity adjacent to this entity in the given direction
-    pub fn attack_adjacent(&mut self, entity: Entity, pos: Point, direction: MovementDirection) {
+    pub fn attack_adjacent(&mut self, entity: Entity) {
+        let (pos, direction) = match self.positions.get(entity).and_then(|p| self.movements.get(entity).map(|m| (p, m))) {
+            Some((&Position(pos), &movement)) => (pos, movement.direction),
+            None => unreachable!("bug: only entities with positions and movement directions can interact"),
+        };
         for (other_entity, other_pos, other_bounds) in self.nearest_in_direction(entity, pos, direction) {
             if self.doors.get(other_entity).is_some() {
                 self.doors.remove(other_entity);
@@ -84,7 +90,19 @@ pub struct Interactions;
 impl<'a> System<'a> for Interactions {
     type SystemData = InteractionsData<'a>;
 
-    fn run(&mut self, data: Self::SystemData) {
+    fn run(&mut self, mut data: Self::SystemData) {
+        for (&entity, actions) in data.actions.0.iter() {
+            for action in actions {
+                use self::Action::*;
+                match action {
+                    Interact => data.interact_with_adjacent(entity),
+                    Attack => data.attack_adjacent(entity),
+                    // None of these require interaction with an adjacent tile
+                    Hit | Victory | Defeat => {},
+                }
+            }
+        }
+
         let InteractionsData {
             entities,
             mut change_game_state,
@@ -99,20 +117,6 @@ impl<'a> System<'a> for Interactions {
             ..
         } = data;
 
-        for (entity, &Position(pos), &Movement {direction, ..}) in (&*entities, &positions, &movements).join() {
-            let actions = actions.0.get(&entity).map(Cow::Borrowed).unwrap_or_default();
-
-            for action in actions.iter() {
-                use self::Action::*;
-                match action {
-                    Interact => data.interact_with_adjacent(entity, pos, direction),
-                    Attack => data.attack_adjacent(entity, pos, direction),
-                    // None of these has anything to do with an adjacent tile
-                    Hit | Victory | Defeat => {},
-                }
-            }
-        }
-
         // If the player is intersecting with anything interesting, we may be need to do something
         for (&Position(pos), bounds, _) in (&positions, &bounding_boxes, &players).join() {
             let player_box = bounds.to_rect(pos);
@@ -122,8 +126,8 @@ impl<'a> System<'a> for Interactions {
                     // If player entered a staircase, we need to move to the next/prev level
                     if let Some(staircase) = stairs.get(other_entity) {
                         let change = match staircase {
-                            &Stairs::ToNextLevel {id, ..} => GameState::GoToNextLevel {id},
-                            &Stairs::ToPrevLevel {id, ..} => GameState::GoToPrevLevel {id},
+                            &Stairs::ToNextLevel {id} => GameState::GoToNextLevel {id},
+                            &Stairs::ToPrevLevel {id} => GameState::GoToPrevLevel {id},
                         };
                         change_game_state.replace(change);
                     }

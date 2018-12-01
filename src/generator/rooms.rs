@@ -6,7 +6,7 @@ use super::{GameGenerator, RanOutOfAttempts};
 use map_sprites::{FloorSprite, WallSprite};
 use map::*;
 
-impl GameGenerator {
+impl<'a> GameGenerator<'a> {
     pub(in super) fn generate_rooms(
         &self,
         rng: &mut StdRng,

@@ -31,13 +31,6 @@ impl Wait {
 #[storage(VecStorage)]
 pub struct Sprite(pub SpriteId);
 
-impl Sprite {
-    /// Updates this sprite from the sprite contained within the given frame
-    pub fn update_from_frame(&mut self, frame: &Frame) {
-        self.0 = frame.sprite.clone();
-    }
-}
-
 /// Used to modify the Sprite component every frame
 #[derive(Debug, Clone, Component)]
 #[storage(HashMapStorage)]
@@ -65,6 +58,20 @@ impl Animation {
             can_interrupt,
             should_loop,
         }
+    }
+
+    /// Creates a new animation with a constant frame duration between each sprite
+    pub fn with_constant_delay(sprites: &[SpriteId], duration: usize, can_interrupt: bool, should_loop: bool) -> Self {
+        Self::new(
+            sprites.into_iter().map(|&sprite| Frame {sprite, duration}).collect(),
+            can_interrupt,
+            should_loop
+        )
+    }
+
+    /// Returns the sprite corresponding to the current step of the animation
+    pub fn current_sprite(&self) -> SpriteId {
+        self.steps[self.current_step].sprite
     }
 
     /// Returns true if the animation has reached its last frame

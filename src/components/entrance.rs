@@ -1,27 +1,16 @@
-use specs::{Component, NullStorage, HashMapStorage};
+use specs::{Component, NullStorage};
 
 /// A door between two rooms
-#[derive(Debug, Component)]
-#[storage(HashMapStorage)]
-pub struct Door {
-    pub orientation: HoriVert
-}
+#[derive(Debug, Default, Component)]
+#[storage(NullStorage)]
+pub struct Door;
 
 /// A gate between two rooms
-#[derive(Debug, Component)]
-#[storage(HashMapStorage)]
-pub struct Gate {
-    pub orientation: HoriVert
-}
+#[derive(Debug, Default, Component)]
+#[storage(NullStorage)]
+pub struct Gate;
 
 /// A locked door/gate
 #[derive(Debug, Default, Component)]
 #[storage(NullStorage)]
 pub struct Locked;
-
-/// Represents the orientation of something that can be either horizontal or vertical
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum HoriVert {
-    Horizontal,
-    Vertical,
-}

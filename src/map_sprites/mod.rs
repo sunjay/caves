@@ -1,13 +1,12 @@
 mod floor_sprite;
-mod torch_sprite;
 mod wall_sprite;
 
 pub use self::floor_sprite::*;
-pub use self::torch_sprite::*;
 pub use self::wall_sprite::*;
 
 use sdl2::rect::Rect;
 
+use components::Animation;
 use assets::{TextureId, SpriteId, SpriteImage, SpriteManager};
 
 use super::*;
@@ -26,13 +25,14 @@ pub struct MapSprites {
     staircase_down_tiles: Vec<SpriteId>,
     /// Sprites for each orientation of a door
     door_tiles: Vec<SpriteId>,
-    /// Sprites for torch animations
-    torch_tiles: Vec<SpriteId>,
+    /// The torch animation
+    torch_animation: Animation,
 }
 
 impl MapSprites {
     /// Creates a table of sprites from the standard layout of the dungeon spritesheet
     pub fn from_dungeon_spritesheet(texture_id: TextureId, sprites: &mut SpriteManager, tile_size: u32) -> Self {
+        // Adds all of the sprites to the sprite manager and returns a vector of the produced sprite IDs
         macro_rules! add_sprites {
             ($($sp:expr),* $(,)*) => (
                 vec![
@@ -40,6 +40,7 @@ impl MapSprites {
                 ]
             );
         }
+
         // Returns the (tile_size)x(tile_size) sprite for the given row and column of the spritesheet
         macro_rules! tile_sprite {
             (x: $x:expr, y: $y:expr, width: $width:expr, height: $height:expr) => (
@@ -143,12 +144,17 @@ impl MapSprites {
                 // vertical door (closed)
                 tile_sprite!(row: 10, col: 15, width: tile_size, height: tile_size*2).anchor_south(),
             ],
-            torch_tiles: add_sprites![
-                tile_sprite!(row: 15, col: 0),
-                tile_sprite!(row: 15, col: 1),
-                tile_sprite!(row: 15, col: 2),
-                tile_sprite!(row: 15, col: 3),
-            ],
+            torch_animation: Animation::with_constant_delay(
+                &add_sprites![
+                    tile_sprite!(row: 15, col: 0),
+                    tile_sprite!(row: 15, col: 1),
+                    tile_sprite!(row: 15, col: 2),
+                    tile_sprite!(row: 15, col: 3),
+                ],
+                3,
+                false,
+                false,
+            ),
         }
     }
 
@@ -225,40 +231,31 @@ impl MapSprites {
         }
     }
 
-    pub fn staircase_up_sprite(&self, direction: StairsDirection) -> SpriteId {
-        use self::StairsDirection::*;
-        match direction {
-            Right => self.staircase_up_tiles[0],
-            Left => self.staircase_up_tiles[1],
-        }
+    pub fn staircase_up_right(&self) -> SpriteId {
+        self.staircase_up_tiles[0]
     }
 
-    pub fn staircase_down_sprite(&self, direction: StairsDirection) -> SpriteId {
-        use self::StairsDirection::*;
-        match direction {
-            Right => self.staircase_down_tiles[0],
-            Left => self.staircase_down_tiles[1],
-        }
+    pub fn staircase_up_left(&self) -> SpriteId {
+        self.staircase_up_tiles[1]
     }
 
-    pub fn door_sprite(&self, state: Door, orientation: HoriVert) -> Option<SpriteId> {
-        match (state, orientation) {
-            (Door::Locked, HoriVert::Horizontal) |
-            (Door::Closed, HoriVert::Horizontal) => Some(self.door_tiles[0]),
-            (Door::Locked, HoriVert::Vertical) |
-            (Door::Closed, HoriVert::Vertical) => Some(self.door_tiles[1]),
-            // Just hide open doors (tried rendering a sprite for this but it didn't work out)
-            (Door::Open, _) => None,
-        }
+    pub fn staircase_down_right(&self) -> SpriteId {
+        self.staircase_down_tiles[0]
     }
 
-    pub fn torch_sprite(&self, frame: TorchSprite) -> SpriteId {
-        use self::TorchSprite::*;
-        match frame {
-            Torch1 => self.torch_tiles[0],
-            Torch2 => self.torch_tiles[1],
-            Torch3 => self.torch_tiles[2],
-            Torch4 => self.torch_tiles[3],
-        }
+    pub fn staircase_down_left(&self) -> SpriteId {
+        self.staircase_down_tiles[1]
+    }
+
+    pub fn door_horizontal(&self) -> SpriteId {
+        self.door_tiles[0]
+    }
+
+    pub fn door_vertical(&self) -> SpriteId {
+        self.door_tiles[1]
+    }
+
+    pub fn torch_animation(&self) -> &Animation {
+        &self.torch_animation
     }
 }

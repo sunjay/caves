@@ -11,7 +11,7 @@ use map_sprites::MapSprites;
 use super::SDLError;
 
 #[derive(SystemData)]
-struct RenderData<'a> {
+pub(in super) struct RenderData<'a> {
     map: ReadExpect<'a, FloorMap>,
     camera_focuses: ReadStorage<'a, CameraFocus>,
     positions: ReadStorage<'a, Position>,
@@ -25,7 +25,7 @@ pub fn setup(res: &mut Resources) {
 }
 
 /// Renders the area of the world that is visible to the player
-pub fn render_player_visible<T: RenderTarget>(
+pub(in super) fn render_player_visible<T: RenderTarget>(
     data: RenderData,
     canvas: &mut Canvas<T>,
     textures: &TextureManager<<T as RenderTarget>::Context>,
@@ -96,7 +96,7 @@ pub fn render_player_visible<T: RenderTarget>(
     render_area(data, screen, canvas, map_sprites, textures, sprites, should_render)
 }
 
-pub fn render_area<T: RenderTarget>(
+pub(in super) fn render_area<T: RenderTarget>(
     data: RenderData,
     region: Rect,
     canvas: &mut Canvas<T>,
