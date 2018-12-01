@@ -42,24 +42,27 @@ pub struct GenGame<'a, 'b> {
     pub player_start: Point,
 }
 
+fn find_player_start<'a, 'b>(levels: &[GenLevel<'a, 'b>]) -> Point {
+    let first_level = levels.first().expect("bug: should be at least one level");
+    let map = first_level.world.read_resource::<FloorMap>();
+
+    let (room_id, level_start_room) = map.rooms()
+        .find(|(_, room)| room.is_player_start())
+        .expect("bug: should have had a player start room on the first level");
+    // Start in the middle of the level start room
+    let center = level_start_room.boundary().center_tile();
+    assert!(map.grid().get(center).is_room_floor(room_id),
+        "bug: the center of the player start room was not a tile in that room");
+
+    let tile_size = map.tile_size() as i32;
+    // Start in the middle of the tile
+    center.top_left(tile_size).offset(tile_size/2, tile_size/2)
+}
+
 impl<'a, 'b> GenGame<'a, 'b> {
     fn new(key: MapKey, levels: Vec<GenLevel<'a, 'b>>) -> Self {
         // Calculate the player start position
-        let first_level = levels.first().expect("bug: should be at least one level");
-        let map = first_level.world.read_resource::<FloorMap>();
-
-        let (room_id, level_start_room) = map.rooms()
-            .find(|(_, room)| room.is_player_start())
-            .expect("bug: should have had a player start room on the first level");
-        // Start in the middle of the level start room
-        let center = level_start_room.boundary().center_tile();
-        assert!(map.grid().get(center).is_room_floor(room_id),
-            "bug: the center of the player start room was not a tile in that room");
-
-        let tile_size = map.tile_size() as i32;
-        // Start in the middle of the tile
-        let player_start = center.top_left(tile_size).offset(tile_size/2, tile_size/2);
-
+        let player_start = find_player_start(&levels);
         GenGame {key, levels, player_start}
     }
 }
@@ -69,6 +72,7 @@ impl<'a, 'b> GenGame<'a, 'b> {
 #[derive(Debug, Clone, Copy)]
 struct RanOutOfAttempts;
 
+#[derive(Clone)]
 pub struct GameGenerator<'a> {
     /// The number of attempts before giving up on placing something randomly
     ///
@@ -113,8 +117,6 @@ impl<'a> GameGenerator<'a> {
     }
 
     pub fn generate_with_key<'b, 'c>(self, key: MapKey, setup_world: impl Fn() -> (Dispatcher<'b, 'c>, World)) -> GenGame<'b, 'c> {
-        #[cfg(not(test))]
-        println!("{}", key);
         let mut rng = key.to_rng();
 
         // If this takes more than 10 attempts, we can conclude that it was essentially impossible
@@ -122,10 +124,10 @@ impl<'a> GameGenerator<'a> {
         for _ in 0..10 {
             let (rngs_worlds, dispatchers): (Vec<_>, Vec<_>) = (1..=self.levels).map(|level| {
                 let (dispatcher, world) = setup_world();
-                ((level, StdRng::from_seed(rng.gen()), world), dispatcher)
+                ((self.clone(), level, StdRng::from_seed(rng.gen()), world), dispatcher)
             }).unzip();
             let levels: Result<Vec<_>, _> = rngs_worlds.into_par_iter()
-                .map(move |(level, mut rng, world)| self.populate_level(&mut rng, level, world))
+                .map(|(generator, level, mut rng, world)| generator.populate_level(&mut rng, level, world))
                 .collect();
             let levels = levels.map(|levels| levels.into_iter()
                 .zip(dispatchers.into_iter())
@@ -144,7 +146,7 @@ impl<'a> GameGenerator<'a> {
         panic!("Never succeeded in generating a map with key `{}`!", key);
     }
 
-    fn populate_level(&self, rng: &mut StdRng, level: usize, world: World) -> Result<World, RanOutOfAttempts> {
+    fn populate_level(&self, rng: &mut StdRng, level: usize, mut world: World) -> Result<World, RanOutOfAttempts> {
         // Levels are generated in "phases". The following calls runs each of those in succession.
         let mut map = FloorMap::new(
             GridSize {rows: self.rows, cols: self.cols},
@@ -156,21 +158,16 @@ impl<'a> GameGenerator<'a> {
         self.connect_rooms(rng, &mut map, &mut world);
 
         if level < self.levels {
-            self.place_to_next_level_tiles(rng, &map, &mut world)?;
+            self.place_to_next_level_tiles(rng, &mut map, &mut world)?;
         }
         if level > 1 {
-            self.place_to_prev_level_tiles(rng, &map, &mut world)?;
+            self.place_to_prev_level_tiles(rng, &mut map, &mut world)?;
         }
 
         self.layout_floor_wall_sprites(rng, &mut map);
         self.layout_wall_torch_sprites(&mut map, &mut world);
 
         world.add_resource(map);
-
-        #[cfg(not(test))]
-        println!("Level {}", level);
-        #[cfg(not(test))]
-        println!("{:#?}", map);
         Ok(world)
     }
 

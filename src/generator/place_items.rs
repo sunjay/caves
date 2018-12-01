@@ -1,4 +1,4 @@
-use rand::{rngs::StdRng, Rng, seq::SliceRandom};
+use rand::{rngs::StdRng, seq::SliceRandom};
 use specs::{World, Builder, ReadStorage, Join};
 
 use super::{GameGenerator, RanOutOfAttempts};
@@ -44,7 +44,7 @@ impl<'a> GameGenerator<'a> {
     pub(in super) fn place_to_next_level_tiles(
         &self,
         rng: &mut StdRng,
-        map: &FloorMap,
+        map: &mut FloorMap,
         world: &mut World,
     ) -> Result<(), RanOutOfAttempts> {
         let valid_rooms = |(_, r): &(RoomId, &Room)| r.can_contain_to_next_level();
@@ -63,7 +63,7 @@ impl<'a> GameGenerator<'a> {
     pub(in super) fn place_to_prev_level_tiles(
         &self,
         rng: &mut StdRng,
-        map: &FloorMap,
+        map: &mut FloorMap,
         world: &mut World,
     ) -> Result<(), RanOutOfAttempts> {
         let valid_rooms = |(_, r): &(RoomId, &Room)| r.can_contain_to_prev_level();
@@ -111,7 +111,7 @@ impl<'a> GameGenerator<'a> {
     }
 
     /// Ensures that there is a wall on each side of a staircase
-    fn surround_stairways(&self, staircases: &[TilePos], map: &FloorMap) {
+    fn surround_stairways(&self, staircases: &[TilePos], map: &mut FloorMap) {
         let grid = map.grid_mut();
         for &stairs in staircases {
             for adj in grid.adjacent_positions(stairs) {
@@ -124,16 +124,16 @@ impl<'a> GameGenerator<'a> {
     }
 
     /// Places `nrooms` copies of a TileObject into `nrooms` randomly choosen rooms from rooms
-    fn place_object_in_rooms<'b>(
+    fn place_object_in_rooms<'m, 'w>(
         &self,
         rng: &mut StdRng,
-        map: &'b FloorMap,
-        world: &'b mut World,
+        map: &'m mut FloorMap,
+        world: &'w mut World,
         room_filter: impl FnMut(&(RoomId, &Room)) -> bool,
         nrooms: usize,
         mut next_pos: impl FnMut(&mut StdRng, TileRect) -> TilePos,
-        mut extra_validation: impl FnMut(&'b TileGrid, &'b World, TilePos, u32) -> bool,
-        mut place_object: impl FnMut(&'b mut World, &'b FloorMap, TilePos, TilePos, usize),
+        mut extra_validation: impl FnMut(&TileGrid, &World, TilePos, u32) -> bool,
+        mut place_object: impl FnMut(&'w mut World, &'m FloorMap, TilePos, TilePos, usize),
     ) -> Result<Vec<TilePos>, RanOutOfAttempts> {
         // To do this using choose we would need to allocate anyway, so we might as well just use
         // shuffle to do all the random choosing at once
@@ -142,7 +142,7 @@ impl<'a> GameGenerator<'a> {
             .map(|(id, r)| (id, *r.boundary()))
             .collect();
         assert!(rooms.len() >= nrooms, "Not enough rooms to place items");
-        rooms.shuffle(&mut rng);
+        rooms.shuffle(rng);
 
         let tile_size = map.tile_size();
         let grid = map.grid_mut();
@@ -181,7 +181,8 @@ impl<'a> GameGenerator<'a> {
                 continue;
             }
 
-            if let Some(inner_room_tile) = self.find_place(grid, world, pos, tile_size, room_id) {
+            let inner_room_tile = self.find_place(grid, world, pos, tile_size, room_id);
+            if let Some(inner_room_tile) = inner_room_tile {
                 if !extra_validation(grid, world, inner_room_tile, tile_size) {
                     continue;
                 }

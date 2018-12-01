@@ -86,7 +86,7 @@ fn main() -> Result<(), SDLError> {
     let map_texture = textures.create_png_texture("assets/dungeon.png")?;
     let map_sprites = MapSprites::from_dungeon_spritesheet(map_texture, &mut sprites, tile_size);
 
-    let GenGame {key, levels, player_start} = game_generator(tile_size, &map_sprites).generate(|| {
+    let GenGame {key, mut levels, player_start} = game_generator(tile_size, &map_sprites).generate(|| {
         let mut world = World::new();
 
         world.add_resource(FramesElapsed(1));
@@ -109,9 +109,12 @@ fn main() -> Result<(), SDLError> {
         (dispatcher, world)
     });
 
+    #[cfg(not(test))]
+    println!("Map Key: {}", key);
+
     // Add the character
     {
-        let first_level = levels.first().as_mut()
+        let first_level = levels.first_mut()
             .expect("bug: should be at least one level")
             .world_mut();
         let character_texture = textures.create_png_texture("assets/hero.png")?;

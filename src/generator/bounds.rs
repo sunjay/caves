@@ -4,7 +4,7 @@ use rand::{Rng, distributions::{Distribution, Standard, uniform::SampleUniform}}
 
 /// Represents the minimum and maximum boundary for a given type
 /// Both boundaries are inclusive
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Bounds<T> {
     pub min: T,
     pub max: T,

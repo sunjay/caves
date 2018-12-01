@@ -4,7 +4,7 @@ use specs::{World, Builder};
 use super::{GameGenerator, TileRect, TilePos, GridSize};
 use super::world_helpers::world_contains_any_entity;
 use map_sprites::{WallSprite, WallSpriteAlternate, FLOOR_PATTERNS};
-use components::{Position, Animation, Sprite};
+use components::{Position, Sprite};
 use map::*;
 
 impl<'a> GameGenerator<'a> {
@@ -56,7 +56,7 @@ impl<'a> GameGenerator<'a> {
 
         let mut placed = Vec::new();
         'place_pattern: while remaining_tries > 0 {
-            let pattern = FLOOR_PATTERNS.choose(&mut rng).unwrap();
+            let pattern = FLOOR_PATTERNS.choose(rng).unwrap();
             let pat_rect = TileRect::new(
                 TilePos {
                     row: rng.gen_range(0, map.grid().rows_len()),
