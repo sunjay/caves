@@ -51,12 +51,12 @@ impl<'a> GameGenerator<'a> {
         // Can only place on vertical edge since we only have sprites for tiles adjacent to those
         let next_pos = |rng: &mut StdRng, rect: TileRect| rect.random_right_vertical_edge_tile(rng);
 
-        let place_object = |world, map, obj_pos, wall_pos, id| {
-            self.place_stairs(world, map, obj_pos, wall_pos, Stairs::ToNextLevel {id})
+        let place_object = |world: &mut World, map: &mut FloorMap, obj_pos, wall_pos, id| {
+            self.place_stairs(world, map, obj_pos, wall_pos, Stairs::ToNextLevel {id});
+            self.surround_stairways(obj_pos, map);
         };
-        let placed = self.place_object_in_rooms(rng, map, world, valid_rooms, self.next_prev_tiles,
+        self.place_object_in_rooms(rng, map, world, valid_rooms, self.next_prev_tiles,
             next_pos, validate_chosen_staircase, place_object)?;
-        self.surround_stairways(&placed, map);
         Ok(())
     }
 
@@ -70,12 +70,12 @@ impl<'a> GameGenerator<'a> {
         // Can only place on vertical edge since we only have sprites for tiles adjacent to those
         let next_pos = |rng: &mut StdRng, rect: TileRect| rect.random_left_vertical_edge_tile(rng);
 
-        let place_object = |world, map, obj_pos, wall_pos, id| {
-            self.place_stairs(world, map, obj_pos, wall_pos, Stairs::ToPrevLevel {id})
+        let place_object = |world: &mut World, map: &mut FloorMap, obj_pos, wall_pos, id| {
+            self.place_stairs(world, map, obj_pos, wall_pos, Stairs::ToPrevLevel {id});
+            self.surround_stairways(obj_pos, map);
         };
-        let placed = self.place_object_in_rooms(rng, map, world, valid_rooms, self.next_prev_tiles,
+        self.place_object_in_rooms(rng, map, world, valid_rooms, self.next_prev_tiles,
             next_pos, validate_chosen_staircase, place_object)?;
-        self.surround_stairways(&placed, map);
         Ok(())
     }
 
@@ -111,30 +111,28 @@ impl<'a> GameGenerator<'a> {
     }
 
     /// Ensures that there is a wall on each side of a staircase
-    fn surround_stairways(&self, staircases: &[TilePos], map: &mut FloorMap) {
+    fn surround_stairways(&self, pos: TilePos, map: &mut FloorMap) {
         let grid = map.grid_mut();
-        for &stairs in staircases {
-            for adj in grid.adjacent_positions(stairs) {
-                // Taking advantage of the fact that all stairways are on vertical edges of rooms
-                if adj.col == stairs.col && !grid.get(adj).is_wall() {
-                    grid.get_mut(adj).become_wall(WallSprite::default());
-                }
+        for adj in grid.adjacent_positions(pos) {
+            // Taking advantage of the fact that all stairways are on vertical edges of rooms
+            if adj.col == pos.col && !grid.get(adj).is_wall() {
+                grid.get_mut(adj).become_wall(WallSprite::default());
             }
         }
     }
 
     /// Places `nrooms` copies of a TileObject into `nrooms` randomly choosen rooms from rooms
-    fn place_object_in_rooms<'m, 'w>(
+    fn place_object_in_rooms(
         &self,
         rng: &mut StdRng,
-        map: &'m mut FloorMap,
-        world: &'w mut World,
+        map: &mut FloorMap,
+        world: &mut World,
         room_filter: impl FnMut(&(RoomId, &Room)) -> bool,
         nrooms: usize,
         mut next_pos: impl FnMut(&mut StdRng, TileRect) -> TilePos,
         mut extra_validation: impl FnMut(&TileGrid, &World, TilePos, u32) -> bool,
-        mut place_object: impl FnMut(&'w mut World, &'m FloorMap, TilePos, TilePos, usize),
-    ) -> Result<Vec<TilePos>, RanOutOfAttempts> {
+        mut place_object: impl FnMut(&mut World, &mut FloorMap, TilePos, TilePos, usize),
+    ) -> Result<(), RanOutOfAttempts> {
         // To do this using choose we would need to allocate anyway, so we might as well just use
         // shuffle to do all the random choosing at once
         let mut rooms: Vec<_> = map.rooms()
@@ -145,7 +143,6 @@ impl<'a> GameGenerator<'a> {
         rooms.shuffle(rng);
 
         let tile_size = map.tile_size();
-        let grid = map.grid_mut();
 
         // This cycles through all the rooms up until we have gone through `self.attempts` rooms.
         // We do one attempt per room. Trying to do all of the attempts on every room doesn't make
@@ -155,10 +152,11 @@ impl<'a> GameGenerator<'a> {
         // as a single attempt fails, ensuring that the search will either make progress or fail
         // as soon as we reach the attempt limit.
         let mut attempts = 0;
-        let mut placed = Vec::new();
+
+        let mut placed = 0;
         for (room_id, rect) in rooms.into_iter().cycle() {
             // Found enough places
-            if placed.len() >= nrooms {
+            if placed >= nrooms {
                 break;
             }
 
@@ -170,7 +168,7 @@ impl<'a> GameGenerator<'a> {
             // Pick a random point on one of the edges of the room
             let pos = next_pos(rng, rect);
 
-            if !grid.get(pos).is_wall() {
+            if !map.grid().get(pos).is_wall() {
                 // Can happen since rooms overlap
                 continue;
             }
@@ -181,20 +179,19 @@ impl<'a> GameGenerator<'a> {
                 continue;
             }
 
-            let inner_room_tile = self.find_place(grid, world, pos, tile_size, room_id);
+            let inner_room_tile = self.find_place(map.grid(), world, pos, tile_size, room_id);
             if let Some(inner_room_tile) = inner_room_tile {
-                if !extra_validation(grid, world, inner_room_tile, tile_size) {
+                if !extra_validation(map.grid(), world, inner_room_tile, tile_size) {
                     continue;
                 }
 
-                let tile = grid.get_mut(inner_room_tile);
-                place_object(world, map, inner_room_tile, pos, placed.len());
-                placed.push(inner_room_tile);
+                place_object(world, map, inner_room_tile, pos, placed);
+                placed += 1;
             }
         }
 
-        debug_assert_eq!(placed.len(), nrooms);
-        Ok(placed)
+        debug_assert_eq!(placed, nrooms);
+        Ok(())
     }
 
     /// Attempts to find a room tile adjacent to the given tile that we can place the object in
