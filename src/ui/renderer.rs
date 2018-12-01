@@ -20,6 +20,12 @@ pub(in super) struct RenderData<'a> {
     ghosts: ReadStorage<'a, Ghost>,
 }
 
+impl<'a> AsRef<RenderData<'a>> for RenderData<'a> {
+    fn as_ref(&self) -> &Self {
+        &self
+    }
+}
+
 pub fn setup(res: &mut Resources) {
     RenderData::setup(res);
 }
@@ -32,11 +38,11 @@ pub(in super) fn render_player_visible<T: RenderTarget>(
     sprites: &SpriteManager,
     map_sprites: &MapSprites,
 ) -> Result<(), SDLError> {
-    let RenderData {map, positions, camera_focuses, doors, ..} = data;
+    let RenderData {map, positions, camera_focuses, doors, ..} = &data;
     let tile_size = map.tile_size() as i32;
     let grid = map.grid();
 
-    let mut camera_focuses = (&positions, &camera_focuses).join();
+    let mut camera_focuses = (positions, camera_focuses).join();
     let (&Position(camera_focus), _) = camera_focuses.next()
         .expect("Renderer was not told which entity to focus on");
     assert!(camera_focuses.next().is_none(),
@@ -79,7 +85,7 @@ pub(in super) fn render_player_visible<T: RenderTarget>(
         // Stop searching at walls or closed entrances (but still include them in the result)
         let is_wall = grid.get(node).is_wall();
         let focus_center = focus_pos.center(tile_size);
-        let is_door = (&positions, &doors).join()
+        let is_door = (positions, doors).join()
             .find(|(&Position(pos), Door {..})| pos == focus_center)
             .is_some();
         !is_wall && !is_door
@@ -93,20 +99,26 @@ pub(in super) fn render_player_visible<T: RenderTarget>(
             .filter(|pt| visible_tiles.contains(pt)).count() >= 2
     };
 
-    render_area(data, screen, canvas, map_sprites, textures, sprites, should_render)
+    render_area(&data, screen, canvas, map_sprites, textures, sprites, should_render)
 }
 
-pub(in super) fn render_area<T: RenderTarget>(
-    data: RenderData,
+pub(in super) fn render_area<'a, T: RenderTarget>(
+    data: impl AsRef<RenderData<'a>>,
     region: Rect,
     canvas: &mut Canvas<T>,
     map_sprites: &MapSprites,
     textures: &TextureManager<<T as RenderTarget>::Context>,
     sprites: &SpriteManager,
-    mut should_render: impl FnMut(TilePos, &Tile) -> bool,
+    should_render: impl Fn(TilePos, &Tile) -> bool + Clone,
 ) -> Result<(), SDLError> {
-    let RenderData {map, positions, sprites: esprites, ghosts, ..} = data;
+    let RenderData {map, positions, sprites: esprites, ghosts, ..} = data.as_ref();
     let render_top_left = region.top_left();
+
+    // Rendering strategy: For each row, first render all the backgrounds, then render all of
+    // entities that should be rendered under other entities, then render all other entities.
+    // This allows an object to overlap the background of the tile on its right.
+    canvas.clear();
+    render_background(&*map, region, canvas, map_sprites, textures, sprites, should_render.clone())?;
 
     let grid = map.grid();
     let should_render_pos = |pos| {
@@ -127,16 +139,10 @@ pub(in super) fn render_area<T: RenderTarget>(
         should_render(tile_pos, grid.get(tile_pos))
     };
 
-    // Rendering strategy: For each row, first render all the backgrounds, then render all of
-    // entities that should be rendered under other entities, then render all other entities.
-    // This allows an object to overlap the background of the tile on its right.
-    canvas.clear();
-
-    render_background(&*map, region, canvas, map_sprites, textures, sprites, should_render)?;
-    render_entities((&positions, &esprites, &ghosts).join().map(|(p, s, _)| (p, s)),
-        render_top_left, canvas, map_sprites, textures, sprites, should_render_pos)?;
-    render_entities((&positions, &esprites, !&ghosts).join().map(|(p, s, _)| (p, s)),
-        render_top_left, canvas, map_sprites, textures, sprites, should_render_pos)?;
+    render_entities((positions, esprites, ghosts).join().map(|(p, s, _)| (p, s)),
+        render_top_left, canvas, textures, sprites, should_render_pos)?;
+    render_entities((positions, esprites, !ghosts).join().map(|(p, s, _)| (p, s)),
+        render_top_left, canvas, textures, sprites, should_render_pos)?;
 
     canvas.present();
 
@@ -148,10 +154,9 @@ fn render_entities<'a, T: RenderTarget>(
     components: impl Iterator<Item=(&'a Position, &'a Sprite)>,
     render_top_left: Point,
     canvas: &mut Canvas<T>,
-    map_sprites: &MapSprites,
     textures: &TextureManager<<T as RenderTarget>::Context>,
     sprites: &SpriteManager,
-    mut should_render: impl FnMut(Point) -> bool,
+    should_render: impl Fn(Point) -> bool,
 ) -> Result<(), SDLError> {
     for (&Position(pos), &Sprite(sprite)) in components {
         if !should_render(pos) {

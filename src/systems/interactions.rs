@@ -35,7 +35,7 @@ impl<'a> InteractionsData<'a> {
     /// Attempts to interact with an entity adjacent to this entity in the given direction
     pub fn interact_with_adjacent(&mut self, entity: Entity) {
         let (pos, direction) = match self.positions.get(entity).and_then(|p| self.movements.get(entity).map(|m| (p, m))) {
-            Some((&Position(pos), &movement)) => (pos, movement.direction),
+            Some((&Position(pos), movement)) => (pos, movement.direction),
             None => unreachable!("bug: only entities with positions and movement directions can interact"),
         };
         for (other_entity, other_pos, other_bounds) in self.nearest_in_direction(entity, pos, direction) {
@@ -49,7 +49,7 @@ impl<'a> InteractionsData<'a> {
     /// Attempts to attack an entity adjacent to this entity in the given direction
     pub fn attack_adjacent(&mut self, entity: Entity) {
         let (pos, direction) = match self.positions.get(entity).and_then(|p| self.movements.get(entity).map(|m| (p, m))) {
-            Some((&Position(pos), &movement)) => (pos, movement.direction),
+            Some((&Position(pos), movement)) => (pos, movement.direction),
             None => unreachable!("bug: only entities with positions and movement directions can interact"),
         };
         for (other_entity, other_pos, other_bounds) in self.nearest_in_direction(entity, pos, direction) {
@@ -91,7 +91,10 @@ impl<'a> System<'a> for Interactions {
     type SystemData = InteractionsData<'a>;
 
     fn run(&mut self, mut data: Self::SystemData) {
-        for (&entity, actions) in data.actions.0.iter() {
+        // Cloning this isn't great, but it's the only way to get around borrowing issues since
+        // Rust doesn't do per-field mutability
+        let actions = data.actions.0.clone();
+        for (entity, actions) in actions.into_iter() {
             for action in actions {
                 use self::Action::*;
                 match action {
@@ -106,14 +109,10 @@ impl<'a> System<'a> for Interactions {
         let InteractionsData {
             entities,
             mut change_game_state,
-            actions,
-            map,
             positions,
             bounding_boxes,
-            movements,
             players,
             stairs,
-            mut healths,
             ..
         } = data;
 

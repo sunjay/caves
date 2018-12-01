@@ -48,7 +48,7 @@ impl<'a, 'b> GameScreen<'a, 'b> {
 
     /// Dispatch the given events and update the state based on the frames that have elapsed
     pub fn dispatch(&mut self, frames_elapsed: FramesElapsed, events: Vec<Event>) {
-        self.current_level().dispatch(frames_elapsed, events);
+        self.levels[self.current_level].dispatch(frames_elapsed, events);
     }
 
     /// Render the entire state of the current level (the entire map) to the given filename.

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use rand::{rngs::StdRng, Rng, seq::SliceRandom};
+use rand::{rngs::StdRng, seq::SliceRandom};
 use specs::{World, Builder};
 
 use super::GameGenerator;
@@ -31,7 +31,7 @@ impl<'a> GameGenerator<'a> {
                     .map(|pair| (edge, pair)))
         }).collect();
 
-        while let Some(&(edge, pair)) = doorways.choose(&mut rng) {
+        while let Some(&(edge, pair)) = doorways.choose(rng) {
             connected_rooms.insert(pair, edge);
 
             // Only retain the doorways that connect rooms we haven't added a doorway for yet
