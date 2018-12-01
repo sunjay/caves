@@ -8,13 +8,14 @@ use sdl2::{
 };
 use specs::{Dispatcher, World};
 
-use sprites::MapSprites;
+use assets::{TextureManager, SpriteManager};
+use map_sprites::MapSprites;
 use generator::GenLevel;
 use map::FloorMap;
 use resources::{FramesElapsed, Event, ChangeGameState, ActionQueue, EventQueue};
 
 use super::renderer::{render_area, render_player_visible};
-use super::{TextureManager, SDLError};
+use super::SDLError;
 
 pub struct LevelScreen<'a, 'b> {
     dispatcher: Dispatcher<'a, 'b>,
@@ -53,12 +54,13 @@ impl<'a, 'b> LevelScreen<'a, 'b> {
         let texture_creator = canvas.texture_creator();
 
         let mut textures = TextureManager::new(&texture_creator);
+        let mut sprites = SpriteManager::default();
         let map_texture = textures.create_png_texture("assets/dungeon.png")?;
         let tile_size = 16;
-        let sprites = MapSprites::from_dungeon_spritesheet(map_texture, tile_size);
+        let map_sprites = MapSprites::from_dungeon_spritesheet(map_texture, &mut sprites, tile_size);
 
-        render_area(self.world.system_data(), level_boundary, &mut canvas, &sprites, &textures,
-            |_, _| true)?;
+        render_area(self.world.system_data(), level_boundary, &mut canvas, &map_sprites, &textures,
+            &sprites, |_, _| true)?;
 
         canvas.into_surface().save(path).map_err(SDLError)?;
         Ok(())
@@ -68,8 +70,9 @@ impl<'a, 'b> LevelScreen<'a, 'b> {
         &self,
         canvas: &mut Canvas<T>,
         textures: &TextureManager<<T as RenderTarget>::Context>,
+        sprites: &SpriteManager,
         map_sprites: &MapSprites,
     ) -> Result<(), SDLError> {
-        render_player_visible(self.world.system_data(), canvas, textures, map_sprites)
+        render_player_visible(self.world.system_data(), canvas, textures, sprites, map_sprites)
     }
 }

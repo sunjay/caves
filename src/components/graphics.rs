@@ -5,8 +5,7 @@ use std::iter::once;
 use specs::{Component, VecStorage, HashMapStorage};
 use sdl2::rect::{Point, Rect};
 
-use ui::TextureId;
-use sprites::{SpriteImage, Anchor};
+use assets::{TextureId, SpriteId, SpriteImage, SpriteManager, Anchor};
 
 /// An entity that is unable to move until the given duration has elapsed
 #[derive(Debug, Default, Component)]
@@ -30,7 +29,7 @@ impl Wait {
 /// The sprite is rendered with the region centered on the entity's Position
 #[derive(Debug, Clone, Component)]
 #[storage(VecStorage)]
-pub struct Sprite(pub SpriteImage);
+pub struct Sprite(pub SpriteId);
 
 impl Sprite {
     /// Updates this sprite from the sprite contained within the given frame
@@ -124,7 +123,7 @@ pub struct AnimationManager {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Frame {
     /// The sprite that this frame represents
-    pub sprite: SpriteImage,
+    pub sprite: SpriteId,
     /// The duration of this animation step (in frames)
     pub duration: usize,
 }
@@ -132,12 +131,13 @@ pub struct Frame {
 impl AnimationManager {
     /// Returns the standard character animations based on how most of our character spritesheets
     /// are laid out
-    pub fn standard_character_animations(fps: usize, texture_id: TextureId) -> Self {
+    pub fn standard_character_animations(fps: usize, texture_id: TextureId, sprites: &mut SpriteManager) -> Self {
         /// row_i = the index of the row in the spritesheet
         /// pattern = the pattern of frame indexes within the row
         /// durations = the repeating pattern of durations to use for each
         fn animation(
             texture_id: TextureId,
+            sprites: &mut SpriteManager,
             row_i: i32,
             pattern: impl Iterator<Item=i32>,
             flip_horizontal: bool,
@@ -149,7 +149,7 @@ impl AnimationManager {
             let frame_size = 48;
 
             let steps = pattern.zip(durations.iter().cycle()).map(|(j, &duration)| Frame {
-                sprite: SpriteImage {
+                sprite: sprites.add(SpriteImage {
                     texture_id,
                     region: Rect::new(
                         j * frame_size,
@@ -161,7 +161,7 @@ impl AnimationManager {
                     flip_vertical: false,
                     anchor: Anchor::Center,
                     dest_offset: Point::new(0, 0)
-                },
+                }),
                 duration,
             }).collect();
 
@@ -174,39 +174,39 @@ impl AnimationManager {
             // Animations are configured based on the character animation guide provided with the
             // asset pack
 
-            idle: animation(texture_id, 0, 0..3, false, &[ms_to_frames(640), ms_to_frames(80)], true, true),
-            victory: animation(texture_id, 1, 0..3, false, &[ms_to_frames(640), ms_to_frames(80)], true, true),
-            move_down: animation(texture_id, 2, 0..4, false, &[ms_to_frames(100)], true, true),
-            move_right: animation(texture_id, 3, 0..4, false, &[ms_to_frames(100)], true, true),
-            move_left: animation(texture_id, 3, 0..4, true, &[ms_to_frames(100)], true, true),
-            move_up: animation(texture_id, 4, 0..4, false, &[ms_to_frames(100)], true, true),
-            attack_down: animation(texture_id, 5, 0..4, false,
+            idle: animation(texture_id, sprites, 0, 0..3, false, &[ms_to_frames(640), ms_to_frames(80)], true, true),
+            victory: animation(texture_id, sprites, 1, 0..3, false, &[ms_to_frames(640), ms_to_frames(80)], true, true),
+            move_down: animation(texture_id, sprites, 2, 0..4, false, &[ms_to_frames(100)], true, true),
+            move_right: animation(texture_id, sprites, 3, 0..4, false, &[ms_to_frames(100)], true, true),
+            move_left: animation(texture_id, sprites, 3, 0..4, true, &[ms_to_frames(100)], true, true),
+            move_up: animation(texture_id, sprites, 4, 0..4, false, &[ms_to_frames(100)], true, true),
+            attack_down: animation(texture_id, sprites, 5, 0..4, false,
                 &[ms_to_frames(50), ms_to_frames(100), ms_to_frames(100), ms_to_frames(200)],
                 false, false),
-            attack_right: animation(texture_id, 6, 0..4, false,
+            attack_right: animation(texture_id, sprites, 6, 0..4, false,
                 &[ms_to_frames(50), ms_to_frames(100), ms_to_frames(100), ms_to_frames(200)],
                 false, false),
-            attack_left: animation(texture_id, 6, 0..4, true,
+            attack_left: animation(texture_id, sprites, 6, 0..4, true,
                 &[ms_to_frames(50), ms_to_frames(100), ms_to_frames(100), ms_to_frames(200)],
                 false, false),
-            attack_up: animation(texture_id, 7, 0..4, false,
+            attack_up: animation(texture_id, sprites, 7, 0..4, false,
                 &[ms_to_frames(50), ms_to_frames(100), ms_to_frames(100), ms_to_frames(200)],
                 false, false),
-            hit_down: animation(texture_id, 8, (0..3).chain(once(0)), false, &[ms_to_frames(100)],
+            hit_down: animation(texture_id, sprites, 8, (0..3).chain(once(0)), false, &[ms_to_frames(100)],
                 false, false),
-            hit_right: animation(texture_id, 9, (0..3).chain(once(0)), false, &[ms_to_frames(100)],
+            hit_right: animation(texture_id, sprites, 9, (0..3).chain(once(0)), false, &[ms_to_frames(100)],
                 false, false),
-            hit_left: animation(texture_id, 9, (0..3).chain(once(0)), true, &[ms_to_frames(100)],
+            hit_left: animation(texture_id, sprites, 9, (0..3).chain(once(0)), true, &[ms_to_frames(100)],
                 false, false),
-            hit_up: animation(texture_id, 10, (0..3).chain(once(0)), false, &[ms_to_frames(100)],
+            hit_up: animation(texture_id, sprites, 10, (0..3).chain(once(0)), false, &[ms_to_frames(100)],
                 false, false),
-            stopped_down: animation(texture_id, 8, 3..4, false, &[ms_to_frames(1)],
+            stopped_down: animation(texture_id, sprites, 8, 3..4, false, &[ms_to_frames(1)],
                 true, false),
-            stopped_right: animation(texture_id, 9, 3..4, false, &[ms_to_frames(1)],
+            stopped_right: animation(texture_id, sprites, 9, 3..4, false, &[ms_to_frames(1)],
                 true, false),
-            stopped_left: animation(texture_id, 9, 3..4, true, &[ms_to_frames(1)],
+            stopped_left: animation(texture_id, sprites, 9, 3..4, true, &[ms_to_frames(1)],
                 true, false),
-            stopped_up: animation(texture_id, 10, 3..4, false, &[ms_to_frames(1)],
+            stopped_up: animation(texture_id, sprites, 10, 3..4, false, &[ms_to_frames(1)],
                 true, false),
 
             idle_counter: 0,
@@ -214,9 +214,9 @@ impl AnimationManager {
     }
 
     /// Returns the default sprite that should be used at the start
-    pub fn default_sprite(&self) -> SpriteImage {
+    pub fn default_sprite(&self) -> SpriteId {
         let stopped = &self.stopped_down.steps[0];
-        stopped.sprite.clone()
+        stopped.sprite
     }
 
     /// Returns the default animation that should be used at the start

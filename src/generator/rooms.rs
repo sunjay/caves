@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use rand::{rngs::StdRng, Rng};
 
 use super::{GameGenerator, RanOutOfAttempts};
-use sprites::{FloorSprite, WallSprite};
+use map_sprites::{FloorSprite, WallSprite};
 use map::*;
 
 impl GameGenerator {

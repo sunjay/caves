@@ -159,6 +159,7 @@ impl GameGenerator {
         }
 
         self.layout_floor_wall_sprites(rng, &mut map);
+        self.layout_wall_torch_sprites(&mut map, &mut world);
 
         world.add_resource(map);
 

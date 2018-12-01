@@ -4,7 +4,6 @@ use specs::{System, Join, ReadExpect, WriteExpect, ReadStorage, WriteStorage, En
 
 use components::{Movement, MovementDirection::*, Sprite, Animation, AnimationManager, Wait};
 use resources::{ActionQueue, Action::*, FramesElapsed};
-use map::FloorMap;
 
 /// The number of frames that an entity can be idle before the idle animation starts
 const IDLE_LENGTH: usize = 300;
@@ -19,7 +18,6 @@ pub struct AnimatorData<'a> {
     animations: WriteStorage<'a, Animation>,
     animation_managers: WriteStorage<'a, AnimationManager>,
     waits: WriteStorage<'a, Wait>,
-    map: WriteExpect<'a, FloorMap>,
 }
 
 pub struct Animator;
@@ -37,7 +35,6 @@ impl<'a> System<'a> for Animator {
             mut animations,
             mut animation_managers,
             mut waits,
-            mut map,
         } = data;
 
         let FramesElapsed(frames_elapsed) = *frames;
@@ -154,13 +151,6 @@ impl<'a> System<'a> for Animator {
 
             // Update the sprite with the current step
             sprite.update_from_frame(&animation.steps[animation.current_step]);
-        }
-
-        // Update any tile animations
-        for row in map.grid_mut().rows_mut() {
-            for tile in row {
-                tile.advance_animation(frames_elapsed);
-            }
         }
     }
 }

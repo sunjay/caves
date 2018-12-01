@@ -2,11 +2,12 @@ use std::path::Path;
 
 use sdl2::{rect::Point, render::{Canvas, RenderTarget}};
 
-use sprites::MapSprites;
+use map_sprites::MapSprites;
 use generator::GenLevel;
 use resources::{FramesElapsed, Event};
+use assets::TextureManager;
 
-use super::{TextureManager, SDLError, LevelScreen};
+use super::{SDLError, LevelScreen};
 
 pub struct GameScreen<'a, 'b> {
     player_start: Point,

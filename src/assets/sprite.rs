@@ -1,16 +1,6 @@
-mod floor_sprite;
-mod torch_sprite;
-mod wall_sprite;
-mod map_sprites;
-
-pub use self::floor_sprite::*;
-pub use self::torch_sprite::*;
-pub use self::wall_sprite::*;
-pub use self::map_sprites::*;
-
 use sdl2::rect::{Point, Rect};
 
-use ui::TextureId;
+use assets::TextureId;
 
 /// Defines how a sprite is aligned (or "anchored") relative to its destination rectangle
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

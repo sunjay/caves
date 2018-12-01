@@ -1,8 +1,6 @@
-use std::fmt;
-
 use specs::{Component, HashMapStorage};
 
-use sprites::TorchAnimation;
+use map_sprites::TorchAnimation;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Item {
