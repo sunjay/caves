@@ -9,4 +9,4 @@ pub use self::game_screen::*;
 pub use self::level_screen::*;
 
 #[derive(Debug, Clone)]
-pub struct SDLError(String);
+pub struct SDLError(pub String);

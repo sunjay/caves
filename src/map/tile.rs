@@ -1,16 +1,17 @@
 use super::{RoomId};
 use assets::SpriteId;
-use map_sprites::{MapSprites, FloorSprite, WallSprite, WallSpriteAlternate};
+use map_sprites::{MapSprites, FloorSprite, WallSprite};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Tile {
-    /// Tiles that can be traversed
+    /// A tile that can be traversed
     Floor {
         room_id: RoomId,
         /// The floor sprite to use
         sprite: FloorSprite,
     },
-    /// Tiles that cannot be traversed, not associated to a particular room
+    /// A tile that cannot be traversed
+    /// Not associated to a particular room, since rooms can share walls
     Wall {
         // The wall sprite to use
         sprite: WallSprite,
@@ -82,48 +83,6 @@ impl Tile {
         match self {
             &Tile::Floor {room_id, ..} => Some(room_id),
             _ => None,
-        }
-    }
-
-    /// Returns the ID of the gate if the tile contains a ToNextLevel object
-    pub fn to_next_level_id(&self) -> Option<usize> {
-        match self.object() {
-            Some(&TileObject::ToNextLevel {id, ..}) => Some(id),
-            _ => None,
-        }
-    }
-
-    /// Returns the ID of the gate if the tile contains a ToPrevLevel object
-    pub fn to_prev_level_id(&self) -> Option<usize> {
-        match self.object() {
-            Some(&TileObject::ToPrevLevel {id, ..}) => Some(id),
-            _ => None,
-        }
-    }
-
-    /// Returns true if the tile contains a ToNextLevel gate with the given ID
-    pub fn is_to_next_level_id(&self, id: usize) -> bool {
-        match self.object() {
-            Some(&TileObject::ToNextLevel {id: gid, ..}) => gid == id,
-            _ => false,
-        }
-    }
-
-    /// Returns true if the tile contains a ToPrevLevel gate with the given ID
-    pub fn is_to_prev_level_id(&self, id: usize) -> bool {
-        match self.object() {
-            Some(&TileObject::ToPrevLevel {id: gid, ..}) => gid == id,
-            _ => false,
-        }
-    }
-
-    /// Returns true if the player is allowed to move over top of this tile
-    pub fn is_traversable(&self) -> bool {
-        match self {
-            // Floor tiles are traversable by default unless their object is not traversable
-            Tile::Floor {object, ..} => object.as_ref().map(|obj| obj.is_traversable()).unwrap_or(true),
-            Tile::Wall {..} |
-            Tile::Empty => false,
         }
     }
 

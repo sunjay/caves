@@ -10,6 +10,7 @@ mod doorways;
 
 mod map_key;
 mod bounds;
+mod world_helpers;
 
 pub use self::map_key::*;
 pub use self::bounds::*;
