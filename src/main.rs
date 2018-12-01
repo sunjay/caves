@@ -21,7 +21,8 @@ mod generator;
 mod resources;
 mod map;
 mod ui;
-mod sprites;
+mod map_sprites;
+mod assets;
 
 use std::{
     thread,
@@ -49,10 +50,11 @@ use components::{
     AnimationManager,
     Player,
 };
+use assets::{TextureManager, SpriteManager};
 use resources::{FramesElapsed, ActionQueue, EventQueue, Event, Key};
-use ui::{Window, TextureManager, GameScreen, SDLError};
+use ui::{Window, GameScreen, SDLError};
 use generator::{GameGenerator, GenGame};
-use sprites::MapSprites;
+use map_sprites::MapSprites;
 
 fn game_generator(tile_size: u32) -> GameGenerator {
     GameGenerator {
@@ -76,11 +78,12 @@ fn main() -> Result<(), SDLError> {
     let mut window = Window::init(320, 240)?;
     let texture_creator = window.texture_creator();
     let mut textures = TextureManager::new(&texture_creator);
+    let mut sprites = SpriteManager::default();
     let mut event_pump = window.event_pump()?;
 
     let tile_size = 16;
     let map_texture = textures.create_png_texture("assets/dungeon.png")?;
-    let sprites = MapSprites::from_dungeon_spritesheet(map_texture, tile_size);
+    let map_sprites = MapSprites::from_dungeon_spritesheet(map_texture, &mut sprites, tile_size);
 
     let GenGame {key, levels, player_start} = game_generator(tile_size).generate(|| {
         let mut world = World::new();
@@ -109,7 +112,7 @@ fn main() -> Result<(), SDLError> {
     {
         let first_level = levels.first().expect("bug: should be at least one level").world_mut();
         let character_texture = textures.create_png_texture("assets/hero.png")?;
-        let character_animations = AnimationManager::standard_character_animations(fps as usize, character_texture);
+        let character_animations = AnimationManager::standard_character_animations(fps as usize, character_texture, &mut sprites);
         first_level.create_entity()
             .with(KeyboardControlled)
             .with(CameraFocus)
@@ -165,7 +168,7 @@ fn main() -> Result<(), SDLError> {
         // At least one frame must have passed for us to do anything
         if frames_elapsed_delta >= 1 {
             game_screen.dispatch(FramesElapsed(frames_elapsed_delta), events.drain(..).collect());
-            game_screen.render(window.canvas_mut(), &textures, &sprites)?;
+            game_screen.render(window.canvas_mut(), &textures, &map_sprites)?;
             last_frames_elapsed = frames_elapsed;
         } else {
             let ms_per_frame = (1000.0 / fps) as u64;

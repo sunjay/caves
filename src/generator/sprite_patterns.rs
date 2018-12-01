@@ -1,7 +1,10 @@
 use rand::{rngs::StdRng, Rng, seq::SliceRandom};
+use specs::{World, ReadStorage, Join};
+use sdl2::rect::Rect;
 
 use super::{GameGenerator, TileRect, TilePos, GridSize};
-use sprites::{WallSprite, FLOOR_PATTERNS};
+use map_sprites::{WallSprite, WallSpriteAlternate, FLOOR_PATTERNS};
+use components::{Position, WallDecoration};
 use map::*;
 
 impl GameGenerator {
@@ -38,40 +41,6 @@ impl GameGenerator {
             }
 
             map.grid_mut().get_mut(pos).set_wall_sprite(wall_sprite);
-        }
-
-        self.layout_wall_torch_sprites(map);
-    }
-
-    fn layout_wall_torch_sprites(&self, map: &mut FloorMap) {
-        // For every span of wall tiles of this size, we will try to put a torch approximately in
-        // the middle of them. Only wall tiles where a torch could actually be placed count towards
-        // this total.
-        let torch_frequency = 4;
-        // No need to add torches to last row of walls
-        for row in 0..map.grid().rows_len()-1 {
-            // Count of walls that could have a torch
-            let mut can_torch = 0;
-
-            for col in 0..map.grid().cols_len() {
-                let pos = TilePos {row, col};
-                if !map.grid().get(pos).is_wall() {
-                    continue;
-                }
-
-                let has_south_floor = pos.adjacent_south(map.grid().rows_len())
-                    .map(|pt| map.grid().get(pt))
-                    .map(|t| t.is_floor() && !t.has_object())
-                    .unwrap_or(false);
-                if !has_south_floor {
-                    continue;
-                }
-
-                can_torch += 1;
-                if can_torch % torch_frequency == torch_frequency / 2 {
-                    map.grid_mut().get_mut(pos).place_wall_torch();
-                }
-            }
         }
     }
 
@@ -122,6 +91,45 @@ impl GameGenerator {
                 tile.set_floor_sprite(sprite);
             }
             placed.push(pat_rect);
+        }
+    }
+
+    pub(in super) fn layout_wall_torch_sprites(&self, map: &mut FloorMap, world: &mut World) {
+        // Returns true if the given boundary contains any entity
+        let contains_any_entity = |bounds: Rect| world.system_data::<ReadStorage<Position>>()
+            .join()
+            .any(|&Position(pos)| bounds.contains_point(pos));
+
+        // For every span of wall tiles of this size, we will try to put a torch approximately in
+        // the middle of them. Only wall tiles where a torch could actually be placed count towards
+        // this total.
+        let torch_frequency = 4;
+        // No need to add torches to last row of walls
+        for row in 0..map.grid().rows_len()-1 {
+            // Count of walls that could have a torch
+            let mut can_torch = 0;
+
+            for col in 0..map.grid().cols_len() {
+                let pos = TilePos {row, col};
+                if !map.grid().get(pos).is_wall() {
+                    continue;
+                }
+
+                let has_south_floor = pos.adjacent_south(map.grid().rows_len())
+                    .map(|pt| (pt.tile_rect(map.tile_size()), map.grid().get(pt)))
+                    .map(|(bounds, t)| t.is_floor() && !contains_any_entity(bounds))
+                    .unwrap_or(false);
+                if !has_south_floor {
+                    continue;
+                }
+
+                can_torch += 1;
+                if can_torch % torch_frequency == torch_frequency / 2 {
+                    map.grid_mut().get_mut(pos).wall_sprite_mut().alt = WallSpriteAlternate::TorchLit;
+                    //TODO: Add Sprite + Animation component to world for torch animation
+                    //TODO: This will result in TorchSprite and TorchAnimation going away
+                }
+            }
         }
     }
 }

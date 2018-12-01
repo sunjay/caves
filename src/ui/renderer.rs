@@ -4,10 +4,10 @@ use std::iter::once;
 use sdl2::{rect::{Point, Rect}, render::{Canvas, RenderTarget}};
 use specs::{Join, ReadStorage, Resources, SystemData, ReadExpect};
 
+use assets::{TextureManager, SpriteManager, SpriteImage};
 use components::{Position, Sprite, CameraFocus, Door, Ghost};
 use map::{FloorMap, Tile, TilePos};
-use sprites::{MapSprites, SpriteImage};
-use super::TextureManager;
+use map_sprites::MapSprites;
 use super::SDLError;
 
 #[derive(SystemData)]
@@ -29,6 +29,7 @@ pub fn render_player_visible<T: RenderTarget>(
     data: RenderData,
     canvas: &mut Canvas<T>,
     textures: &TextureManager<<T as RenderTarget>::Context>,
+    sprites: &SpriteManager,
     map_sprites: &MapSprites,
 ) -> Result<(), SDLError> {
     let RenderData {map, positions, camera_focuses, doors, ..} = data;
@@ -92,7 +93,7 @@ pub fn render_player_visible<T: RenderTarget>(
             .filter(|pt| visible_tiles.contains(pt)).count() >= 2
     };
 
-    render_area(data, screen, canvas, map_sprites, textures, should_render)
+    render_area(data, screen, canvas, map_sprites, textures, sprites, should_render)
 }
 
 pub fn render_area<T: RenderTarget>(
@@ -101,9 +102,10 @@ pub fn render_area<T: RenderTarget>(
     canvas: &mut Canvas<T>,
     map_sprites: &MapSprites,
     textures: &TextureManager<<T as RenderTarget>::Context>,
+    sprites: &SpriteManager,
     mut should_render: impl FnMut(TilePos, &Tile) -> bool,
 ) -> Result<(), SDLError> {
-    let RenderData {map, positions, sprites, ghosts, ..} = data;
+    let RenderData {map, positions, sprites: esprites, ghosts, ..} = data;
     let render_top_left = region.top_left();
 
     let grid = map.grid();
@@ -130,11 +132,11 @@ pub fn render_area<T: RenderTarget>(
     // This allows an object to overlap the background of the tile on its right.
     canvas.clear();
 
-    render_background(&*map, region, canvas, map_sprites, textures, should_render)?;
-    render_entities((&positions, &sprites, &ghosts).join().map(|(p, s, _)| (p, s)),
-        render_top_left, canvas, map_sprites, textures, should_render_pos)?;
-    render_entities((&positions, &sprites, !&ghosts).join().map(|(p, s, _)| (p, s)),
-        render_top_left, canvas, map_sprites, textures, should_render_pos)?;
+    render_background(&*map, region, canvas, map_sprites, textures, sprites, should_render)?;
+    render_entities((&positions, &esprites, &ghosts).join().map(|(p, s, _)| (p, s)),
+        render_top_left, canvas, map_sprites, textures, sprites, should_render_pos)?;
+    render_entities((&positions, &esprites, !&ghosts).join().map(|(p, s, _)| (p, s)),
+        render_top_left, canvas, map_sprites, textures, sprites, should_render_pos)?;
 
     canvas.present();
 
@@ -148,14 +150,16 @@ fn render_entities<'a, T: RenderTarget>(
     canvas: &mut Canvas<T>,
     map_sprites: &MapSprites,
     textures: &TextureManager<<T as RenderTarget>::Context>,
+    sprites: &SpriteManager,
     mut should_render: impl FnMut(Point) -> bool,
 ) -> Result<(), SDLError> {
-    for (&Position(pos), Sprite(ref sprite)) in components {
+    for (&Position(pos), Sprite(sprite)) in components {
         if !should_render(pos) {
             continue;
         }
 
         let pos = pos - render_top_left;
+        let sprite = sprites.get(sprite);
         let texture = textures.get(sprite.texture_id);
         let source_rect = sprite.region;
         let mut dest_rect = source_rect.clone();
@@ -182,6 +186,7 @@ fn render_background<T: RenderTarget>(
     canvas: &mut Canvas<T>,
     map_sprites: &MapSprites,
     textures: &TextureManager<<T as RenderTarget>::Context>,
+    sprites: &SpriteManager,
     mut should_render: impl FnMut(TilePos, &Tile) -> bool,
 ) -> Result<(), SDLError> {
     let render_top_left = region.top_left();

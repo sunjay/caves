@@ -4,7 +4,7 @@ use rand::{rngs::StdRng, Rng, seq::SliceRandom};
 use specs::{World, Builder};
 
 use super::GameGenerator;
-use sprites::{FloorSprite, WallSpriteAlternate};
+use map_sprites::{FloorSprite, WallSpriteAlternate};
 use components::{Position, BoundingBox, Sprite, Door, HoriVert};
 use map::*;
 

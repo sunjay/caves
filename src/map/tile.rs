@@ -1,5 +1,6 @@
 use super::{RoomId};
-use sprites::{SpriteImage, MapSprites, FloorSprite, WallSprite, WallSpriteAlternate};
+use assets::SpriteId;
+use map_sprites::{MapSprites, FloorSprite, WallSprite, WallSpriteAlternate};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Tile {
@@ -35,12 +36,12 @@ impl Tile {
     }
 
     /// Returns the sprite that should be used as the background of this tile
-    pub fn background_sprite<'a>(&self, sprites: &'a MapSprites) -> &'a SpriteImage {
+    pub fn background_sprite<'a>(&self, map_sprites: &'a MapSprites) -> &'a SpriteId {
         use self::Tile::*;
         match *self {
-            Floor {sprite, ..} => &sprites.floor_sprite(sprite),
-            Wall {sprite, ..} => &sprites.wall_sprite(sprite),
-            Empty => sprites.empty_tile_sprite(),
+            Floor {sprite, ..} => &map_sprites.floor_sprite(sprite),
+            Wall {sprite, ..} => &map_sprites.wall_sprite(sprite),
+            Empty => map_sprites.empty_tile_sprite(),
         }
     }
 
@@ -73,17 +74,6 @@ impl Tile {
         match self {
             Tile::Floor {sprite, ..} => *sprite = floor_sprite,
             _ => unreachable!("bug: cannot set a floor sprite for a non-floor tile"),
-        }
-    }
-
-    /// Sets the wall decoration to a torch. Panics if this is not a wall tile.
-    pub fn place_wall_torch(&mut self) {
-        match self {
-            Tile::Wall {decoration, sprite} => {
-                *decoration = Some(WallDecoration::torch());
-                sprite.alt = WallSpriteAlternate::TorchLit;
-            },
-            _ => unreachable!("bug: cannot set wall decoration on non-wall tile"),
         }
     }
 
@@ -177,67 +167,5 @@ impl Tile {
     /// Turns this tile into a Floor tile
     pub fn become_floor(&mut self, room_id: RoomId, sprite: FloorSprite) {
         *self = Self::new_floor(room_id, sprite);
-    }
-
-    /// Returns the object on this tile (if there is any)
-    pub fn object(&self) -> Option<&TileObject> {
-        match self {
-            Tile::Floor {object, ..} => object.as_ref(),
-            _ => None,
-        }
-    }
-
-    /// Returns the object on this tile (if there is any)
-    pub fn object_mut(&mut self) -> Option<&mut TileObject> {
-        match self {
-            Tile::Floor {object, ..} => object.as_mut(),
-            _ => None,
-        }
-    }
-
-    /// Returns true if this tile has an object
-    pub fn has_object(&self) -> bool {
-        self.object().is_some()
-    }
-
-    /// Returns true if this tile has a staircase
-    pub fn has_staircase(&self) -> bool {
-        match self {
-            Tile::Floor {object: Some(TileObject::ToNextLevel {..}), ..} |
-            Tile::Floor {object: Some(TileObject::ToPrevLevel {..}), ..} => true,
-            _ => false,
-        }
-    }
-
-    /// Returns true if this tile has a doorway or a gate
-    pub fn has_entrance(&self) -> bool {
-        match self {
-            Tile::Floor {object: Some(TileObject::Door {..}), ..} |
-            Tile::Floor {object: Some(TileObject::Gate {..}), ..} => true,
-            _ => false,
-        }
-    }
-
-    /// Attempts to place an object on this tile. Panics if this is not possible for this type of
-    /// tile.
-    pub fn place_object(&mut self, object: TileObject) {
-        match self {
-            // Ensure that we don't replace an object that was already placed by matching on None
-            Tile::Floor {object: obj@None, ..} => *obj = Some(object),
-            Tile::Floor {..} => unreachable!("bug: attempt to place an object on a tile that already had an object"),
-            _ => unreachable!("bug: attempt to place an object on a tile that does not support objects"),
-        }
-    }
-
-    /// Advances the animation of this tile by the given number of frames.
-    /// If this tile is not animated, does nothing.
-    pub fn advance_animation(&mut self, frames: usize) {
-        use self::WallDecoration::*;
-        match self {
-            Tile::Wall {decoration: Some(Torch(animation)), ..} => {
-                animation.advance(frames);
-            },
-            _ => {},
-        }
     }
 }

@@ -1,6 +1,14 @@
+mod floor_sprite;
+mod torch_sprite;
+mod wall_sprite;
+
+pub use self::floor_sprite::*;
+pub use self::torch_sprite::*;
+pub use self::wall_sprite::*;
+
 use sdl2::rect::Rect;
 
-use ui::TextureId;
+use assets::{TextureId, SpriteId, SpriteImage, SpriteManager};
 
 use super::*;
 
@@ -9,22 +17,29 @@ use super::*;
 #[derive(Debug, Clone)]
 pub struct MapSprites {
     /// Sprites for each type of floor tile. Each of these must map to a FloorSprite variant
-    floor_tiles: Vec<SpriteImage>,
+    floor_tiles: Vec<SpriteId>,
     /// Sprites for each type of wall tile. Each of these must map to a WallSprite variant
-    wall_tiles: Vec<SpriteImage>,
+    wall_tiles: Vec<SpriteId>,
     /// Sprites for each orientation of staircase
-    staircase_up_tiles: Vec<SpriteImage>,
+    staircase_up_tiles: Vec<SpriteId>,
     /// Sprites for each orientation of staircase
-    staircase_down_tiles: Vec<SpriteImage>,
+    staircase_down_tiles: Vec<SpriteId>,
     /// Sprites for each orientation of a door
-    door_tiles: Vec<SpriteImage>,
+    door_tiles: Vec<SpriteId>,
     /// Sprites for torch animations
-    torch_tiles: Vec<SpriteImage>,
+    torch_tiles: Vec<SpriteId>,
 }
 
 impl MapSprites {
     /// Creates a table of sprites from the standard layout of the dungeon spritesheet
-    pub fn from_dungeon_spritesheet(texture_id: TextureId, tile_size: u32) -> Self {
+    pub fn from_dungeon_spritesheet(texture_id: TextureId, sprites: &mut SpriteManager, tile_size: u32) -> Self {
+        macro_rules! add_sprites {
+            ($($sp:expr),* $(,)*) => (
+                vec![
+                    $(sprites.add($sp)),*
+                ]
+            );
+        }
         // Returns the (tile_size)x(tile_size) sprite for the given row and column of the spritesheet
         macro_rules! tile_sprite {
             (x: $x:expr, y: $y:expr, width: $width:expr, height: $height:expr) => (
@@ -52,7 +67,7 @@ impl MapSprites {
         }
 
         Self {
-            floor_tiles: vec![
+            floor_tiles: add_sprites![
                 tile_sprite!(row: 0, col: 0), // 1
                 tile_sprite!(row: 0, col: 1), // 2
                 tile_sprite!(row: 0, col: 2), // 3
@@ -68,7 +83,7 @@ impl MapSprites {
                 tile_sprite!(row: 2, col: 2), // 11
                 tile_sprite!(row: 2, col: 3), // 12
             ],
-            wall_tiles: vec![
+            wall_tiles: add_sprites![
                 tile_sprite!(row: 8, col: 0),
                 tile_sprite!(row: 8, col: 1),
                 tile_sprite!(row: 8, col: 2),
@@ -110,25 +125,25 @@ impl MapSprites {
                 tile_sprite!(row: 10, col: 12), // Left
                 tile_sprite!(row: 10, col: 13), // Right
             ],
-            staircase_up_tiles: vec![
+            staircase_up_tiles: add_sprites![
                 // bottom step faces right
                 tile_sprite!(row: 15, col: 8, width: tile_size, height: tile_size*2).anchor_south().flip_horizontally(),
                 // bottom step faces left
                 tile_sprite!(row: 15, col: 8, width: tile_size, height: tile_size*2).anchor_south(),
             ],
-            staircase_down_tiles: vec![
+            staircase_down_tiles: add_sprites![
                 // top step faces right
                 tile_sprite!(row: 16, col: 7),
                 // top step faces left
                 tile_sprite!(row: 16, col: 7).flip_horizontally(),
             ],
-            door_tiles: vec![
+            door_tiles: add_sprites![
                 // horizontal door (closed)
                 tile_sprite!(row: 11, col: 14),
                 // vertical door (closed)
                 tile_sprite!(row: 10, col: 15, width: tile_size, height: tile_size*2).anchor_south(),
             ],
-            torch_tiles: vec![
+            torch_tiles: add_sprites![
                 tile_sprite!(row: 15, col: 0),
                 tile_sprite!(row: 15, col: 1),
                 tile_sprite!(row: 15, col: 2),
@@ -137,11 +152,11 @@ impl MapSprites {
         }
     }
 
-    pub fn empty_tile_sprite(&self) -> &SpriteImage {
+    pub fn empty_tile_sprite(&self) -> &SpriteId {
         self.floor_sprite(FloorSprite::Floor4)
     }
 
-    pub fn floor_sprite(&self, sprite: FloorSprite) -> &SpriteImage {
+    pub fn floor_sprite(&self, sprite: FloorSprite) -> &SpriteId {
         use self::FloorSprite::*;
         match sprite {
             Floor1 => &self.floor_tiles[0],
@@ -159,7 +174,7 @@ impl MapSprites {
         }
     }
 
-    pub fn wall_sprite(&self, sprite: WallSprite) -> &SpriteImage {
+    pub fn wall_sprite(&self, sprite: WallSprite) -> &SpriteId {
         macro_rules! w {
             (N: $n:pat, E: $e:pat, S: $s:pat, W: $w:pat, alt: $a:pat) => {
                 WallSprite {wall_north: $n, wall_east: $e, wall_south: $s, wall_west: $w, alt: $a}
@@ -210,7 +225,7 @@ impl MapSprites {
         }
     }
 
-    pub fn staircase_up_sprite(&self, direction: StairsDirection) -> &SpriteImage {
+    pub fn staircase_up_sprite(&self, direction: StairsDirection) -> &SpriteId {
         use self::StairsDirection::*;
         match direction {
             Right => &self.staircase_up_tiles[0],
@@ -218,7 +233,7 @@ impl MapSprites {
         }
     }
 
-    pub fn staircase_down_sprite(&self, direction: StairsDirection) -> &SpriteImage {
+    pub fn staircase_down_sprite(&self, direction: StairsDirection) -> &SpriteId {
         use self::StairsDirection::*;
         match direction {
             Right => &self.staircase_down_tiles[0],
@@ -226,7 +241,7 @@ impl MapSprites {
         }
     }
 
-    pub fn door_sprite(&self, state: Door, orientation: HoriVert) -> Option<&SpriteImage> {
+    pub fn door_sprite(&self, state: Door, orientation: HoriVert) -> Option<&SpriteId> {
         match (state, orientation) {
             (Door::Locked, HoriVert::Horizontal) |
             (Door::Closed, HoriVert::Horizontal) => Some(&self.door_tiles[0]),
@@ -237,7 +252,7 @@ impl MapSprites {
         }
     }
 
-    pub fn torch_sprite(&self, frame: TorchSprite) -> &SpriteImage {
+    pub fn torch_sprite(&self, frame: TorchSprite) -> &SpriteId {
         use self::TorchSprite::*;
         match frame {
             Torch1 => &self.torch_tiles[0],

@@ -1,6 +1,6 @@
 use std::ops::{Add, Sub, Mul};
 
-use sdl2::rect::Point;
+use sdl2::rect::{Point, Rect};
 
 use super::GridSize;
 
@@ -12,15 +12,27 @@ pub struct TilePos {
 }
 
 impl TilePos {
+    /// Returns the rectangle in world coordinates that is covered by this tile
+    /// Maps columns to x-coordinates and rows to y-coordinates
+    pub fn tile_rect(self, tile_size: u32) -> Rect {
+        let top_left = self.top_left(tile_size as i32);
+        Rect::new(
+            top_left.x(),
+            top_left.y(),
+            tile_size,
+            tile_size,
+        )
+    }
+
     /// Returns the position in world coordinates of the center of this tile
     /// Maps columns to x-coordinates and rows to y-coordinates
-    pub fn center(&self, tile_size: i32) -> Point {
+    pub fn center(self, tile_size: i32) -> Point {
         self.top_left(tile_size).offset(tile_size / 2, tile_size / 2)
     }
 
     /// Returns the position in world coordinates of the bottom right of this tile
     /// Maps columns to x-coordinates and rows to y-coordinates
-    pub fn bottom_right(&self, tile_size: i32) -> Point {
+    pub fn bottom_right(self, tile_size: i32) -> Point {
         self.top_left(tile_size).offset(tile_size, tile_size)
     }
 

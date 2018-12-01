@@ -2,7 +2,7 @@ use rand::{rngs::StdRng, Rng, seq::SliceRandom};
 use specs::{World, Builder};
 
 use super::{GameGenerator, RanOutOfAttempts};
-use sprites::WallSprite;
+use map_sprites::WallSprite;
 use components::{Position, Ghost, BoundingBox, Sprite, Stairs, StairsDirection};
 use map::*;
 
