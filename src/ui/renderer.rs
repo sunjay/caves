@@ -153,7 +153,7 @@ fn render_entities<'a, T: RenderTarget>(
     sprites: &SpriteManager,
     mut should_render: impl FnMut(Point) -> bool,
 ) -> Result<(), SDLError> {
-    for (&Position(pos), Sprite(sprite)) in components {
+    for (&Position(pos), &Sprite(sprite)) in components {
         if !should_render(pos) {
             continue;
         }
@@ -205,7 +205,7 @@ fn render_background<T: RenderTarget>(
 
             if !should_render(tile_pos, tile) {
                 // Render an empty tile
-                let sprite = map_sprites.empty_tile_sprite();
+                let sprite = sprites.get(map_sprites.empty_tile_sprite());
                 render_sprite(pos, tile_size as u32, sprite, canvas, render_top_left, textures)?;
                 continue;
             }
@@ -214,6 +214,7 @@ fn render_background<T: RenderTarget>(
                 .chain(once(tile.background_sprite(map_sprites)));
 
             for sprite in tile_layers {
+                let sprite = sprites.get(sprite);
                 render_sprite(pos, tile_size as u32, sprite, canvas, render_top_left, textures)?;
             }
         }

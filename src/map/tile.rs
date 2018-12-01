@@ -37,11 +37,11 @@ impl Tile {
     }
 
     /// Returns the sprite that should be used as the background of this tile
-    pub fn background_sprite<'a>(&self, map_sprites: &'a MapSprites) -> &'a SpriteId {
+    pub fn background_sprite<'a>(&self, map_sprites: &'a MapSprites) -> SpriteId {
         use self::Tile::*;
         match *self {
-            Floor {sprite, ..} => &map_sprites.floor_sprite(sprite),
-            Wall {sprite, ..} => &map_sprites.wall_sprite(sprite),
+            Floor {sprite, ..} => map_sprites.floor_sprite(sprite),
+            Wall {sprite, ..} => map_sprites.wall_sprite(sprite),
             Empty => map_sprites.empty_tile_sprite(),
         }
     }
