@@ -376,7 +376,7 @@ impl GameGenerator {
     }
 
     /// Places a TileRect on the map and properly assigns its edges to be wall tiles
-    pub fn place_rect(&self, map: &mut FloorMap, room_id: RoomId) {
+    fn place_rect(&self, map: &mut FloorMap, room_id: RoomId) {
         // First cover the room in floor tiles
         for pos in map.room(room_id).boundary().tile_positions() {
             map.grid_mut().place_tile(pos, Tile::new_floor(room_id, FloorSprite::default()));

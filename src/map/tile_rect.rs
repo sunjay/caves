@@ -2,7 +2,7 @@ use std::cmp;
 use std::iter::once;
 
 use sdl2::rect::Rect;
-use rand::Rng;
+use rand::{Rng, seq::SliceRandom};
 
 use super::{TilePos, GridSize};
 
@@ -165,7 +165,7 @@ impl TileRect {
     /// Returns a random tile position on one of the horizontal (top or bottom) edges
     pub fn random_horizontal_edge_tile<R: Rng>(self, rng: &mut R) -> TilePos {
         TilePos {
-            row: self.top_left.row + *rng.choose(&[0, self.dim.rows - 1]).unwrap(),
+            row: self.top_left.row + *[0, self.dim.rows - 1].choose(rng).unwrap(),
             col: self.top_left.col + rng.gen_range(0, self.dim.cols),
         }
     }

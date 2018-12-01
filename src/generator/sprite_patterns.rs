@@ -3,6 +3,7 @@ use specs::{World, ReadStorage, Join};
 use sdl2::rect::Rect;
 
 use super::{GameGenerator, TileRect, TilePos, GridSize};
+use super::world_helpers::world_contains_any_entity;
 use map_sprites::{WallSprite, WallSpriteAlternate, FLOOR_PATTERNS};
 use components::{Position, WallDecoration};
 use map::*;
@@ -95,11 +96,6 @@ impl GameGenerator {
     }
 
     pub(in super) fn layout_wall_torch_sprites(&self, map: &mut FloorMap, world: &mut World) {
-        // Returns true if the given boundary contains any entity
-        let contains_any_entity = |bounds: Rect| world.system_data::<ReadStorage<Position>>()
-            .join()
-            .any(|&Position(pos)| bounds.contains_point(pos));
-
         // For every span of wall tiles of this size, we will try to put a torch approximately in
         // the middle of them. Only wall tiles where a torch could actually be placed count towards
         // this total.
@@ -117,7 +113,7 @@ impl GameGenerator {
 
                 let has_south_floor = pos.adjacent_south(map.grid().rows_len())
                     .map(|pt| (pt.tile_rect(map.tile_size()), map.grid().get(pt)))
-                    .map(|(bounds, t)| t.is_floor() && !contains_any_entity(bounds))
+                    .map(|(bounds, t)| t.is_floor() && !world_contains_any_entity(world, bounds))
                     .unwrap_or(false);
                 if !has_south_floor {
                     continue;

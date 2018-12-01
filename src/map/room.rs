@@ -28,7 +28,7 @@ pub struct Room {
 
 impl Room {
     /// Create a new normal room
-    pub(in super) fn new(boundary: TileRect) -> Self {
+    pub fn new(boundary: TileRect) -> Self {
         Self {rtype: RoomType::Normal, boundary}
     }
 
@@ -65,12 +65,12 @@ impl Room {
     }
 
     /// Turns this room into the player start room
-    pub(in map) fn become_player_start(&mut self) {
+    pub fn become_player_start(&mut self) {
         self.rtype = RoomType::PlayerStart;
     }
 
     /// Turns this room into the treasure chamber
-    pub(in map) fn become_treasure_chamber(&mut self) {
+    pub fn become_treasure_chamber(&mut self) {
         self.rtype = RoomType::TreasureChamber;
     }
 }

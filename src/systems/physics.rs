@@ -52,10 +52,9 @@ impl<'a> System<'a> for Physics {
                 let bounds_box = bounds_box.shrink(COLLISION_THRESHOLD);
                 let bounds = bounds_box.to_rect(next_pos);
 
-                // Check if any of the tiles that this new position intersects with is a wall or
-                // any other tile that should not be traversed
+                // Check if any of the tiles that this new position intersects with is a wall
                 let potential_collisions = map.tiles_within(bounds)
-                    .filter(|(_, _, tile)| !tile.is_traversable())
+                    .filter(|(_, _, tile)| tile.is_wall())
                     .map(|(pos, _, _)| Rect::new(
                         pos.x(),
                         pos.y(),
