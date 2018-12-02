@@ -31,6 +31,7 @@ impl<'a, 'b> From<GenLevel<'a, 'b>> for LevelScreen<'a, 'b> {
 impl<'a, 'b> LevelScreen<'a, 'b> {
     /// Dispatch the given events and update the state based on the frames that have elapsed
     pub fn dispatch(&mut self, frames_elapsed: FramesElapsed, events: Vec<Event>) {
+        //NOTE: All resources here must already be added when the world is created
         *self.world.write_resource::<FramesElapsed>() = frames_elapsed;
         *self.world.write_resource::<ChangeGameState>() = ChangeGameState::default();
         *self.world.write_resource::<ActionQueue>() = ActionQueue::default();

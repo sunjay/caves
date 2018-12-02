@@ -47,11 +47,10 @@ use components::{
     KeyboardControlled,
     CameraFocus,
     Sprite,
-    AnimationManager,
     Player,
 };
 use assets::AssetManager;
-use resources::{FramesElapsed, ActionQueue, EventQueue, Event, Key};
+use resources::{FramesElapsed, ChangeGameState, ActionQueue, EventQueue, Event, Key};
 use ui::{Window, GameScreen, SDLError};
 use generator::{GameGenerator, GenGame};
 use map_sprites::MapSprites;
@@ -92,6 +91,7 @@ fn main() -> Result<(), SDLError> {
         let mut world = World::new();
 
         world.add_resource(FramesElapsed(1));
+        world.add_resource(ChangeGameState::default());
         world.add_resource(EventQueue::default());
         world.add_resource(ActionQueue::default());
 
