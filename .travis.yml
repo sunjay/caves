@@ -15,6 +15,7 @@ matrix:
   fast_finish: true
 script:
   - cargo build --verbose --all
+  - cargo build --verbose --tests
   # Our tests fail intermitantly, so we retry a few times.
   - for i in {1..5}; do cargo test --verbose --all --color=always 2> test.log && break || sleep 1; done
   # Output last attempt
