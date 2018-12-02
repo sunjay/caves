@@ -31,6 +31,14 @@ impl Wait {
 #[storage(VecStorage)]
 pub struct Sprite(pub SpriteId);
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Frame {
+    /// The sprite that this frame represents
+    pub sprite: SpriteId,
+    /// The duration of this animation step (in frames)
+    pub duration: usize,
+}
+
 /// Used to modify the Sprite component every frame
 #[derive(Debug, Clone, Component)]
 #[storage(HashMapStorage)]
@@ -125,14 +133,6 @@ pub struct AnimationManager {
 
     /// The number of frames since this entity last moved, attacked, or been hit
     pub idle_counter: usize,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Frame {
-    /// The sprite that this frame represents
-    pub sprite: SpriteId,
-    /// The duration of this animation step (in frames)
-    pub duration: usize,
 }
 
 impl AnimationManager {

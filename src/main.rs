@@ -50,7 +50,7 @@ use components::{
     AnimationManager,
     Player,
 };
-use assets::{TextureManager, SpriteManager};
+use assets::AssetManager;
 use resources::{FramesElapsed, ActionQueue, EventQueue, Event, Key};
 use ui::{Window, GameScreen, SDLError};
 use generator::{GameGenerator, GenGame};
@@ -78,13 +78,15 @@ fn main() -> Result<(), SDLError> {
 
     let mut window = Window::init(320, 240)?;
     let texture_creator = window.texture_creator();
-    let mut textures = TextureManager::new(&texture_creator);
-    let mut sprites = SpriteManager::default();
     let mut event_pump = window.event_pump()?;
 
     let tile_size = 16;
-    let map_texture = textures.create_png_texture("assets/dungeon.png")?;
-    let map_sprites = MapSprites::from_dungeon_spritesheet(map_texture, &mut sprites, tile_size);
+    let AssetManager {
+        textures,
+        map_sprites,
+        player_animations,
+        sprites,
+    } = AssetManager::load(&texture_creator, fps as usize, tile_size)?;
 
     let GenGame {key, mut levels, player_start} = game_generator(tile_size, &map_sprites).generate(|| {
         let mut world = World::new();
@@ -117,8 +119,6 @@ fn main() -> Result<(), SDLError> {
         let first_level = levels.first_mut()
             .expect("bug: should be at least one level")
             .world_mut();
-        let character_texture = textures.create_png_texture("assets/hero.png")?;
-        let character_animations = AnimationManager::standard_character_animations(fps as usize, character_texture, &mut sprites);
         first_level.create_entity()
             .with(KeyboardControlled)
             .with(CameraFocus)
@@ -127,9 +127,9 @@ fn main() -> Result<(), SDLError> {
             .with(Position(player_start))
             .with(BoundingBox::BottomHalf {width: 16, height: 8})
             .with(Movement::default())
-            .with(Sprite(character_animations.default_sprite()))
-            .with(character_animations.default_animation())
-            .with(character_animations)
+            .with(Sprite(player_animations.default_sprite()))
+            .with(player_animations.default_animation())
+            .with(player_animations)
             .build();
     }
 
