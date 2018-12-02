@@ -9,6 +9,7 @@ use sdl2::{
 use specs::{Dispatcher, World};
 
 use assets::{TextureManager, SpriteManager};
+use components::AnimationManager;
 use map_sprites::MapSprites;
 use generator::GenLevel;
 use map::FloorMap;
@@ -46,6 +47,12 @@ impl<'a, 'b> LevelScreen<'a, 'b> {
     ///
     /// Useful for debugging. This function is fairly "slow", so use sparingly.
     pub fn render_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), SDLError> {
+        //TODO: This code is super fragile and bad. The SpriteIds generated do not necessarily
+        // correspond to valid IDs in the code below. We try to mimic the order in which the
+        // SpriteManager is populated, but this makes this code prone to breaking. We should
+        // probably just get rid of this? (Or otherwise unify the loading of all of our resources
+        // in one place with a struct that is generic to the texture context type)
+
         let map = self.world.read_resource::<FloorMap>();
 
         let level_boundary = map.level_boundary();
@@ -55,6 +62,8 @@ impl<'a, 'b> LevelScreen<'a, 'b> {
 
         let mut textures = TextureManager::new(&texture_creator);
         let mut sprites = SpriteManager::default();
+        let character_texture = textures.create_png_texture("assets/hero.png")?;
+        let _character_animations = AnimationManager::standard_character_animations(1, character_texture, &mut sprites);
         let map_texture = textures.create_png_texture("assets/dungeon.png")?;
         let tile_size = 16;
         let map_sprites = MapSprites::from_dungeon_spritesheet(map_texture, &mut sprites, tile_size);
