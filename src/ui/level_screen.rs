@@ -8,8 +8,7 @@ use sdl2::{
 };
 use specs::{Dispatcher, World};
 
-use assets::{TextureManager, SpriteManager};
-use components::AnimationManager;
+use assets::{AssetManager, TextureManager, SpriteManager};
 use map_sprites::MapSprites;
 use generator::GenLevel;
 use map::FloorMap;
@@ -60,13 +59,13 @@ impl<'a, 'b> LevelScreen<'a, 'b> {
             PixelFormatEnum::RGBA8888).and_then(|c| c.into_canvas()).map_err(SDLError)?;
         let texture_creator = canvas.texture_creator();
 
-        let mut textures = TextureManager::new(&texture_creator);
-        let mut sprites = SpriteManager::default();
-        let character_texture = textures.create_png_texture("assets/hero.png")?;
-        let _character_animations = AnimationManager::standard_character_animations(1, character_texture, &mut sprites);
-        let map_texture = textures.create_png_texture("assets/dungeon.png")?;
         let tile_size = 16;
-        let map_sprites = MapSprites::from_dungeon_spritesheet(map_texture, &mut sprites, tile_size);
+        let AssetManager {
+            textures,
+            map_sprites,
+            sprites,
+            ..
+        } = AssetManager::load(&texture_creator, 30, tile_size)?;
 
         let data: RenderData = self.world.system_data();
         render_area(data, level_boundary, &mut canvas, &map_sprites, &textures,
