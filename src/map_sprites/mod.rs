@@ -9,8 +9,6 @@ use sdl2::rect::Rect;
 use components::Animation;
 use assets::{TextureId, SpriteId, SpriteImage, SpriteManager};
 
-use super::*;
-
 /// A lookup table for all map sprites
 /// Used to avoid having to manage sprites in each tile
 #[derive(Debug, Clone)]
@@ -153,7 +151,7 @@ impl MapSprites {
                 ],
                 3,
                 false,
-                false,
+                true,
             ),
         }
     }

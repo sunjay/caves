@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use specs::{System, Join, ReadExpect, WriteExpect, ReadStorage, WriteStorage, Entities};
+use specs::{System, Join, ReadExpect, ReadStorage, WriteStorage, Entities};
 
 use components::{Movement, MovementDirection::*, Sprite, Animation, AnimationManager, Wait};
 use resources::{ActionQueue, Action::*, FramesElapsed};
@@ -40,7 +40,7 @@ impl<'a> System<'a> for Animator {
         let FramesElapsed(frames_elapsed) = *frames;
         let ActionQueue(ref action_queue) = *action_queue;
 
-        // NOTE: This code often needs to compare the frames in the animation for equality. If we
+        //TODO: This code often needs to compare the frames in the animation for equality. If we
         // could either name each animation or store a specialized frame list that keeps around a
         // hash of its contents, we could make that comparision much faster.
 
