@@ -84,11 +84,16 @@ pub(in super) fn render_player_visible<T: RenderTarget>(
     let visible_tiles = grid.depth_first_search(focus_pos, |node, _| {
         // Stop searching at walls or closed entrances (but still include them in the result)
         let is_wall = grid.get(node).is_wall();
-        let focus_center = focus_pos.center(tile_size);
+        if is_wall {
+            // Want to short-circuit early since the code below is expensive
+            return false;
+        }
+
+        let node_center = node.center(tile_size);
         let is_door = (positions, doors).join()
-            .find(|(&Position(pos), Door {..})| pos == focus_center)
+            .find(|(&Position(pos), Door {..})| pos == node_center)
             .is_some();
-        !is_wall && !is_door
+        !is_door
     });
 
     let should_render = |pt, tile: &Tile| {
