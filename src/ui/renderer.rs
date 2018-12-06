@@ -168,9 +168,9 @@ pub(in super) fn render_area<'a, T: RenderTarget>(
     };
 
     render_entities((positions, esprites, ghosts).join().map(|(p, s, _)| (p, s)),
-        render_top_left, canvas, textures, sprites, should_render_pos)?;
+        map.tile_size(), render_top_left, canvas, textures, sprites, should_render_pos)?;
     render_entities((positions, esprites, !ghosts).join().map(|(p, s, _)| (p, s)),
-        render_top_left, canvas, textures, sprites, should_render_pos)?;
+        map.tile_size(), render_top_left, canvas, textures, sprites, should_render_pos)?;
 
     canvas.present();
 
@@ -180,6 +180,7 @@ pub(in super) fn render_area<'a, T: RenderTarget>(
 /// Renders the tiles of the background (map) within the given region
 fn render_entities<'a, T: RenderTarget>(
     components: impl Iterator<Item=(&'a Position, &'a Sprite)>,
+    tile_size: u32,
     render_top_left: Point,
     canvas: &mut Canvas<T>,
     textures: &TextureManager<<T as RenderTarget>::Context>,
@@ -191,22 +192,11 @@ fn render_entities<'a, T: RenderTarget>(
             continue;
         }
 
-        let pos = pos - render_top_left;
         let sprite = sprites.get(sprite);
-        let texture = textures.get(sprite.texture_id);
-        let source_rect = sprite.region;
-        let mut dest_rect = source_rect.clone();
-        dest_rect.center_on(pos);
-
-        canvas.copy_ex(
-            texture,
-            source_rect,
-            dest_rect,
-            0.0,
-            None,
-            sprite.flip_horizontal,
-            sprite.flip_vertical,
-        ).map_err(SDLError)?;
+        // Render the sprite in a (tile_size)x(tile_size) square centered around its position.
+        // TODO: If the sprite is bigger than this, it will (currently) still be rendered and not
+        // clipped.
+        render_sprite(pos, tile_size, sprite, canvas, render_top_left, textures)?;
     }
 
     Ok(())
@@ -234,7 +224,7 @@ fn render_background<T: RenderTarget>(
     for (row, row_tiles) in grid.rows().enumerate().skip(top_left.row).take(size.rows) {
         for (col, tile) in row_tiles.iter().enumerate().skip(top_left.col).take(size.cols) {
             let tile_pos = TilePos {row, col};
-            let pos = tile_pos.top_left(tile_size);
+            let pos = tile_pos.center(tile_size);
 
             if !should_render(tile_pos, tile) {
                 // Render an empty tile
@@ -257,27 +247,33 @@ fn render_background<T: RenderTarget>(
 }
 
 fn render_sprite<T: RenderTarget>(
-    pos: Point,
+    center: Point,
     tile_size: u32,
     sprite: &SpriteImage,
     canvas: &mut Canvas<T>,
     render_top_left: Point,
     textures: &TextureManager<<T as RenderTarget>::Context>,
 ) -> Result<(), SDLError> {
+    //TODO: This code needs to be way more robust. Currently, we make a bunch of assumptions and
+    // there is actually no way that this code will work for sprites larger than one tile once we
+    // make the should_render logic more complicated. In reality, what we need to do is run
+    // should_render on each tile-sized area of the sprite to be rendered and then clip the parts
+    // of the sprite that shouldn't be rendered. This is more complicated behaviour and we will
+    // eventually need to do this to continue advancing this code.
+
     let texture = textures.get(sprite.texture_id);
     // Source rect should never be modified here because it represents the exact place
     // on the spritesheet of this sprite. No reaosn to modify that.
-    let source_rect = sprite.region.clone();
+    let source_rect = sprite.region;
 
     // The destination rectangle that this sprite should be aligned against. The sprite
     // is not required to be confined to this rectangle. It is only used to decide how
     // the sprite's layout should be calculated.
-    let dest = Rect::new(
+    let dest = Rect::from_center(
         // Need to subtract the position (world coordinates) of this tile from the position
         // in world coordinates of the top-left corner of the screen so that we are left
         // with the position of this sprite on the screen in screen coordinates
-        pos.x() - render_top_left.x(),
-        pos.y() - render_top_left.y(),
+        center - render_top_left,
         tile_size,
         tile_size,
     );
