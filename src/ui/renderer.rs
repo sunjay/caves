@@ -120,7 +120,7 @@ fn find_visible_tiles(
         // a single tile. We need to start the search one tile below for everything to workout.
         // Ideally, we would calculate the position one tile "away" from the door and use that as
         // an exact point to start. This works because we only have two bounding box types.
-        Some(door) => pos.adjacent_south(grid.rows_len()).unwrap(),
+        Some(_) => pos.adjacent_south(grid.rows_len()).unwrap(),
         None => pos,
     };
 

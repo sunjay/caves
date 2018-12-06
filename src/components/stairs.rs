@@ -4,8 +4,6 @@ use std::fmt;
 
 use specs::{Component, HashMapStorage};
 
-use map::TilePos;
-
 /// A staircase to the next level or to the previous level
 #[derive(Debug, Component)]
 #[storage(HashMapStorage)]
