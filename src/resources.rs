@@ -90,6 +90,10 @@ impl Key {
 pub struct ChangeGameState(Option<GameState>);
 
 impl ChangeGameState {
+    pub fn get(&self) -> Option<GameState> {
+        self.0
+    }
+
     /// Replaces the
     pub fn replace(&mut self, state: GameState) -> Option<GameState> {
         //TODO: Can replace this with a single call to Option::replace once that is stablized.

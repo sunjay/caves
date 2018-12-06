@@ -108,6 +108,9 @@ impl BoundingBox {
         }
     }
 
+    /// Given the position of the center of an entity, returns the rectangle that represents the
+    /// boundary of the bounding box. The position is interpreted differently depending on the type
+    /// of the bounding box.
     pub fn to_rect(self, pos: Point) -> Rect {
         use self::BoundingBox::*;
         match self {
