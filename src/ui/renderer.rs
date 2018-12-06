@@ -1,12 +1,13 @@
 use std::cmp;
 use std::iter::once;
+use std::collections::HashSet;
 
 use sdl2::{rect::{Point, Rect}, render::{Canvas, RenderTarget}};
 use specs::{Join, ReadStorage, Resources, SystemData, ReadExpect};
 
 use assets::{TextureManager, SpriteManager, SpriteImage};
 use components::{Position, Sprite, CameraFocus, Door, Ghost};
-use map::{FloorMap, Tile, TilePos};
+use map::{FloorMap, TileGrid, Tile, TilePos};
 use map_sprites::MapSprites;
 use super::SDLError;
 
@@ -77,24 +78,13 @@ pub(in super) fn render_player_visible<T: RenderTarget>(
     );
 
     // Only render tiles that are visible to the camera focus.
+
+    // The tile that the camera focus is currently standing on
     let focus_pos = map.world_to_tile_pos(camera_focus);
 
     // The returned set will contain all tiles that are directly visible to the camera focus
     // without passing through entrances that have still not been opened.
-    let visible_tiles = grid.depth_first_search(focus_pos, |node, _| {
-        // Stop searching at walls or closed entrances (but still include them in the result)
-        let is_wall = grid.get(node).is_wall();
-        if is_wall {
-            // Want to short-circuit early since the code below is expensive
-            return false;
-        }
-
-        let node_center = node.center(tile_size);
-        let is_door = (positions, doors).join()
-            .find(|(&Position(pos), Door {..})| pos == node_center)
-            .is_some();
-        !is_door
-    });
+    let visible_tiles = find_visible_tiles(grid, focus_pos, tile_size, positions, doors);
 
     let should_render = |pt, tile: &Tile| {
         visible_tiles.contains(&pt) ||
@@ -105,6 +95,39 @@ pub(in super) fn render_player_visible<T: RenderTarget>(
     };
 
     render_area(&data, screen, canvas, map_sprites, textures, sprites, should_render)
+}
+
+fn find_visible_tiles(
+    grid: &TileGrid,
+    pos: TilePos,
+    tile_size: i32,
+    positions: &ReadStorage<Position>,
+    doors: &ReadStorage<Door>,
+) -> HashSet<TilePos> {
+    let find_door = |target: TilePos| {
+        let target_center = target.center(tile_size);
+        (positions, doors).join()
+            .find(|(&Position(pos), Door {..})| pos == target_center)
+    };
+
+    // If the position center is at a door, start one tile back away from it
+    let pos = match find_door(pos) {
+        //TODO: This code is fragile. It only works because we have two bounding boxes: full and
+        // bottom half. If we were to one day add another type, it would no longer work.
+        // Reason: This code is meant to handle the special case where the top of a bottom half
+        // bounding box is toching a door north of its position. Since the center of the bounding
+        // box is at the top, we can run into a situation where the search below only results in
+        // a single tile. We need to start the search one tile below for everything to workout.
+        // Ideally, we would calculate the position one tile "away" from the door and use that as
+        // an exact point to start. This works because we only have two bounding box types.
+        Some(door) => pos.adjacent_south(grid.rows_len()).unwrap(),
+        None => pos,
+    };
+
+    grid.depth_first_search(pos, |node, _| {
+        // Stop searching at walls or closed entrances (but still include them in the result)
+        !grid.get(node).is_wall() && find_door(node).is_none()
+    })
 }
 
 pub(in super) fn render_area<'a, T: RenderTarget>(
