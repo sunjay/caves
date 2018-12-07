@@ -28,12 +28,6 @@ pub struct GenLevel<'a, 'b> {
     pub dispatcher: Dispatcher<'a, 'b>,
 }
 
-impl<'a, 'b> GenLevel<'a, 'b> {
-    pub fn world_mut(&mut self) -> &mut World {
-        &mut self.world
-    }
-}
-
 pub struct GenGame<'a, 'b> {
     pub key: MapKey,
     pub levels: Vec<GenLevel<'a, 'b>>,

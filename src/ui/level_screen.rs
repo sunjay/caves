@@ -4,14 +4,16 @@ use sdl2::{
     image::{SaveSurface},
     pixels::{PixelFormatEnum},
     surface::Surface,
+    rect::Point,
     render::{Canvas, RenderTarget},
 };
-use specs::{Dispatcher, World};
+use specs::{Dispatcher, World, Join, Entity, Entities, ReadStorage};
 
 use assets::{AssetManager, TextureManager, SpriteManager};
 use map_sprites::MapSprites;
 use generator::GenLevel;
 use map::FloorMap;
+use components::{PlayerComponents, Player, Position, Stairs};
 use resources::{FramesElapsed, Event, ChangeGameState, GameState, ActionQueue, EventQueue};
 
 use super::renderer::{RenderData, render_area, render_player_visible};
@@ -29,8 +31,48 @@ impl<'a, 'b> From<GenLevel<'a, 'b>> for LevelScreen<'a, 'b> {
 }
 
 impl<'a, 'b> LevelScreen<'a, 'b> {
+    /// Returns the components of the player on this level
+    pub fn player_components(&self) -> PlayerComponents {
+        PlayerComponents::from_world(&self.world)
+    }
+
+    /// Finds the ToNextLevel gate with the given
+    pub fn find_to_next_level(&self, gate_id: usize) -> Point {
+        let (positions, stairs) = self.world.system_data::<(ReadStorage<Position>, ReadStorage<Stairs>)>();
+        (&positions, &stairs).join().find_map(|(&Position(pos), stairs)| match stairs {
+            Stairs::ToNextLevel {id} if *id == gate_id => Some(pos),
+            _ => None,
+        }).expect("bug: could not find next level gate with matching ID")
+    }
+
+    /// Finds the ToPrevLevel gate with the given
+    pub fn find_to_prev_level(&self, gate_id: usize) -> Point {
+        let (positions, stairs) = self.world.system_data::<(ReadStorage<Position>, ReadStorage<Stairs>)>();
+        (&positions, &stairs).join().find_map(|(&Position(pos), stairs)| match stairs {
+            Stairs::ToPrevLevel {id} if *id == gate_id => Some(pos),
+            _ => None,
+        }).expect("bug: could not find previous level gate with matching ID")
+    }
+
+    /// Updates the player entity on this level
+    pub fn update_player(&mut self, player: PlayerComponents) {
+        match self.player_entity() {
+            Some(player_entity) => player.update(player_entity, &mut self.world),
+            None => {player.create(&mut self.world);},
+        }
+    }
+
+    /// Gets the entity of the player on this level or None if a player hasn't been created yet
+    fn player_entity(&self) -> Option<Entity> {
+        let (entities, players) = self.world.system_data::<(Entities, ReadStorage<Player>)>();
+        let mut player_iter = (&entities, &players).join();
+        let player_entity = player_iter.next().map(|(entity, _)| entity);
+        player_iter.next().map(|_| unreachable!("bug: more than one player in world"));
+        player_entity
+    }
+
     /// Dispatch the given events and update the state based on the frames that have elapsed
-    pub fn dispatch(&mut self, frames_elapsed: FramesElapsed, events: Vec<Event>) {
+    pub fn dispatch(&mut self, frames_elapsed: FramesElapsed, events: Vec<Event>) -> Option<GameState> {
         //NOTE: All resources here must already be added when the world is created
         *self.world.write_resource() = frames_elapsed;
         *self.world.write_resource() = ChangeGameState::default();
@@ -39,17 +81,11 @@ impl<'a, 'b> LevelScreen<'a, 'b> {
 
         self.dispatcher.dispatch(&mut self.world.res);
 
-        if let Some(newstate) = self.world.read_resource::<ChangeGameState>().get() {
-            use self::GameState::*;
-            match newstate {
-                GoToNextLevel {id} => unimplemented!(),
-                GoToPrevLevel {id} => unimplemented!(),
-                Pause => unimplemented!(),
-            }
-        }
-
         // Register any updates
         self.world.maintain();
+
+        // Return any changes of game state that have been requested
+        self.world.read_resource::<ChangeGameState>().get()
     }
 
     /// Render the entire state of the level (the entire map) to the given filename.
