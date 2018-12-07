@@ -33,13 +33,10 @@ use sdl2::{
     event::Event as SDLEvent,
     keyboard::Keycode,
 };
-use specs::{
-    Builder,
-    DispatcherBuilder,
-    World,
-};
+use specs::{DispatcherBuilder, World};
 
 use components::{
+    PlayerComponents,
     Position,
     HealthPoints,
     Movement,
@@ -87,7 +84,7 @@ fn main() -> Result<(), SDLError> {
         sprites,
     } = AssetManager::load(&texture_creator, fps as usize, tile_size)?;
 
-    let GenGame {key, mut levels, player_start} = game_generator(tile_size, &map_sprites).generate(|| {
+    let GenGame {key, levels, player_start} = game_generator(tile_size, &map_sprites).generate(|| {
         let mut world = World::new();
 
         world.add_resource(FramesElapsed(1));
@@ -115,25 +112,20 @@ fn main() -> Result<(), SDLError> {
     println!("Map Key: {}", key);
 
     // Add the character
-    {
-        let first_level = levels.first_mut()
-            .expect("bug: should be at least one level")
-            .world_mut();
-        first_level.create_entity()
-            .with(KeyboardControlled)
-            .with(CameraFocus)
-            .with(Player)
-            .with(HealthPoints(20))
-            .with(Position(player_start))
-            .with(BoundingBox::BottomHalf {width: 16, height: 8})
-            .with(Movement::default())
-            .with(Sprite(player_animations.default_sprite()))
-            .with(player_animations.default_animation())
-            .with(player_animations)
-            .build();
-    }
+    let player = PlayerComponents {
+        keyboard_controlled: KeyboardControlled,
+        camera_focus: CameraFocus,
+        player: Player,
+        health_points: HealthPoints(20),
+        position: Position(player_start),
+        bounding_box: BoundingBox::BottomHalf {width: 16, height: 8},
+        movement: Movement::default(),
+        sprite: Sprite(player_animations.default_sprite()),
+        animation: player_animations.default_animation(),
+        animation_manager: player_animations,
+    };
 
-    let mut game_screen = GameScreen::new(player_start, levels);
+    let mut game_screen = GameScreen::new(player, levels);
 
     for (i, level) in game_screen.levels().enumerate() {
         level.render_to_file(format!("level{}.png", i+1))?;
