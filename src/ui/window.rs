@@ -5,7 +5,7 @@ use sdl2::{
     Sdl,
     TimerSubsystem,
     EventPump,
-    image::{Sdl2ImageContext, INIT_PNG},
+    image::{Sdl2ImageContext, InitFlag},
     pixels::Color,
     render::{TextureCreator, Canvas},
     video::{Window as SDLWindow, WindowContext},
@@ -24,7 +24,7 @@ impl Window {
     pub fn init(width: u32, height: u32) -> Result<Self, SDLError> {
         let sdl_context = sdl2::init().map_err(SDLError)?;
         let video_subsystem = sdl_context.video().map_err(SDLError)?;
-        let _image_context = sdl2::image::init(INIT_PNG).unwrap();
+        let _image_context = sdl2::image::init(InitFlag::PNG).unwrap();
 
         // Scale display if a certain environment variable is set
         let display_scale = env::var("DISPLAY_SCALE")
