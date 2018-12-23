@@ -14,6 +14,7 @@ extern crate rand;
 extern crate base64;
 extern crate colored;
 extern crate rayon;
+extern crate component_group;
 
 mod systems;
 mod components;

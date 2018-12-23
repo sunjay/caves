@@ -13,6 +13,7 @@ base64 = "0.10"
 lazy_static = "1.2"
 colored = "1.6"
 rayon = "1.0"
+component_group = "1.0"
 
 [dependencies.sdl2]
 version = "*"

@@ -8,6 +8,7 @@ use sdl2::{
     render::{Canvas, RenderTarget},
 };
 use specs::{Dispatcher, World, Join, Entity, Entities, ReadStorage};
+use component_group::ComponentGroup;
 
 use assets::{AssetManager, TextureManager, SpriteManager};
 use map_sprites::MapSprites;
@@ -33,7 +34,8 @@ impl<'a, 'b> From<GenLevel<'a, 'b>> for LevelScreen<'a, 'b> {
 impl<'a, 'b> LevelScreen<'a, 'b> {
     /// Returns the components of the player on this level
     pub fn player_components(&self) -> PlayerComponents {
-        PlayerComponents::from_world(&self.world)
+        PlayerComponents::first_from_world(&self.world)
+            .expect("bug: expected player to be in world").1
     }
 
     /// Finds the ToNextLevel gate with the given
@@ -57,7 +59,8 @@ impl<'a, 'b> LevelScreen<'a, 'b> {
     /// Updates the player entity on this level
     pub fn update_player(&mut self, player: PlayerComponents) {
         match self.player_entity() {
-            Some(player_entity) => player.update(player_entity, &mut self.world),
+            Some(player_entity) => player.update(&mut self.world, player_entity)
+                .expect("bug: failed to update player when changing levels"),
             None => {player.create(&mut self.world);},
         }
     }

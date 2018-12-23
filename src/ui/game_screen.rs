@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use sdl2::render::{Canvas, RenderTarget};
+use component_group::ComponentGroup;
 
 use map_sprites::MapSprites;
 use generator::GenLevel;
