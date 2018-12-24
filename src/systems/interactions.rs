@@ -1,6 +1,6 @@
 //! Manages interactions between entities and adjacent tiles
 
-use sdl2::rect::Point;
+use sdl2::rect::{Point, Rect};
 use specs::{Entity, System, Join, ReadExpect, WriteExpect, ReadStorage, WriteStorage, Entities};
 
 use components::{
@@ -34,13 +34,11 @@ pub struct InteractionsData<'a> {
 impl<'a> InteractionsData<'a> {
     /// Attempts to interact with an entity adjacent to this entity in the given direction
     pub fn interact_with_adjacent(&mut self, entity: Entity) {
-        let (pos, direction) = match self.positions.get(entity).and_then(|p| self.movements.get(entity).map(|m| (p, m))) {
-            Some((&Position(pos), movement)) => (pos, movement.direction),
-            None => unreachable!("bug: only entities with positions and movement directions can interact"),
-        };
-        for (other_entity, other_pos, other_bounds) in self.nearest_in_direction(entity, pos, direction) {
+        let (pos, direction, bounds) = self.position_movement_bounds(entity);
+        for (other_entity, _) in self.nearest_in_direction(entity, pos, direction, bounds) {
             if self.doors.get(other_entity).is_some() {
-                self.doors.remove(other_entity);
+                self.entities.delete(other_entity)
+                    .expect("bug: unable to delete door");
                 break; // stop at the first interaction
             }
         }
@@ -48,18 +46,23 @@ impl<'a> InteractionsData<'a> {
 
     /// Attempts to attack an entity adjacent to this entity in the given direction
     pub fn attack_adjacent(&mut self, entity: Entity) {
-        let (pos, direction) = match self.positions.get(entity).and_then(|p| self.movements.get(entity).map(|m| (p, m))) {
-            Some((&Position(pos), movement)) => (pos, movement.direction),
-            None => unreachable!("bug: only entities with positions and movement directions can interact"),
-        };
-        for (other_entity, other_pos, other_bounds) in self.nearest_in_direction(entity, pos, direction) {
+        let (pos, direction, bounds) = self.position_movement_bounds(entity);
+        for (other_entity, other_pos) in self.nearest_in_direction(entity, pos, direction, bounds) {
             if self.doors.get(other_entity).is_some() {
-                self.doors.remove(other_entity);
+                self.entities.delete(other_entity)
+                    .expect("bug: unable to delete door");
             }
 
             //TODO: Attack any nearby entities in the given direction. Lower the HealthPoints
             // component of anything that gets hit. Anyone nearby in the direction of the method
             // should be hit.
+        }
+    }
+
+    fn position_movement_bounds(&self, entity: Entity) -> (Point, MovementDirection, BoundingBox) {
+        match (self.positions.get(entity), self.movements.get(entity), self.bounding_boxes.get(entity)) {
+            (Some(&Position(pos)), Some(movement), Some(&bounds)) => (pos, movement.direction, bounds),
+            _ => unreachable!("bug: only entities with positions, movement directions, and a bounding box can interact"),
         }
     }
 
@@ -70,7 +73,8 @@ impl<'a> InteractionsData<'a> {
         entity: Entity,
         pos: Point,
         direction: MovementDirection,
-    ) -> Vec<(Entity, Point, Option<BoundingBox>)> {
+        bounds: BoundingBox,
+    ) -> impl Iterator<Item=(Entity, Point)> {
         //TODO: Maybe instead of a (tile_size)x(tile_size) box we should consider a custom radius.
         // This might be useful because we know that attacks don't necessary take up the entire
         // adjacent tile. We also don't want to interact with things that are too far away.
@@ -80,7 +84,73 @@ impl<'a> InteractionsData<'a> {
         //TODO: If both entity and other_entity have bounding boxes, we need to use those to find
         // the distance instead of just the point itself. The algorithm will find the distance
         // between two rectangles instead of just two points
-        unimplemented!();
+        let bounds = bounds.to_rect(pos);
+        // Look in a `range` sized box adjacent to bounds in the given direction
+        // The center of the box is aligned with pos in the given direction
+        let range = self.map.tile_size() as i32;
+
+        // Generate the rectangle that the other bounding box must intersect with
+        // Assumption: bounding boxes do not intersect (due to the physics engine)
+        use self::MovementDirection::*;
+        let direction_box = match direction {
+            North => Rect::from_center(
+                Point::new(pos.x(), bounds.top() - range / 2),
+                range as u32,
+                range as u32,
+            ),
+            South => Rect::from_center(
+                Point::new(pos.x(), bounds.bottom() + range / 2),
+                range as u32,
+                range as u32,
+            ),
+            East => Rect::from_center(
+                Point::new(bounds.right() + range / 2, pos.y()),
+                range as u32,
+                range as u32,
+            ),
+            West => Rect::from_center(
+                Point::new(bounds.left() - range / 2, pos.y()),
+                range as u32,
+                range as u32,
+            ),
+        };
+
+        let mut near = Vec::new();
+        for (other, &Position(other_pos)) in (&self.entities, &self.positions).join() {
+            if entity == other {
+                continue;
+            }
+
+            // Using the full boundary (regardless of the bounding box type) because we want
+            // entities to be found regardless of whether their full height is used in collision
+            // detection
+            let other_bounds = self.bounding_boxes.get(other)
+                .map(|b| b.to_full_rect(other_pos))
+                .unwrap_or_else(|| Rect::from_center(other_pos, 0, 0));
+
+            if direction_box.has_intersection(other_bounds) {
+                near.push((other, other_pos, other_bounds));
+            }
+        }
+
+        // Return result sorted by the distance *between* the boundary rectangles in the given
+        // direction
+        match direction {
+            North => near.sort_unstable_by_key(|(_, _, other_bounds)| {
+                (bounds.top() - other_bounds.bottom()).abs()
+            }),
+            South => near.sort_unstable_by_key(|(_, _, other_bounds)| {
+                (other_bounds.top() - bounds.bottom()).abs()
+            }),
+            East => near.sort_unstable_by_key(|(_, _, other_bounds)| {
+                (other_bounds.left() - bounds.right()).abs()
+            }),
+            West => near.sort_unstable_by_key(|(_, _, other_bounds)| {
+                (bounds.left() - other_bounds.right()).abs()
+            }),
+        }
+
+        near.into_iter().map(|(other, other_pos, _)| (other, other_pos))
     }
 }
 

@@ -81,7 +81,7 @@ pub enum BoundingBox {
         width: u32,
         height: u32,
     },
-    /// A "half" bounding box where the postiion is the top-middle of the box formed by the given
+    /// A "half" bounding box where the position is the top-middle of the box formed by the given
     /// width and height
     BottomHalf {
         width: u32,
@@ -121,6 +121,16 @@ impl BoundingBox {
                 width,
                 height
             ),
+        }
+    }
+
+    /// Treat this bounding box as a full bounding box and return its boundary rectangle as if that
+    /// was the case.
+    pub fn to_full_rect(self, pos: Point) -> Rect {
+        use self::BoundingBox::*;
+        match self {
+            Full {width, height} => Rect::from_center(pos, width, height),
+            BottomHalf {width, height} => Rect::from_center(pos, width, height * 2),
         }
     }
 }
