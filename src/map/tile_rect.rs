@@ -136,16 +136,6 @@ impl TileRect {
                 .map(move |col| TilePos {row, col}))
     }
 
-    /// Returns an iterator over the positions of a single row of this rectangle
-    pub fn row_positions(self, row: usize) -> impl Iterator<Item=TilePos> {
-        (self.top_left.col..self.top_left.col+self.dim.cols).map(move |col| TilePos {row, col})
-    }
-
-    /// Returns an iterator over the positions of a single column of this rectangle
-    pub fn col_positions(self, col: usize) -> impl Iterator<Item=TilePos> {
-        (self.top_left.row..self.top_left.row+self.dim.rows).map(move |row| TilePos {row, col})
-    }
-
     /// Returns an iterator over all positions on an edge of the rectangle
     pub fn edge_positions(self) -> impl Iterator<Item=TilePos> {
         let tl = self.top_left();

@@ -87,17 +87,6 @@ impl TilePos {
     pub fn difference(self, other: Self) -> (isize, isize) {
         (self.row as isize - other.row as isize, self.col as isize - other.col as isize)
     }
-
-    /// Returns true if the orthogonal (horizontal or vertical) difference between this position and
-    /// another position is equal to the given value.
-    /// Always returns false if the two positions are not orthogonal.
-    pub fn is_orthogonal_difference(self, other: Self, distance: usize) -> bool {
-        match self.difference(other) {
-            (a, 0) | (0, a) => a.abs() == distance as isize,
-            // Not orthogonal
-            _ => false,
-        }
-    }
 }
 
 impl Add<GridSize> for TilePos {
