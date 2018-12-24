@@ -109,7 +109,6 @@ fn main() -> Result<(), SDLError> {
         (dispatcher, world)
     });
 
-    #[cfg(not(test))]
     println!("Map Key: {}", key);
 
     // Add the character
