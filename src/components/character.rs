@@ -10,9 +10,6 @@ use specs::{Component, VecStorage, NullStorage};
 /// that because Rust will tell you if you forget to provide a value for a field.
 #[derive(Debug, ComponentGroup)]
 pub struct PlayerComponents {
-    //IMPORTANT NOTE: Only components that are *guaranteed* to be present on a player should go
-    // here. If a component may be removed for some reason, this may cause a panic at runtime.
-
     pub keyboard_controlled: KeyboardControlled,
     pub camera_focus: CameraFocus,
     pub player: Player,
