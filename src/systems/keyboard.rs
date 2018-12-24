@@ -1,5 +1,3 @@
-use std::sync::{Arc, Mutex};
-
 use specs::{System, Join, ReadExpect, WriteExpect, ReadStorage, WriteStorage, Entities};
 
 use components::{Movement, MovementDirection, KeyboardControlled, Wait};
@@ -17,46 +15,37 @@ pub struct KeyboardData<'a> {
     waits: ReadStorage<'a, Wait>,
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct DirectionStack(Arc<Mutex<Vec<MovementDirection>>>);
-
+#[derive(Default)]
 pub struct Keyboard {
     /// Used to keep track of which directions were pressed most recently and which directions have
     /// still not been released. When the most recent direction is released, it is superceeded by
     /// its next most recent direction that is still pressed. When all directions have been
     /// released, the player stops.
-    direction_stack: DirectionStack,
+    direction_stack: Vec<MovementDirection>,
 }
 
 // NOTE: These methods assume that KeyUp and KeyDown act as they are expected to (i.e. you can't
 // have two KeyUp events for the same key before a KeyDown for that key)
 impl Keyboard {
-    pub fn new(direction_stack: DirectionStack) -> Self {
-        Self {
-            direction_stack,
-        }
-    }
-
     /// Returns the current direction that movement should proceed in (if any)
     fn current_direction(&self) -> Option<MovementDirection> {
-        self.direction_stack.0.lock().unwrap().last().cloned()
+        self.direction_stack.last().cloned()
     }
 
     /// Adds a direction to the stack. Can be overridden by later directions.
     /// Will be kept in case the later keys are released while this one is still held.
     fn push_direction(&mut self, direction: MovementDirection) {
-        self.direction_stack.0.lock().unwrap().push(direction);
+        self.direction_stack.push(direction);
     }
 
     /// Removes a direction from the direction stack and panics if the given direction was not
     /// found. If the KeyUp and KeyDown events are fired in their logical sequence, this should
     /// never happen.
     fn remove_direction(&mut self, direction: MovementDirection) {
-        let mut stack = self.direction_stack.0.lock().unwrap();
-        let index = stack.iter()
+        let index = self.direction_stack.iter()
             .position(|&d| d == direction)
             .expect("bug: attempt to remove a direction that was never added to the stack");
-        stack.remove(index);
+        self.direction_stack.remove(index);
     }
 }
 
