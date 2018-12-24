@@ -100,10 +100,12 @@ impl<'a> GameGenerator<'a> {
             Stairs::ToPrevLevel {..} if stairs_entrance_to_right => self.sprites.staircase_up_right(),
             Stairs::ToPrevLevel {..} => self.sprites.staircase_up_left(),
         };
+        // Make the stairs a little bit smaller so the player really needs to walk on top to enter
+        let stair_size = self.tile_size / 2;
         world.create_entity()
             .with(Ghost) // Allow the player to walk on top of stairs
             .with(Position(pos))
-            .with(BoundingBox::Full {width: self.tile_size, height: self.tile_size})
+            .with(BoundingBox::Full {width: stair_size, height: stair_size})
             .with(stairs)
             .with(Sprite(sprite))
             .build();
