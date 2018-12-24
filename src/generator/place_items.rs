@@ -91,8 +91,7 @@ impl<'a> GameGenerator<'a> {
         // Want to face away from the wall
         let stairs_entrance_to_right = match wall_pos.difference(obj_pos) {
             (0, 0) => unreachable!("bug: a position cannot face itself"),
-            (0, a) if a > 0 => true,
-            (0, a) if a < 0 => false,
+            (0, a) => a < 0,
             _ => unreachable!("bug: stairs only support facing left or right"),
         };
         let sprite = match stairs {
