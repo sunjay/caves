@@ -85,6 +85,7 @@ fn main() -> Result<(), SDLError> {
         sprites,
     } = AssetManager::load(&texture_creator, fps as usize, tile_size)?;
 
+    let keyboard_direction_stack = systems::DirectionStack::default();
     let GenGame {key, levels, player_start} = game_generator(tile_size, &map_sprites).generate(|| {
         let mut world = World::new();
 
@@ -94,7 +95,7 @@ fn main() -> Result<(), SDLError> {
         world.add_resource(ActionQueue::default());
 
         let mut dispatcher = DispatcherBuilder::new()
-            .with(systems::Keyboard::default(), "Keyboard", &[])
+            .with(systems::Keyboard::new(keyboard_direction_stack.clone()), "Keyboard", &[])
             .with(systems::AI, "AI", &[])
             .with(systems::Physics, "Physics", &["Keyboard", "AI"])
             .with(systems::Interactions, "Interactions", &["Physics"])
