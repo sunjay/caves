@@ -83,7 +83,7 @@ impl<'a, 'b> GameScreen<'a, 'b> {
 
         // When going to the next level, we need to connect back to the corresponding gate that
         // will take you back to the previous level
-        player.position.0 = self.current_level().find_to_prev_level(gate_id);
+        player.position.0 = self.current_level().find_to_prev_level_adjacent(gate_id);
         // Move the player from the previous level to the next level
         self.levels[self.current_level].update_player(player);
     }
@@ -99,7 +99,7 @@ impl<'a, 'b> GameScreen<'a, 'b> {
 
         // When going to the previous level, we need to connect back to the corresponding gate that
         // will take you to the next level
-        player.position.0 = self.current_level().find_to_next_level(gate_id);
+        player.position.0 = self.current_level().find_to_next_level_adjacent(gate_id);
         // Move the player from the next level to the previous level
         self.levels[self.current_level].update_player(player);
     }
