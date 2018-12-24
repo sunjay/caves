@@ -71,7 +71,11 @@ impl<'a> GameGenerator<'a> {
             world.create_entity()
                 .with(Position(pos))
                 .with(Door)
-                .with(BoundingBox::Full {width: tile_size, height: tile_size})
+                .with(if is_horizontal {
+                    BoundingBox::Full {width: tile_size, height: tile_size}
+                } else {
+                    BoundingBox::Full {width: tile_size / 2, height: tile_size}
+                })
                 .with(Sprite(sprite))
                 .build();
 
