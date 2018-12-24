@@ -178,30 +178,3 @@ fn main() -> Result<(), SDLError> {
 
     Ok(())
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use rayon::prelude::*;
-    use rand::random;
-
-    #[test]
-    #[ignore] //TODO: Map generation still fails way too often
-    fn map_generation() {
-        // See if we can generate lots of maps without failing
-        (0..500).into_par_iter().for_each(|_| {
-            game_generator(16, unimplemented!()).generate(Default::default);
-        });
-    }
-
-    #[test]
-    fn deterministic_maps() {
-        (0..10).into_par_iter().for_each(|_| {
-            // The same key should produce the same map over and over again
-            let key = random();
-            let map1 = game_generator(16, unimplemented!()).generate_with_key(key);
-            let map2 = game_generator(16, unimplemented!()).generate_with_key(key);
-            assert_eq!(map1, map2);
-        });
-    }
-}
