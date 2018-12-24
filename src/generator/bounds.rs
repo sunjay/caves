@@ -10,13 +10,6 @@ pub struct Bounds<T> {
     pub max: T,
 }
 
-impl<T: PartialOrd> Bounds<T> {
-    /// Returns true if the given value is within the bounds
-    pub fn contains(&self, x: T) -> bool {
-        x >= self.min && x <= self.max
-    }
-}
-
 impl<T: PartialOrd + SampleUniform + Copy> Bounds<T> {
     pub fn gen<R: Rng>(&self, rng: &mut R) -> T
         where Standard: Distribution<T>,
