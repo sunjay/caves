@@ -35,6 +35,9 @@ impl<'a> GameGenerator<'a> {
 
             // Remove rooms that aren't a valid size anymore
             self.remove_invalid_rooms(&mut room_rects);
+            // Remove rooms that are adjacent to each other since that can end up in cases where
+            // some rooms are not reachable: https://github.com/sunjay/caves/issues/87
+            self.remove_adjacent_rooms(&mut room_rects);
             // Only keep the largest group of connected rooms
             // Need to remove invalid first because that may result in more disconnected rooms
             self.remove_disconnected(&mut room_rects);
@@ -161,6 +164,39 @@ impl<'a> GameGenerator<'a> {
         remove.sort_by(|a, b| b.cmp(a));
         for room_index in remove {
             room_rects.remove(room_index);
+        }
+    }
+
+    /// Removes rooms that are directly adjacent to each other
+    /// This avoids some edge cases that can result in unreachable rooms.
+    /// https://github.com/sunjay/caves/issues/87
+    fn remove_adjacent_rooms(&self, room_rects: &mut Vec<TileRect>) {
+        let mut room_i = 0;
+        while room_i < room_rects.len() {
+            let mut remove = false;
+            for other_room in &*room_rects {
+                let room = room_rects[room_i];
+                // Want to remove non-intersecting adjacent rooms
+                if room.has_intersection(*other_room) {
+                    continue;
+                }
+
+                for edge in room.edge_positions() {
+                    for other_edge in other_room.edge_positions() {
+                        // Check if adjacent
+                        match other_edge.difference(edge) {
+                            (-1, 0) | (1, 0) | (0, -1) | (0, 1) => remove = true,
+                            _ => {},
+                        }
+                    }
+                }
+            }
+
+            if remove {
+                room_rects.remove(room_i);
+            } else {
+                room_i += 1;
+            }
         }
     }
 
