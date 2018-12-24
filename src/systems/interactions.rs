@@ -35,7 +35,9 @@ impl<'a> InteractionsData<'a> {
     /// Attempts to interact with an entity adjacent to this entity in the given direction
     pub fn interact_with_adjacent(&mut self, entity: Entity) {
         let (pos, direction, bounds) = self.position_movement_bounds(entity);
-        for (other_entity, _) in self.nearest_in_direction(entity, pos, direction, bounds) {
+        // Want to be very close when interacting
+        let range = self.map.tile_size() as i32 / 4;
+        for (other_entity, _) in self.nearest_in_direction(entity, pos, direction, bounds, range) {
             if self.doors.get(other_entity).is_some() {
                 self.entities.delete(other_entity)
                     .expect("bug: unable to delete door");
@@ -47,7 +49,9 @@ impl<'a> InteractionsData<'a> {
     /// Attempts to attack an entity adjacent to this entity in the given direction
     pub fn attack_adjacent(&mut self, entity: Entity) {
         let (pos, direction, bounds) = self.position_movement_bounds(entity);
-        for (other_entity, other_pos) in self.nearest_in_direction(entity, pos, direction, bounds) {
+        // Most attacks take up an entire tile length in a given direction
+        let range = self.map.tile_size() as i32;
+        for (other_entity, other_pos) in self.nearest_in_direction(entity, pos, direction, bounds, range) {
             if self.doors.get(other_entity).is_some() {
                 self.entities.delete(other_entity)
                     .expect("bug: unable to delete door");
@@ -66,7 +70,7 @@ impl<'a> InteractionsData<'a> {
         }
     }
 
-    /// Returns the nearest entities in the given direction. Only entities that are up to tile_size
+    /// Returns the nearest entities in the given direction. Only entities that are up to `range`
     /// away are returned. Result is sorted nearest to farthest.
     fn nearest_in_direction(
         &self,
@@ -74,6 +78,7 @@ impl<'a> InteractionsData<'a> {
         pos: Point,
         direction: MovementDirection,
         bounds: BoundingBox,
+        range: i32,
     ) -> impl Iterator<Item=(Entity, Point)> {
         //TODO: Maybe instead of a (tile_size)x(tile_size) box we should consider a custom radius.
         // This might be useful because we know that attacks don't necessary take up the entire
@@ -85,9 +90,6 @@ impl<'a> InteractionsData<'a> {
         // the distance instead of just the point itself. The algorithm will find the distance
         // between two rectangles instead of just two points
         let bounds = bounds.to_rect(pos);
-        // Look in a `range` sized box adjacent to bounds in the given direction
-        // The center of the box is aligned with pos in the given direction
-        let range = self.map.tile_size() as i32;
 
         // Generate the rectangle that the other bounding box must intersect with
         // Assumption: bounding boxes do not intersect (due to the physics engine)
