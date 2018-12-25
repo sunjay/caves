@@ -33,9 +33,9 @@ pub fn setup(res: &mut Resources) {
 
 /// Renders the area of the world that is visible to the player
 pub(in super) fn render_player_visible<T: RenderTarget>(
-    data: RenderData,
+    data: RenderData<'_>,
     canvas: &mut Canvas<T>,
-    textures: &TextureManager<<T as RenderTarget>::Context>,
+    textures: &TextureManager<'_, <T as RenderTarget>::Context>,
     sprites: &SpriteManager,
     map_sprites: &MapSprites,
 ) -> Result<(), SDLError> {
@@ -101,8 +101,8 @@ fn find_visible_tiles(
     grid: &TileGrid,
     pos: TilePos,
     tile_size: i32,
-    positions: &ReadStorage<Position>,
-    doors: &ReadStorage<Door>,
+    positions: &ReadStorage<'_, Position>,
+    doors: &ReadStorage<'_, Door>,
 ) -> HashSet<TilePos> {
     let find_door = |target: TilePos| {
         let target_center = target.center(tile_size);
@@ -135,7 +135,7 @@ pub(in super) fn render_area<'a, T: RenderTarget>(
     region: Rect,
     canvas: &mut Canvas<T>,
     map_sprites: &MapSprites,
-    textures: &TextureManager<<T as RenderTarget>::Context>,
+    textures: &TextureManager<'_, <T as RenderTarget>::Context>,
     sprites: &SpriteManager,
     should_render: impl Fn(TilePos, &Tile) -> bool + Clone,
 ) -> Result<(), SDLError> {
@@ -183,7 +183,7 @@ fn render_entities<'a, T: RenderTarget>(
     tile_size: u32,
     render_top_left: Point,
     canvas: &mut Canvas<T>,
-    textures: &TextureManager<<T as RenderTarget>::Context>,
+    textures: &TextureManager<'_, <T as RenderTarget>::Context>,
     sprites: &SpriteManager,
     should_render: impl Fn(Point) -> bool,
 ) -> Result<(), SDLError> {
@@ -208,7 +208,7 @@ fn render_background<T: RenderTarget>(
     region: Rect,
     canvas: &mut Canvas<T>,
     map_sprites: &MapSprites,
-    textures: &TextureManager<<T as RenderTarget>::Context>,
+    textures: &TextureManager<'_, <T as RenderTarget>::Context>,
     sprites: &SpriteManager,
     mut should_render: impl FnMut(TilePos, &Tile) -> bool,
 ) -> Result<(), SDLError> {
@@ -252,7 +252,7 @@ fn render_sprite<T: RenderTarget>(
     sprite: &SpriteImage,
     canvas: &mut Canvas<T>,
     render_top_left: Point,
-    textures: &TextureManager<<T as RenderTarget>::Context>,
+    textures: &TextureManager<'_, <T as RenderTarget>::Context>,
 ) -> Result<(), SDLError> {
     //TODO: This code needs to be way more robust. Currently, we make a bunch of assumptions and
     // there is actually no way that this code will work for sprites larger than one tile once we

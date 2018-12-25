@@ -8,6 +8,6 @@ use crate::components::Position;
 
 /// Returns true if the given boundary contains any entity
 pub(in super) fn world_contains_any_entity(world: &World, bounds: Rect) -> bool {
-    world.system_data::<ReadStorage<Position>>().join()
+    world.system_data::<ReadStorage<'_, Position>>().join()
         .any(|&Position(pos)| bounds.contains_point(pos))
 }

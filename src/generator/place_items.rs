@@ -15,7 +15,7 @@ fn validate_chosen_staircase(grid: &TileGrid, world: &World, pos: TilePos, tile_
 
     let has_staircase = |pos: TilePos| {
         let bounds = pos.tile_rect(tile_size);
-        let (positions, stairs) = world.system_data::<(ReadStorage<Position>, ReadStorage<Stairs>)>();
+        let (positions, stairs) = world.system_data::<(ReadStorage<'_, Position>, ReadStorage<'_, Stairs>)>();
         (&positions, &stairs).join()
             .any(|(&Position(pos), _)| bounds.contains_point(pos))
     };

@@ -12,7 +12,7 @@ use crate::components::AnimationManager;
 use crate::map_sprites::MapSprites;
 use crate::ui::SDLError;
 
-pub struct AssetManager<'a, T: 'a> {
+pub struct AssetManager<'a, T> {
     pub textures: TextureManager<'a, T>,
     pub map_sprites: MapSprites,
     pub player_animations: AnimationManager,

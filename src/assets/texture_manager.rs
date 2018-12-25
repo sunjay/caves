@@ -16,7 +16,7 @@ pub struct TextureId(usize);
 // NOTE: Ideally, this would just be managed in the Window, but we can't do that because
 // we can't have a field in a struct that refers to another field. Textures are dependent
 // on the TextureCreator and they need to be stored separately in order for this to work.
-pub struct TextureManager<'a, T: 'a> {
+pub struct TextureManager<'a, T> {
     texture_creator: &'a TextureCreator<T>,
     textures: Vec<Texture<'a>>,
     /// Memoized textures for each path so we don't end up loading a path twice for no reason.

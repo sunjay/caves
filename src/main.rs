@@ -7,14 +7,9 @@ extern crate shred_derive;
 #[macro_use]
 extern crate lazy_static;
 
-extern crate sdl2;
-extern crate specs;
-extern crate shred;
-extern crate rand;
-extern crate base64;
-extern crate colored;
-extern crate rayon;
-extern crate component_group;
+use sdl2;
+use shred;
+use base64;
 
 mod systems;
 mod components;
@@ -53,7 +48,7 @@ use crate::ui::{Window, GameScreen, SDLError};
 use crate::generator::{GameGenerator, GenGame};
 use crate::map_sprites::MapSprites;
 
-fn game_generator(tile_size: u32, map_sprites: &MapSprites) -> GameGenerator {
+fn game_generator(tile_size: u32, map_sprites: &MapSprites) -> GameGenerator<'_> {
     GameGenerator {
         attempts: 2000,
         levels: 10,

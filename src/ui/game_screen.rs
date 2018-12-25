@@ -65,7 +65,7 @@ impl<'a, 'b> GameScreen<'a, 'b> {
     pub fn render<T: RenderTarget>(
         &self,
         canvas: &mut Canvas<T>,
-        textures: &TextureManager<<T as RenderTarget>::Context>,
+        textures: &TextureManager<'_, <T as RenderTarget>::Context>,
         sprites: &SpriteManager,
         map_sprites: &MapSprites,
     ) -> Result<(), SDLError> {

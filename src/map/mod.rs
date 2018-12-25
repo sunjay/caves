@@ -21,7 +21,7 @@ use sdl2::rect::{Rect, Point};
 pub struct RoomId(usize);
 
 impl fmt::Display for RoomId {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
     }
 }
@@ -37,7 +37,7 @@ pub struct FloorMap {
 }
 
 impl fmt::Debug for FloorMap {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // Only apply the special formatting if {:#?} is used. This is so that assertion output
         // does not look super bad on CI.
         if !f.alternate() {

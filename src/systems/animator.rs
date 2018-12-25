@@ -57,7 +57,7 @@ impl<'a> System<'a> for Animator {
 
             // Don't want to copy the events that occurred but also don't want to deal with the
             // option type
-            let actions: Cow<Vec<_>> = action_queue.get(&entity).map(|q| Cow::Borrowed(q)).unwrap_or_default();
+            let actions: Cow<'_, Vec<_>> = action_queue.get(&entity).map(|q| Cow::Borrowed(q)).unwrap_or_default();
 
             // Update the idle counter so we can decide whether to play the idle animation
             match (movement.is_moving(), &actions[..]) {

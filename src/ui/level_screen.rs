@@ -40,7 +40,7 @@ impl<'a, 'b> LevelScreen<'a, 'b> {
 
     /// Finds the position next to the ToNextLevel gate with the given ID
     pub fn find_to_next_level_adjacent(&self, gate_id: usize) -> Point {
-        let (positions, stairs) = self.world.system_data::<(ReadStorage<Position>, ReadStorage<Stairs>)>();
+        let (positions, stairs) = self.world.system_data::<(ReadStorage<'_, Position>, ReadStorage<'_, Stairs>)>();
         let pos = (&positions, &stairs).join().find_map(|(&Position(pos), stairs)| match stairs {
             Stairs::ToNextLevel {id} if *id == gate_id => Some(pos),
             _ => None,
@@ -56,7 +56,7 @@ impl<'a, 'b> LevelScreen<'a, 'b> {
 
     /// Finds the position next to the ToPrevLevel gate with the given ID
     pub fn find_to_prev_level_adjacent(&self, gate_id: usize) -> Point {
-        let (positions, stairs) = self.world.system_data::<(ReadStorage<Position>, ReadStorage<Stairs>)>();
+        let (positions, stairs) = self.world.system_data::<(ReadStorage<'_, Position>, ReadStorage<'_, Stairs>)>();
         let pos = (&positions, &stairs).join().find_map(|(&Position(pos), stairs)| match stairs {
             Stairs::ToPrevLevel {id} if *id == gate_id => Some(pos),
             _ => None,
@@ -81,7 +81,7 @@ impl<'a, 'b> LevelScreen<'a, 'b> {
 
     /// Gets the entity of the player on this level or None if a player hasn't been created yet
     fn player_entity(&self) -> Option<Entity> {
-        let (entities, players) = self.world.system_data::<(Entities, ReadStorage<Player>)>();
+        let (entities, players) = self.world.system_data::<(Entities<'_>, ReadStorage<'_, Player>)>();
         let mut player_iter = (&entities, &players).join();
         let player_entity = player_iter.next().map(|(entity, _)| entity);
         player_iter.next().map(|_| unreachable!("bug: more than one player in world"));
@@ -129,7 +129,7 @@ impl<'a, 'b> LevelScreen<'a, 'b> {
             ..
         } = AssetManager::load(&texture_creator, 30, tile_size)?;
 
-        let data: RenderData = self.world.system_data();
+        let data: RenderData<'_> = self.world.system_data();
         render_area(data, level_boundary, &mut canvas, &map_sprites, &textures,
             &sprites, |_, _| true)?;
 
@@ -140,7 +140,7 @@ impl<'a, 'b> LevelScreen<'a, 'b> {
     pub fn render<T: RenderTarget>(
         &self,
         canvas: &mut Canvas<T>,
-        textures: &TextureManager<<T as RenderTarget>::Context>,
+        textures: &TextureManager<'_, <T as RenderTarget>::Context>,
         sprites: &SpriteManager,
         map_sprites: &MapSprites,
     ) -> Result<(), SDLError> {
