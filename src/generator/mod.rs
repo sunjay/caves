@@ -20,8 +20,8 @@ use specs::{World, Dispatcher};
 use sdl2::rect::Point;
 use rayon::prelude::*;
 
-use map::*;
-use map_sprites::MapSprites;
+use crate::map::*;
+use crate::map_sprites::MapSprites;
 
 pub struct GenLevel<'a, 'b> {
     pub world: World,

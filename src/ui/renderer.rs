@@ -5,10 +5,10 @@ use std::collections::HashSet;
 use sdl2::{rect::{Point, Rect}, render::{Canvas, RenderTarget}};
 use specs::{Join, ReadStorage, Resources, SystemData, ReadExpect};
 
-use assets::{TextureManager, SpriteManager, SpriteImage};
-use components::{Position, Sprite, CameraFocus, Door, Ghost};
-use map::{FloorMap, TileGrid, Tile, TilePos};
-use map_sprites::MapSprites;
+use crate::assets::{TextureManager, SpriteManager, SpriteImage};
+use crate::components::{Position, Sprite, CameraFocus, Door, Ghost};
+use crate::map::{FloorMap, TileGrid, Tile, TilePos};
+use crate::map_sprites::MapSprites;
 use super::SDLError;
 
 #[derive(SystemData)]

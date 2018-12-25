@@ -1,7 +1,7 @@
 use specs::{System, Join, ReadExpect, ReadStorage, WriteStorage, Entities};
 
-use components::{Movement, BoundingBox, Position, Player, Enemy, Wait};
-use map::FloorMap;
+use crate::components::{Movement, BoundingBox, Position, Player, Enemy, Wait};
+use crate::map::FloorMap;
 
 #[derive(SystemData)]
 pub struct AIData<'a> {

@@ -3,9 +3,9 @@ use specs::{World, Builder};
 
 use super::{GameGenerator, TileRect, TilePos, GridSize};
 use super::world_helpers::world_contains_any_entity;
-use map_sprites::{WallSprite, WallSpriteAlternate, FLOOR_PATTERNS};
-use components::{Position, Sprite};
-use map::*;
+use crate::map_sprites::{WallSprite, WallSpriteAlternate, FLOOR_PATTERNS};
+use crate::components::{Position, Sprite};
+use crate::map::*;
 
 impl<'a> GameGenerator<'a> {
     pub(in super) fn layout_floor_wall_sprites(&self, rng: &mut StdRng, map: &mut FloorMap) {

@@ -1,7 +1,7 @@
 use specs::{System, Join, ReadExpect, WriteExpect, ReadStorage, WriteStorage, Entities};
 
-use components::{Movement, MovementDirection, KeyboardControlled, Wait};
-use resources::{EventQueue, Event, ActionQueue, Action, Key};
+use crate::components::{Movement, MovementDirection, KeyboardControlled, Wait};
+use crate::resources::{EventQueue, Event, ActionQueue, Action, Key};
 
 const MOVEMENT_SPEED: i32 = 3;
 

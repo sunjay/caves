@@ -1,6 +1,6 @@
 use sdl2::rect::{Point, Rect};
 
-use assets::TextureId;
+use crate::assets::TextureId;
 
 /// Defines how a sprite is aligned (or "anchored") relative to its destination rectangle
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

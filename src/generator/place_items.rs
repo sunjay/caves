@@ -3,10 +3,10 @@ use specs::{World, Builder, ReadStorage, Join};
 
 use super::{GameGenerator, RanOutOfAttempts};
 use super::world_helpers::world_contains_any_entity;
-use map::TilePos;
-use map_sprites::WallSprite;
-use components::{Position, Ghost, BoundingBox, Sprite, Stairs};
-use map::*;
+use crate::map::TilePos;
+use crate::map_sprites::WallSprite;
+use crate::components::{Position, Ghost, BoundingBox, Sprite, Stairs};
+use crate::map::*;
 
 fn validate_chosen_staircase(grid: &TileGrid, world: &World, pos: TilePos, tile_size: u32) -> bool {
     // The staircase cannot be directly beside another staircase. It also cannot be beside

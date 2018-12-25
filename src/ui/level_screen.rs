@@ -10,12 +10,12 @@ use sdl2::{
 use specs::{Dispatcher, World, Join, Entity, Entities, ReadStorage};
 use component_group::ComponentGroup;
 
-use assets::{AssetManager, TextureManager, SpriteManager};
-use map_sprites::MapSprites;
-use generator::GenLevel;
-use map::FloorMap;
-use components::{PlayerComponents, Player, Position, Stairs};
-use resources::{FramesElapsed, Event, ChangeGameState, GameState, ActionQueue, EventQueue};
+use crate::assets::{AssetManager, TextureManager, SpriteManager};
+use crate::map_sprites::MapSprites;
+use crate::generator::GenLevel;
+use crate::map::FloorMap;
+use crate::components::{PlayerComponents, Player, Position, Stairs};
+use crate::resources::{FramesElapsed, Event, ChangeGameState, GameState, ActionQueue, EventQueue};
 
 use super::renderer::{RenderData, render_area, render_player_visible};
 use super::SDLError;

@@ -6,8 +6,8 @@ pub use self::wall_sprite::*;
 
 use sdl2::rect::Rect;
 
-use components::Animation;
-use assets::{TextureId, SpriteId, SpriteImage, SpriteManager};
+use crate::components::Animation;
+use crate::assets::{TextureId, SpriteId, SpriteImage, SpriteManager};
 
 /// A lookup table for all map sprites
 /// Used to avoid having to manage sprites in each tile

@@ -4,9 +4,9 @@ use rand::{rngs::StdRng, seq::SliceRandom};
 use specs::{World, Builder};
 
 use super::GameGenerator;
-use map_sprites::{FloorSprite, WallSpriteAlternate};
-use components::{Position, BoundingBox, Sprite, Door};
-use map::*;
+use crate::map_sprites::{FloorSprite, WallSpriteAlternate};
+use crate::components::{Position, BoundingBox, Sprite, Door};
+use crate::map::*;
 
 impl<'a> GameGenerator<'a> {
     pub(in super) fn connect_rooms(&self, rng: &mut StdRng, map: &mut FloorMap, world: &mut World) {

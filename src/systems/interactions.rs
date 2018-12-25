@@ -3,7 +3,7 @@
 use sdl2::rect::{Point, Rect};
 use specs::{Entity, System, Join, ReadExpect, WriteExpect, ReadStorage, WriteStorage, Entities};
 
-use components::{
+use crate::components::{
     Position,
     BoundingBox,
     Movement,
@@ -13,8 +13,8 @@ use components::{
     Door,
     HealthPoints,
 };
-use resources::{ActionQueue, Action, ChangeGameState, GameState};
-use map::FloorMap;
+use crate::resources::{ActionQueue, Action, ChangeGameState, GameState};
+use crate::map::FloorMap;
 
 #[derive(SystemData)]
 pub struct InteractionsData<'a> {

@@ -1,6 +1,6 @@
 use super::{RoomId};
-use assets::SpriteId;
-use map_sprites::{MapSprites, FloorSprite, WallSprite};
+use crate::assets::SpriteId;
+use crate::map_sprites::{MapSprites, FloorSprite, WallSprite};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Tile {

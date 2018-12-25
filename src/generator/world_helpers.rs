@@ -1,7 +1,7 @@
 use specs::{World, ReadStorage, Join};
 use sdl2::rect::Rect;
 
-use components::Position;
+use crate::components::Position;
 
 //TODO: These functions are just utility methods. Maybe it would be better to wrap World in
 // a struct and provide these methods on it directly.

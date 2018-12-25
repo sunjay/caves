@@ -3,11 +3,11 @@ use std::path::Path;
 use sdl2::render::{Canvas, RenderTarget};
 use component_group::ComponentGroup;
 
-use map_sprites::MapSprites;
-use generator::GenLevel;
-use components::PlayerComponents;
-use resources::{FramesElapsed, Event, GameState};
-use assets::{TextureManager, SpriteManager};
+use crate::map_sprites::MapSprites;
+use crate::generator::GenLevel;
+use crate::components::PlayerComponents;
+use crate::resources::{FramesElapsed, Event, GameState};
+use crate::assets::{TextureManager, SpriteManager};
 
 use super::{SDLError, LevelScreen};
 

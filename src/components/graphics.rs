@@ -5,7 +5,7 @@ use std::iter::once;
 use specs::{Component, VecStorage, HashMapStorage};
 use sdl2::rect::{Point, Rect};
 
-use assets::{TextureId, SpriteId, SpriteImage, SpriteManager, Anchor};
+use crate::assets::{TextureId, SpriteId, SpriteImage, SpriteManager, Anchor};
 
 /// An entity that is unable to move until the given duration has elapsed
 #[derive(Debug, Default, Component)]

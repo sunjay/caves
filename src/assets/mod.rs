@@ -8,9 +8,9 @@ pub use self::sprite::*;
 
 use sdl2::render::TextureCreator;
 
-use components::AnimationManager;
-use map_sprites::MapSprites;
-use ui::SDLError;
+use crate::components::AnimationManager;
+use crate::map_sprites::MapSprites;
+use crate::ui::SDLError;
 
 pub struct AssetManager<'a, T: 'a> {
     pub textures: TextureManager<'a, T>,

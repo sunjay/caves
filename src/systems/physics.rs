@@ -1,9 +1,9 @@
 use sdl2::rect::Rect;
 use specs::{System, Join, ReadExpect, ReadStorage, WriteStorage, Entities, LazyUpdate};
 
-use components::{Movement, Position, Wait, BoundingBox, Ghost};
-use resources::FramesElapsed;
-use map::FloorMap;
+use crate::components::{Movement, Position, Wait, BoundingBox, Ghost};
+use crate::resources::FramesElapsed;
+use crate::map::FloorMap;
 
 // Collisions within this threshold will be *ignored*
 const COLLISION_THRESHOLD: u32 = 1;

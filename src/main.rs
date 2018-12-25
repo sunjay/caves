@@ -36,7 +36,7 @@ use sdl2::{
 };
 use specs::{DispatcherBuilder, World};
 
-use components::{
+use crate::components::{
     PlayerComponents,
     Position,
     HealthPoints,
@@ -47,11 +47,11 @@ use components::{
     Sprite,
     Player,
 };
-use assets::AssetManager;
-use resources::{FramesElapsed, ChangeGameState, ActionQueue, EventQueue, Event, Key};
-use ui::{Window, GameScreen, SDLError};
-use generator::{GameGenerator, GenGame};
-use map_sprites::MapSprites;
+use crate::assets::AssetManager;
+use crate::resources::{FramesElapsed, ChangeGameState, ActionQueue, EventQueue, Event, Key};
+use crate::ui::{Window, GameScreen, SDLError};
+use crate::generator::{GameGenerator, GenGame};
+use crate::map_sprites::MapSprites;
 
 fn game_generator(tile_size: u32, map_sprites: &MapSprites) -> GameGenerator {
     GameGenerator {

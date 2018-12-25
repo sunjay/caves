@@ -2,8 +2,8 @@ use std::borrow::Cow;
 
 use specs::{System, Join, ReadExpect, ReadStorage, WriteStorage, Entities};
 
-use components::{Movement, MovementDirection::*, Sprite, Animation, AnimationManager, Wait};
-use resources::{ActionQueue, Action::*, FramesElapsed};
+use crate::components::{Movement, MovementDirection::*, Sprite, Animation, AnimationManager, Wait};
+use crate::resources::{ActionQueue, Action::*, FramesElapsed};
 
 /// The number of frames that an entity can be idle before the idle animation starts
 const IDLE_LENGTH: usize = 300;

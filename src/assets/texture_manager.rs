@@ -8,7 +8,7 @@ use sdl2::{
     render::{TextureCreator, Texture},
 };
 
-use ui::SDLError;
+use crate::ui::SDLError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TextureId(usize);

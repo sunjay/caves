@@ -3,8 +3,8 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use rand::{rngs::StdRng, Rng};
 
 use super::{GameGenerator, RanOutOfAttempts};
-use map_sprites::{FloorSprite, WallSprite};
-use map::*;
+use crate::map_sprites::{FloorSprite, WallSprite};
+use crate::map::*;
 
 impl<'a> GameGenerator<'a> {
     pub(in super) fn generate_rooms(
