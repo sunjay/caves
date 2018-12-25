@@ -33,36 +33,6 @@ RUN cd /tmp && \
     make -j 8 install && \
     echo "SDL2_image installed successfully."
 
-# Build freetype2 for 32-bit ARMv7 (SDL2_ttf depends on this)
-#ADD https://download.savannah.gnu.org/releases/freetype/freetype-2.9.tar.gz /tmp/freetype2.tar.gz
-#RUN cd /tmp && \
-#    tar -pxzf freetype2.tar.gz && \
-#    cd freetype-2.9 && \
-#    mkdir build && \
-#    cd build && \
-#    export TARGETMACH=arm-none-linux-gnueabi && \
-#    export CC=arm-linux-gnueabihf-gcc && \
-#    export CXX=arm-linux-gnueabihf-g++ && \
-#    ../configure --host=$TARGETMACH && \
-#    make -j 8 && \
-#    make -j 8 install && \
-#    echo "freetype2 installed successfully."
-
-# Build SDL2_ttf for 32-bit ARMv7
-#ADD https://www.libsdl.org/projects/SDL_ttf/release/SDL2_ttf-2.0.14.tar.gz /tmp/sdl2_ttf.tar.gz
-#RUN cd /tmp && \
-#    tar -pxzf sdl2_ttf.tar.gz && \
-#    cd SDL2_ttf-2.0.14 && \
-#    mkdir build && \
-#    cd build && \
-#    export TARGETMACH=arm-none-linux-gnueabi && \
-#    export CC=arm-linux-gnueabihf-gcc && \
-#    export CXX=arm-linux-gnueabihf-g++ && \
-#    ../configure --host=$TARGETMACH && \
-#    make -j 8 && \
-#    make -j 8 install && \
-#    echo "SDL2_ttf installed successfully."
-
 RUN apt-get install -y libclang-dev
 
 ENV RUSTFLAGS="-L /usr/local/lib"
