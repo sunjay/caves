@@ -92,7 +92,12 @@ impl<'a, 'b> GameScreen<'a, 'b> {
                 GoToPrevLevel {id} => self.to_prev_level(id),
                 Pause => unimplemented!(),
             }
-            self.level_text_animation = LevelTextAnimation::new(self.current_level);
+            match newstate {
+                GoToNextLevel {..} | GoToPrevLevel {..} => {
+                    self.level_text_animation = LevelTextAnimation::new(self.current_level);
+                },
+                _ => {},
+            }
         } else {
             self.level_text_animation.dispatch(frames_elapsed);
         }
