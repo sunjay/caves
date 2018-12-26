@@ -7,7 +7,7 @@ use crate::generator::GenLevel;
 use crate::components::PlayerComponents;
 use crate::resources::{FramesElapsed, Event, GameState};
 
-use super::renderer::render_text;
+use super::renderer::{render_text, TextLayout};
 use super::{SDLError, LevelScreen, RenderContext};
 
 /// An animation of text that tells the user which level they are on
@@ -39,7 +39,13 @@ impl LevelTextAnimation {
         }
         // fade out gradually (linearly) as the animation goes on
         let alpha = (self.timer * 255) / Self::LEVEL_TEXT_FADE_LENGTH;
-        render_text(ctx, format!("Floor {}", self.level + 1), 30.0, (255, 255, 255, alpha as u8))
+        render_text(
+            ctx,
+            format!("Floor {}", self.level + 1),
+            30.0,
+            (255, 255, 255, alpha as u8),
+            TextLayout::Centered,
+        )
     }
 }
 

@@ -64,12 +64,20 @@ pub fn setup(res: &mut Resources) {
     RenderData::setup(res);
 }
 
+/// The way the text layout will be calculated on the screen
+#[derive(Debug, Clone, Copy)]
+pub(in super) enum TextLayout {
+    /// Centered in the middle of the screen
+    Centered,
+}
+
 /// Renders the given text to the screen
 pub(in super) fn render_text<T: RenderTarget, S: AsRef<str>, C: Into<Color>>(
     ctx: &mut RenderContext<T>,
     text: S,
     height: f32,
     color: C,
+    layout: TextLayout,
 ) -> Result<(), SDLError> {
     let text = text.as_ref();
 
@@ -99,6 +107,17 @@ pub(in super) fn render_text<T: RenderTarget, S: AsRef<str>, C: Into<Color>>(
         .fold(0.0, f32::max)
         .ceil() as u32;
 
+    use self::TextLayout::*;
+    let layout_offset = match layout {
+        Centered => {
+            let (canvas_width, canvas_height) = canvas.logical_size();
+            point(
+                canvas_width / 2 - width / 2,
+                canvas_height / 2 - line_height as u32 / 2,
+            )
+        },
+    };
+
     canvas.set_blend_mode(BlendMode::Blend);
 
     let mut color = color.into();
@@ -111,8 +130,8 @@ pub(in super) fn render_text<T: RenderTarget, S: AsRef<str>, C: Into<Color>>(
                     return;
                 }
 
-                let x = x as i32 + bb.min.x;
-                let y = y as i32 + bb.min.y;
+                let x = x as i32 + bb.min.x + layout_offset.x as i32;
+                let y = y as i32 + bb.min.y + layout_offset.y as i32;
 
                 color.a = (alpha_start * v) as u8;
                 canvas.set_draw_color(color);
