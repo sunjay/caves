@@ -8,6 +8,7 @@ use specs::Entity;
 /// Resource that represents the number of frames elapsed since the last time all of the systems
 /// were run. Value is guaranteed to be greater than or equal to 1.
 /// Often this will be just 1 but it may be greater if there is lag or if a system takes too long.
+#[derive(Debug, Clone, Copy)]
 pub struct FramesElapsed(pub usize);
 
 /// Resource that represents any events that have taken place before the current frame.

@@ -5,19 +5,18 @@ use sdl2::{
     pixels::{PixelFormatEnum},
     surface::Surface,
     rect::Point,
-    render::{Canvas, RenderTarget},
+    render::RenderTarget,
 };
 use specs::{Dispatcher, World, Join, Entity, Entities, ReadStorage};
 use component_group::ComponentGroup;
 
-use crate::assets::{AssetManager, TextureManager, SpriteManager};
-use crate::map_sprites::MapSprites;
+use crate::assets::AssetManager;
 use crate::generator::GenLevel;
 use crate::map::FloorMap;
 use crate::components::{PlayerComponents, Player, Position, Stairs};
 use crate::resources::{FramesElapsed, Event, ChangeGameState, GameState, ActionQueue, EventQueue};
 
-use super::renderer::{RenderData, render_area, render_player_visible};
+use super::renderer::{RenderData, RenderContext, render_area, render_player_visible};
 use super::SDLError;
 
 pub struct LevelScreen<'a, 'b> {
@@ -129,21 +128,16 @@ impl<'a, 'b> LevelScreen<'a, 'b> {
             ..
         } = AssetManager::load(&texture_creator, 30, tile_size)?;
 
-        let data: RenderData<'_> = self.world.system_data();
-        render_area(data, level_boundary, &mut canvas, &map_sprites, &textures,
-            &sprites, |_, _| true)?;
+        let mut ctx = RenderContext::new(&mut canvas, &textures, &sprites, &map_sprites);
+
+        let data: RenderData = self.world.system_data();
+        render_area(data, level_boundary, &mut ctx, |_, _| true)?;
 
         canvas.into_surface().save(path).map_err(SDLError)?;
         Ok(())
     }
 
-    pub fn render<T: RenderTarget>(
-        &self,
-        canvas: &mut Canvas<T>,
-        textures: &TextureManager<'_, <T as RenderTarget>::Context>,
-        sprites: &SpriteManager,
-        map_sprites: &MapSprites,
-    ) -> Result<(), SDLError> {
-        render_player_visible(self.world.system_data(), canvas, textures, sprites, map_sprites)
+    pub fn render<T: RenderTarget>(&self, ctx: &mut RenderContext<T>) -> Result<(), SDLError> {
+        render_player_visible(self.world.system_data(), ctx)
     }
 }

@@ -1,19 +1,52 @@
 use std::path::Path;
 
-use sdl2::render::{Canvas, RenderTarget};
+use sdl2::render::RenderTarget;
 use component_group::ComponentGroup;
 
-use crate::map_sprites::MapSprites;
 use crate::generator::GenLevel;
 use crate::components::PlayerComponents;
 use crate::resources::{FramesElapsed, Event, GameState};
-use crate::assets::{TextureManager, SpriteManager};
 
-use super::{SDLError, LevelScreen};
+use super::renderer::render_text;
+use super::{SDLError, LevelScreen, RenderContext};
+
+/// An animation of text that tells the user which level they are on
+struct LevelTextAnimation {
+    // The zero-based index of the current level
+    level: usize,
+    // The number of frames remaining in the animation
+    timer: usize,
+}
+
+impl LevelTextAnimation {
+    //TODO: Remove the dependence of frames here, the animation should be about 3 seconds
+    const LEVEL_TEXT_FADE_LENGTH: usize = 90; // frames
+
+    pub fn new(level: usize) -> Self {
+        Self {level, timer: Self::LEVEL_TEXT_FADE_LENGTH}
+    }
+
+    pub fn dispatch(&mut self, frames_elapsed: FramesElapsed) {
+        if self.timer == 0 {
+            return;
+        }
+        self.timer -= frames_elapsed.0;
+    }
+
+    pub fn render<T: RenderTarget>(&self, ctx: &mut RenderContext<T>) -> Result<(), SDLError> {
+        if self.timer == 0 {
+            return Ok(());
+        }
+        // fade out gradually (linearly) as the animation goes on
+        let alpha = (self.timer * 255) / Self::LEVEL_TEXT_FADE_LENGTH;
+        render_text(ctx, format!("Floor {}", self.level + 1), 30.0, (255, 255, 255, alpha as u8))
+    }
+}
 
 pub struct GameScreen<'a, 'b> {
     levels: Vec<LevelScreen<'a, 'b>>,
     current_level: usize,
+    level_text_animation: LevelTextAnimation,
 }
 
 impl<'a, 'b> GameScreen<'a, 'b> {
@@ -29,6 +62,7 @@ impl<'a, 'b> GameScreen<'a, 'b> {
         Self {
             levels: levels.into_iter().map(Into::into).collect(),
             current_level: 0,
+            level_text_animation: LevelTextAnimation::new(0),
         }
     }
 
@@ -52,6 +86,9 @@ impl<'a, 'b> GameScreen<'a, 'b> {
                 GoToPrevLevel {id} => self.to_prev_level(id),
                 Pause => unimplemented!(),
             }
+            self.level_text_animation = LevelTextAnimation::new(self.current_level);
+        } else {
+            self.level_text_animation.dispatch(frames_elapsed);
         }
     }
 
@@ -62,14 +99,10 @@ impl<'a, 'b> GameScreen<'a, 'b> {
         self.current_level().render_to_file(path)
     }
 
-    pub fn render<T: RenderTarget>(
-        &self,
-        canvas: &mut Canvas<T>,
-        textures: &TextureManager<'_, <T as RenderTarget>::Context>,
-        sprites: &SpriteManager,
-        map_sprites: &MapSprites,
-    ) -> Result<(), SDLError> {
-        self.current_level().render(canvas, textures, sprites, map_sprites)
+    /// Draw the game
+    pub fn render<T: RenderTarget>(&self, ctx: &mut RenderContext<T>) -> Result<(), SDLError> {
+        self.current_level().render(ctx)?;
+        self.level_text_animation.render(ctx)
     }
 
     /// Advances to the next level. Panics if there is no next level

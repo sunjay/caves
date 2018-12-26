@@ -37,7 +37,7 @@ use crate::components::{
 };
 use crate::assets::AssetManager;
 use crate::resources::{FramesElapsed, ChangeGameState, ActionQueue, EventQueue, Event, Key};
-use crate::ui::{Window, GameScreen, SDLError};
+use crate::ui::{Window, GameScreen, SDLError, RenderContext};
 use crate::generator::{GameGenerator, GenGame};
 use crate::map_sprites::MapSprites;
 
@@ -121,6 +121,7 @@ fn main() -> Result<(), SDLError> {
     }
 
     let mut timer = window.timer()?;
+    let mut ctx = RenderContext::new(window.canvas_mut(), &textures, &sprites, &map_sprites);
 
     // Frames elapsed since the last render
     let mut last_frames_elapsed = 0;
@@ -156,10 +157,9 @@ fn main() -> Result<(), SDLError> {
         if frames_elapsed_delta >= 1 {
             game_screen.dispatch(FramesElapsed(frames_elapsed_delta), events.drain(..).collect());
 
-            let canvas = window.canvas_mut();
-            canvas.clear();
-            game_screen.render(canvas, &textures, &sprites, &map_sprites)?;
-            canvas.present();
+            ctx.canvas.clear();
+            game_screen.render(&mut ctx)?;
+            ctx.canvas.present();
 
             last_frames_elapsed = frames_elapsed;
         } else {

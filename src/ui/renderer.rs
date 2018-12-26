@@ -2,7 +2,12 @@ use std::cmp;
 use std::iter::once;
 use std::collections::HashSet;
 
-use sdl2::{rect::{Point, Rect}, render::{Canvas, RenderTarget}};
+use rusttype::{point, Font, FontCollection, PositionedGlyph, Scale};
+use sdl2::{
+    rect::{Point, Rect},
+    render::{Canvas, RenderTarget, BlendMode},
+    pixels::Color,
+};
 use specs::{Join, ReadStorage, Resources, SystemData, ReadExpect};
 
 use crate::assets::{TextureManager, SpriteManager, SpriteImage};
@@ -10,6 +15,34 @@ use crate::components::{Position, Sprite, CameraFocus, Door, Ghost};
 use crate::map::{FloorMap, TileGrid, Tile, TilePos};
 use crate::map_sprites::MapSprites;
 use super::SDLError;
+
+pub struct RenderContext<'a, T: RenderTarget> {
+    pub font: Font<'static>,
+    pub canvas: &'a mut Canvas<T>,
+    pub textures: &'a TextureManager<'a, <T as RenderTarget>::Context>,
+    pub sprites: &'a SpriteManager,
+    pub map_sprites: &'a MapSprites,
+}
+
+impl<'a, T: RenderTarget> RenderContext<'a, T> {
+    pub fn new(
+        canvas: &'a mut Canvas<T>,
+        textures: &'a TextureManager<'a, <T as RenderTarget>::Context>,
+        sprites: &'a SpriteManager,
+        map_sprites: &'a MapSprites,
+    ) -> Self {
+        let font_data = include_bytes!("../../assets/fonts/Kenney Pixel Square.ttf");
+        let collection = FontCollection::from_bytes(font_data as &[u8]).unwrap_or_else(|e| {
+            panic!("bug: unable to construct a FontCollection from bytes: {}", e);
+        });
+        // only succeeds if collection consists of one font
+        let font = collection.into_font().unwrap_or_else(|e| {
+            panic!("bug: unable to turn FontCollection into a Font: {}", e);
+        });
+
+        Self {font, canvas, textures, sprites, map_sprites}
+    }
+}
 
 #[derive(SystemData)]
 pub(in super) struct RenderData<'a> {
@@ -31,13 +64,71 @@ pub fn setup(res: &mut Resources) {
     RenderData::setup(res);
 }
 
+/// Renders the given text to the screen
+pub(in super) fn render_text<T: RenderTarget, S: AsRef<str>, C: Into<Color>>(
+    ctx: &mut RenderContext<T>,
+    text: S,
+    height: f32,
+    color: C,
+) -> Result<(), SDLError> {
+    let text = text.as_ref();
+
+    let RenderContext {font, canvas, ..} = ctx;
+
+    // Adapted from: https://github.com/redox-os/rusttype/blob/master/examples/simple.rs
+
+    // Use this to adjust the x:y aspect ratio of the rendered text
+    let scale = Scale {x: height, y: height};
+
+    // The origin of a line of text is at the baseline (roughly where
+    // non-descending letters sit). We don't want to clip the text, so we shift
+    // it down with an offset when laying it out. v_metrics.ascent is the
+    // distance between the baseline and the highest edge of any glyph in
+    // the font. That's enough to guarantee that there's no clipping.
+    let v_metrics = font.v_metrics(scale);
+    // If we use the ascent as the offset and add the descent (typically negative) to its
+    // value, we can put the font right on the baseline.
+    let line_height = v_metrics.ascent - v_metrics.descent;
+    let offset = point(0.0, v_metrics.ascent);
+
+    // Glyphs to draw the given text
+    let glyphs: Vec<PositionedGlyph<'_>> = font.layout(text, scale, offset).collect();
+
+    let width = glyphs.iter()
+        .map(|g| g.position().x as f32 + g.unpositioned().h_metrics().advance_width)
+        .fold(0.0, f32::max)
+        .ceil() as u32;
+
+    canvas.set_blend_mode(BlendMode::Blend);
+
+    let mut color = color.into();
+    let alpha_start = color.a as f32;
+    for glyph in glyphs {
+        if let Some(bb) = glyph.pixel_bounding_box() {
+            let mut result = Ok(());
+            glyph.draw(|x, y, v| {
+                if result.is_err() {
+                    return;
+                }
+
+                let x = x as i32 + bb.min.x;
+                let y = y as i32 + bb.min.y;
+
+                color.a = (alpha_start * v) as u8;
+                canvas.set_draw_color(color);
+                result = canvas.draw_point((x, y));
+            });
+            result.map_err(SDLError)?;
+        }
+    }
+
+    Ok(())
+}
+
 /// Renders the area of the world that is visible to the player
 pub(in super) fn render_player_visible<T: RenderTarget>(
     data: RenderData<'_>,
-    canvas: &mut Canvas<T>,
-    textures: &TextureManager<'_, <T as RenderTarget>::Context>,
-    sprites: &SpriteManager,
-    map_sprites: &MapSprites,
+    ctx: &mut RenderContext<T>,
 ) -> Result<(), SDLError> {
     let RenderData {map, positions, camera_focuses, doors, ..} = &data;
     let tile_size = map.tile_size() as i32;
@@ -49,7 +140,7 @@ pub(in super) fn render_player_visible<T: RenderTarget>(
     assert!(camera_focuses.next().is_none(),
         "Renderer was asked to focus on more than one thing");
 
-    let (screen_width, screen_height) = canvas.logical_size();
+    let (screen_width, screen_height) = ctx.canvas.logical_size();
     let screen_center = Point::new(screen_width as i32 / 2, screen_height as i32 / 2);
 
     // The position on the map of the screen's top left corner
@@ -94,7 +185,7 @@ pub(in super) fn render_player_visible<T: RenderTarget>(
             .filter(|pt| visible_tiles.contains(pt)).count() >= 2
     };
 
-    render_area(&data, screen, canvas, map_sprites, textures, sprites, should_render)
+    render_area(&data, screen, ctx, should_render)
 }
 
 fn find_visible_tiles(
@@ -133,10 +224,7 @@ fn find_visible_tiles(
 pub(in super) fn render_area<'a, T: RenderTarget>(
     data: impl AsRef<RenderData<'a>>,
     region: Rect,
-    canvas: &mut Canvas<T>,
-    map_sprites: &MapSprites,
-    textures: &TextureManager<'_, <T as RenderTarget>::Context>,
-    sprites: &SpriteManager,
+    ctx: &mut RenderContext<T>,
     should_render: impl Fn(TilePos, &Tile) -> bool + Clone,
 ) -> Result<(), SDLError> {
     let RenderData {map, positions, sprites: esprites, ghosts, ..} = data.as_ref();
@@ -145,7 +233,7 @@ pub(in super) fn render_area<'a, T: RenderTarget>(
     // Rendering strategy: For each row, first render all the backgrounds, then render all of
     // entities that should be rendered under other entities, then render all other entities.
     // This allows an object to overlap the background of the tile on its right.
-    render_background(&*map, region, canvas, map_sprites, textures, sprites, should_render.clone())?;
+    render_background(&*map, region, ctx, should_render.clone())?;
 
     let grid = map.grid();
     let should_render_pos = |pos| {
@@ -167,9 +255,9 @@ pub(in super) fn render_area<'a, T: RenderTarget>(
     };
 
     render_entities((positions, esprites, ghosts).join().map(|(p, s, _)| (p, s)),
-        map.tile_size(), render_top_left, canvas, textures, sprites, should_render_pos)?;
+        map.tile_size(), render_top_left, ctx, should_render_pos)?;
     render_entities((positions, esprites, !ghosts).join().map(|(p, s, _)| (p, s)),
-        map.tile_size(), render_top_left, canvas, textures, sprites, should_render_pos)?;
+        map.tile_size(), render_top_left, ctx, should_render_pos)?;
 
     Ok(())
 }
@@ -179,9 +267,7 @@ fn render_entities<'a, T: RenderTarget>(
     components: impl Iterator<Item=(&'a Position, &'a Sprite)>,
     tile_size: u32,
     render_top_left: Point,
-    canvas: &mut Canvas<T>,
-    textures: &TextureManager<'_, <T as RenderTarget>::Context>,
-    sprites: &SpriteManager,
+    ctx: &mut RenderContext<T>,
     should_render: impl Fn(Point) -> bool,
 ) -> Result<(), SDLError> {
     for (&Position(pos), &Sprite(sprite)) in components {
@@ -189,11 +275,11 @@ fn render_entities<'a, T: RenderTarget>(
             continue;
         }
 
-        let sprite = sprites.get(sprite);
+        let sprite = ctx.sprites.get(sprite);
         // Render the sprite in a (tile_size)x(tile_size) square centered around its position.
         // TODO: If the sprite is bigger than this, it will (currently) still be rendered and not
         // clipped.
-        render_sprite(pos, tile_size, sprite, canvas, render_top_left, textures)?;
+        render_sprite(pos, tile_size, sprite, ctx, render_top_left)?;
     }
 
     Ok(())
@@ -203,16 +289,13 @@ fn render_entities<'a, T: RenderTarget>(
 fn render_background<T: RenderTarget>(
     map: &FloorMap,
     region: Rect,
-    canvas: &mut Canvas<T>,
-    map_sprites: &MapSprites,
-    textures: &TextureManager<'_, <T as RenderTarget>::Context>,
-    sprites: &SpriteManager,
+    ctx: &mut RenderContext<T>,
     mut should_render: impl FnMut(TilePos, &Tile) -> bool,
 ) -> Result<(), SDLError> {
     let render_top_left = region.top_left();
     // Need to paint the default floor under every tile in case the background sprite being
     // used is actually something that doesn't take up the entire space (e.g. a column tile)
-    let default_floor = map_sprites.floor_sprite(Default::default());
+    let default_floor = ctx.map_sprites.floor_sprite(Default::default());
 
     let tile_size = map.tile_size() as i32;
     let grid = map.grid();
@@ -225,17 +308,17 @@ fn render_background<T: RenderTarget>(
 
             if !should_render(tile_pos, tile) {
                 // Render an empty tile
-                let sprite = sprites.get(map_sprites.empty_tile_sprite());
-                render_sprite(pos, tile_size as u32, sprite, canvas, render_top_left, textures)?;
+                let sprite = ctx.sprites.get(ctx.map_sprites.empty_tile_sprite());
+                render_sprite(pos, tile_size as u32, sprite, ctx, render_top_left)?;
                 continue;
             }
 
             let tile_layers = once(default_floor)
-                .chain(once(tile.background_sprite(map_sprites)));
+                .chain(once(tile.background_sprite(ctx.map_sprites)));
 
             for sprite in tile_layers {
-                let sprite = sprites.get(sprite);
-                render_sprite(pos, tile_size as u32, sprite, canvas, render_top_left, textures)?;
+                let sprite = ctx.sprites.get(sprite);
+                render_sprite(pos, tile_size as u32, sprite, ctx, render_top_left)?;
             }
         }
     }
@@ -247,9 +330,8 @@ fn render_sprite<T: RenderTarget>(
     center: Point,
     tile_size: u32,
     sprite: &SpriteImage,
-    canvas: &mut Canvas<T>,
+    ctx: &mut RenderContext<T>,
     render_top_left: Point,
-    textures: &TextureManager<'_, <T as RenderTarget>::Context>,
 ) -> Result<(), SDLError> {
     //TODO: This code needs to be way more robust. Currently, we make a bunch of assumptions and
     // there is actually no way that this code will work for sprites larger than one tile once we
@@ -258,7 +340,7 @@ fn render_sprite<T: RenderTarget>(
     // of the sprite that shouldn't be rendered. This is more complicated behaviour and we will
     // eventually need to do this to continue advancing this code.
 
-    let texture = textures.get(sprite.texture_id);
+    let texture = ctx.textures.get(sprite.texture_id);
     // Source rect should never be modified here because it represents the exact place
     // on the spritesheet of this sprite. No reaosn to modify that.
     let source_rect = sprite.region;
@@ -279,7 +361,7 @@ fn render_sprite<T: RenderTarget>(
     let dest_offset = sprite.dest_offset;
     dest_rect.offset(dest_offset.x(), dest_offset.y());
 
-    canvas.copy_ex(
+    ctx.canvas.copy_ex(
         texture,
         source_rect,
         dest_rect,
