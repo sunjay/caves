@@ -145,7 +145,6 @@ pub(in super) fn render_area<'a, T: RenderTarget>(
     // Rendering strategy: For each row, first render all the backgrounds, then render all of
     // entities that should be rendered under other entities, then render all other entities.
     // This allows an object to overlap the background of the tile on its right.
-    canvas.clear();
     render_background(&*map, region, canvas, map_sprites, textures, sprites, should_render.clone())?;
 
     let grid = map.grid();
@@ -171,8 +170,6 @@ pub(in super) fn render_area<'a, T: RenderTarget>(
         map.tile_size(), render_top_left, canvas, textures, sprites, should_render_pos)?;
     render_entities((positions, esprites, !ghosts).join().map(|(p, s, _)| (p, s)),
         map.tile_size(), render_top_left, canvas, textures, sprites, should_render_pos)?;
-
-    canvas.present();
 
     Ok(())
 }
