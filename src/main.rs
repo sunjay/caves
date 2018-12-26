@@ -9,7 +9,6 @@ extern crate lazy_static;
 
 use sdl2;
 use shred;
-use base64;
 
 mod systems;
 mod components;
@@ -20,15 +19,9 @@ mod ui;
 mod map_sprites;
 mod assets;
 
-use std::{
-    thread,
-    time::Duration,
-};
+use std::{thread,time::Duration};
 
-use sdl2::{
-    event::Event as SDLEvent,
-    keyboard::Keycode,
-};
+use sdl2::{event::Event as SDLEvent, keyboard::Keycode};
 use specs::{DispatcherBuilder, World};
 
 use crate::components::{
