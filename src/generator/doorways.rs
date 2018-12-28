@@ -82,6 +82,12 @@ impl<'a> GameGenerator<'a> {
             if is_horizontal {
                 // Place entrance walls
                 for adj in map.grid().adjacent_positions(edge) {
+                    // Don't place entrance walls if there is a wall underneath because it looks
+                    // awkward. See: https://github.com/sunjay/caves/issues/89
+                    let south_adj = adj.adjacent_south(map.grid().rows_len());
+                    if south_adj.map(|t| map.grid().get(t).is_wall()).unwrap_or(false) {
+                        continue;
+                    }
                     let tile = map.grid_mut().get_mut(adj);
                     if !tile.is_wall() {
                         continue;
