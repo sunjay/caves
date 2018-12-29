@@ -2,19 +2,18 @@ use std::cmp;
 use std::iter::once;
 use std::collections::HashSet;
 
-use rusttype::{point, Font, FontCollection, PositionedGlyph, Scale};
 use sdl2::{
     rect::{Point, Rect},
-    render::{Canvas, RenderTarget, BlendMode},
-    pixels::Color,
+    render::{Canvas, RenderTarget},
 };
+use rusttype::Font;
 use specs::{Join, ReadStorage, Resources, SystemData, ReadExpect};
 
 use crate::assets::{TextureManager, SpriteManager, SpriteImage};
 use crate::components::{Position, Sprite, CameraFocus, Door, Ghost};
 use crate::map::{FloorMap, TileGrid, Tile, TilePos};
 use crate::map_sprites::MapSprites;
-use super::SDLError;
+use super::{SDLError, Text, TextLayout};
 
 pub struct RenderContext<'a, T: RenderTarget> {
     pub font: Font<'static>,
@@ -31,16 +30,7 @@ impl<'a, T: RenderTarget> RenderContext<'a, T> {
         sprites: &'a SpriteManager,
         map_sprites: &'a MapSprites,
     ) -> Self {
-        let font_data = include_bytes!("../../assets/fonts/Kenney Pixel Square.ttf");
-        let collection = FontCollection::from_bytes(font_data as &[u8]).unwrap_or_else(|e| {
-            panic!("bug: unable to construct a FontCollection from bytes: {}", e);
-        });
-        // only succeeds if collection consists of one font
-        let font = collection.into_font().unwrap_or_else(|e| {
-            panic!("bug: unable to turn FontCollection into a Font: {}", e);
-        });
-
-        Self {font, canvas, textures, sprites, map_sprites}
+        Self {font: super::text::load_font(), canvas, textures, sprites, map_sprites}
     }
 }
 
@@ -64,82 +54,30 @@ pub fn setup(res: &mut Resources) {
     RenderData::setup(res);
 }
 
-/// The way the text layout will be calculated on the screen
-#[derive(Debug, Clone, Copy)]
-pub(in super) enum TextLayout {
-    /// Centered in the middle of the screen
-    Centered,
+pub struct DebugInfo {
+    pub fps: u32,
 }
 
-/// Renders the given text to the screen
-pub(in super) fn render_text<T: RenderTarget, S: AsRef<str>, C: Into<Color>>(
+/// Renders a debug view
+pub fn render_debug_view<T: RenderTarget>(
     ctx: &mut RenderContext<T>,
-    text: S,
-    height: f32,
-    color: C,
-    layout: TextLayout,
+    debug_info: DebugInfo,
 ) -> Result<(), SDLError> {
-    let text = text.as_ref();
+    let text = Text::new(&ctx.font, format!("{}FPS", debug_info.fps), 10.0);
+    let padding = 3;
+    let (canvas_width, canvas_height) = ctx.canvas.logical_size();
 
-    let RenderContext {font, canvas, ..} = ctx;
+    let box_width = text.width().ceil() as u32 + padding * 2;
+    let box_height = text.line_height().ceil() as u32 + padding * 2;
+    let box_x = (canvas_width - box_width) as i32;
+    let box_y = (canvas_height - box_height) as i32;
+    ctx.canvas.set_draw_color((60, 60, 60));
+    ctx.canvas.fill_rect(Rect::new(box_x, box_y, box_width, box_height)).map_err(SDLError)?;
 
-    // Adapted from: https://github.com/redox-os/rusttype/blob/master/examples/simple.rs
-
-    // Use this to adjust the x:y aspect ratio of the rendered text
-    let scale = Scale {x: height, y: height};
-
-    // The origin of a line of text is at the baseline (roughly where
-    // non-descending letters sit). We don't want to clip the text, so we shift
-    // it down with an offset when laying it out. v_metrics.ascent is the
-    // distance between the baseline and the highest edge of any glyph in
-    // the font. That's enough to guarantee that there's no clipping.
-    let v_metrics = font.v_metrics(scale);
-    // If we use the ascent as the offset and add the descent (typically negative) to its
-    // value, we can put the font right on the baseline.
-    let line_height = v_metrics.ascent - v_metrics.descent;
-    let offset = point(0.0, v_metrics.ascent);
-
-    // Glyphs to draw the given text
-    let glyphs: Vec<PositionedGlyph<'_>> = font.layout(text, scale, offset).collect();
-
-    let width = glyphs.iter()
-        .map(|g| g.position().x as f32 + g.unpositioned().h_metrics().advance_width)
-        .fold(0.0, f32::max)
-        .ceil() as u32;
-
-    use self::TextLayout::*;
-    let layout_offset = match layout {
-        Centered => {
-            let (canvas_width, canvas_height) = canvas.logical_size();
-            point(
-                canvas_width / 2 - width / 2,
-                canvas_height / 2 - line_height as u32 / 2,
-            )
-        },
-    };
-
-    canvas.set_blend_mode(BlendMode::Blend);
-
-    let mut color = color.into();
-    let alpha_start = color.a as f32;
-    for glyph in glyphs {
-        if let Some(bb) = glyph.pixel_bounding_box() {
-            let mut result = Ok(());
-            glyph.draw(|x, y, v| {
-                if result.is_err() {
-                    return;
-                }
-
-                let x = x as i32 + bb.min.x + layout_offset.x as i32;
-                let y = y as i32 + bb.min.y + layout_offset.y as i32;
-
-                color.a = (alpha_start * v) as u8;
-                canvas.set_draw_color(color);
-                result = canvas.draw_point((x, y));
-            });
-            result.map_err(SDLError)?;
-        }
-    }
+    text.render(ctx.canvas, (128, 128, 128), TextLayout::TopLeftAt(Point::new(
+        box_x + padding as i32,
+        box_y + padding as i32,
+    )))?;
 
     Ok(())
 }

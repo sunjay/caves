@@ -21,7 +21,7 @@ mod assets;
 
 use std::{thread,time::Duration};
 
-use sdl2::{event::Event as SDLEvent, keyboard::Keycode};
+use sdl2::{event::Event as SDLEvent, keyboard::{Keycode, Scancode}};
 use specs::{DispatcherBuilder, World};
 
 use crate::components::{
@@ -128,6 +128,7 @@ fn main() -> Result<(), SDLError> {
     // Events since the last dispatch
     let mut events = Vec::new();
     let mut running = true;
+    let mut debug = false;
     while running {
         let ticks = timer.ticks(); // ms
 
@@ -135,6 +136,10 @@ fn main() -> Result<(), SDLError> {
             match event {
                 SDLEvent::Quit {..} | SDLEvent::KeyDown {keycode: Some(Keycode::Escape), ..} => {
                     running = false;
+                },
+                SDLEvent::KeyDown {scancode: Some(Scancode::D), repeat: false, ..} => {},
+                SDLEvent::KeyUp {scancode: Some(Scancode::D), repeat: false, ..} => {
+                    debug = !debug;
                 },
                 SDLEvent::KeyDown {scancode: Some(scancode), repeat: false, ..} => {
                     if let Some(scancode) = Key::from_scancode(scancode) {
@@ -159,6 +164,11 @@ fn main() -> Result<(), SDLError> {
 
             ctx.canvas.clear();
             game_screen.render(&mut ctx)?;
+            if debug {
+                ui::render_debug_view(&mut ctx, ui::DebugInfo {
+                    fps: (1000.0 / (timer.ticks() - ticks) as f64) as u32,
+                })?;
+            }
             ctx.canvas.present();
 
             last_frames_elapsed = frames_elapsed;
