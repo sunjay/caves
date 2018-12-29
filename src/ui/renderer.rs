@@ -7,7 +7,7 @@ use sdl2::{
     render::{Canvas, RenderTarget},
 };
 use rusttype::Font;
-use specs::{Join, ReadStorage, Resources, SystemData, ReadExpect};
+use specs::{Join, ReadStorage, Resources, SystemData, Read};
 
 use crate::assets::{TextureManager, SpriteManager, SpriteImage};
 use crate::components::{Position, Sprite, CameraFocus, Door, Ghost};
@@ -36,7 +36,7 @@ impl<'a, T: RenderTarget> RenderContext<'a, T> {
 
 #[derive(SystemData)]
 pub(in super) struct RenderData<'a> {
-    map: ReadExpect<'a, FloorMap>,
+    map: Option<Read<'a, FloorMap>>,
     camera_focuses: ReadStorage<'a, CameraFocus>,
     positions: ReadStorage<'a, Position>,
     doors: ReadStorage<'a, Door>,
@@ -88,6 +88,7 @@ pub(in super) fn render_player_visible<T: RenderTarget>(
     ctx: &mut RenderContext<T>,
 ) -> Result<(), SDLError> {
     let RenderData {map, positions, camera_focuses, doors, ..} = &data;
+    let map = map.as_ref().expect("bug: map must be added as a resource to render area visible to player");
     let tile_size = map.tile_size() as i32;
     let grid = map.grid();
 
@@ -142,7 +143,7 @@ pub(in super) fn render_player_visible<T: RenderTarget>(
             .filter(|pt| visible_tiles.contains(pt)).count() >= 2
     };
 
-    render_area(&data, screen, ctx, should_render)
+    render_area(&data, &map, screen, ctx, should_render)
 }
 
 fn find_visible_tiles(
@@ -180,11 +181,12 @@ fn find_visible_tiles(
 
 pub(in super) fn render_area<'a, T: RenderTarget>(
     data: impl AsRef<RenderData<'a>>,
+    map: &FloorMap,
     region: Rect,
     ctx: &mut RenderContext<T>,
     should_render: impl Fn(TilePos, &Tile) -> bool + Clone,
 ) -> Result<(), SDLError> {
-    let RenderData {map, positions, sprites: esprites, ghosts, ..} = data.as_ref();
+    let RenderData {positions, sprites: esprites, ghosts, ..} = data.as_ref();
     let render_top_left = region.top_left();
 
     // Rendering strategy: For each row, first render all the backgrounds, then render all of
