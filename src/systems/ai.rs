@@ -33,6 +33,7 @@ impl<'a> System<'a> for AI {
         } = data;
 
         for (entity, movement, _, ()) in (&entities, &mut movements, &enemies, !&waits).join() {
+            //TODO: Do not move if Wait is applied
         }
     }
 }

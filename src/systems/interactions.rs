@@ -12,6 +12,8 @@ use crate::components::{
     Stairs,
     Door,
     HealthPoints,
+    Attack,
+    HitWait,
 };
 use crate::resources::{ActionQueue, Action, ChangeGameState, GameState};
 use crate::map::FloorMap;
@@ -29,6 +31,8 @@ pub struct InteractionsData<'a> {
     stairs: ReadStorage<'a, Stairs>,
     doors: WriteStorage<'a, Door>,
     healths: WriteStorage<'a, HealthPoints>,
+    attacks: ReadStorage<'a, Attack>,
+    hit_waits: ReadStorage<'a, HitWait>,
 }
 
 impl<'a> InteractionsData<'a> {

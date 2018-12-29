@@ -35,13 +35,18 @@ use crate::components::{
     Sprite,
     Player,
 };
-use crate::assets::AssetManager;
+use crate::assets::{AssetManager, EnemyAnimations};
 use crate::resources::{FramesElapsed, ChangeGameState, ActionQueue, EventQueue, Event, Key};
 use crate::ui::{Window, GameScreen, SDLError, RenderContext};
-use crate::generator::{GameGenerator, GenGame};
+use crate::generator::{GameGenerator, GenGame, EnemyConfig, EnemyType, EnemyValues};
 use crate::map_sprites::MapSprites;
 
-fn game_generator(tile_size: u32, map_sprites: &MapSprites) -> GameGenerator<'_> {
+fn game_generator<'a>(
+    tile_size: u32,
+    map_sprites: &'a MapSprites,
+    enemy_animations: EnemyAnimations,
+) -> GameGenerator<'a> {
+    use self::EnemyType::*;
     GameGenerator {
         attempts: 2000,
         levels: 10,
@@ -54,7 +59,42 @@ fn game_generator(tile_size: u32, map_sprites: &MapSprites) -> GameGenerator<'_>
         max_overlap: 0.35,
         doors: (1, 3).into(),
         next_prev_tiles: 2,
+        room_enemies: (2, 8).into(),
+        max_room_enemy_area: 0.4,
         sprites: map_sprites,
+        enemy_config: EnemyConfig {
+            rat: EnemyValues {
+                animations: enemy_animations.rat,
+                attack: 5,
+                speed: 3,
+                health_points: 15,
+                hit_wait: 12,
+                bounding_box: BoundingBox::Full {width: 16, height: 16},
+            },
+            // Allowed enemies on each level
+            levels: &[
+                // Level 1
+                &[Rat],
+                // Level 2
+                &[Rat],
+                // Level 3
+                &[Rat],
+                // Level 4
+                &[Rat],
+                // Level 5
+                &[Rat],
+                // Level 6
+                &[Rat],
+                // Level 7
+                &[Rat],
+                // Level 8
+                &[Rat],
+                // Level 9
+                &[Rat],
+                // Level 10
+                &[Rat],
+            ],
+        },
     }
 }
 
@@ -70,11 +110,16 @@ fn main() -> Result<(), SDLError> {
         textures,
         map_sprites,
         player_animations,
+        enemy_animations,
         sprites,
     } = AssetManager::load(&texture_creator, fps as usize, tile_size)?;
 
     let keyboard_system = systems::Keyboard::default();
-    let GenGame {key, levels, player_start} = game_generator(tile_size, &map_sprites).generate(|| {
+    let GenGame {key, levels, player_start} = game_generator(
+        tile_size,
+        &map_sprites,
+        enemy_animations,
+    ).generate(|| {
         let mut world = World::new();
 
         world.add_resource(FramesElapsed(1));

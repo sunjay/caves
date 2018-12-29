@@ -7,13 +7,17 @@ mod rooms;
 mod sprite_patterns;
 mod place_items;
 mod doorways;
+mod enemies;
 
 mod map_key;
 mod bounds;
+mod enemy_config;
+
 mod world_helpers;
 
 pub use self::map_key::*;
 pub use self::bounds::*;
+pub use self::enemy_config::*;
 
 use rand::{random, rngs::StdRng, Rng, SeedableRng};
 use specs::{World, Dispatcher};
@@ -101,8 +105,14 @@ pub struct GameGenerator<'a> {
     /// This will create `next_prev_tiles` number of ToNextLevel tiles and
     /// `next_prev_tiles` number of ToPrevLevel tiles
     pub next_prev_tiles: usize,
+    /// The minimum and maximum number of enemies to generate in a room
+    pub room_enemies: Bounds<usize>,
+    /// The maximum proportion (0.0, 1.0] of the area of a room that enemies can take
+    pub max_room_enemy_area: f64,
     /// Sprites from the spritesheet
     pub sprites: &'a MapSprites,
+    /// Configurations for each enemy for each different type of enemy
+    pub enemy_config: EnemyConfig,
 }
 
 impl<'a> GameGenerator<'a> {
@@ -160,6 +170,8 @@ impl<'a> GameGenerator<'a> {
 
         self.layout_floor_wall_sprites(rng, &mut map);
         self.layout_wall_torch_sprites(&mut map, &mut world);
+
+        self.add_enemies(rng, &map, &mut world, level)?;
 
         world.add_resource(map);
         Ok(world)

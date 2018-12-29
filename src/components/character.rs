@@ -2,7 +2,7 @@
 
 use component_group::ComponentGroup;
 
-use specs::{Component, VecStorage, NullStorage};
+use specs::{Component, VecStorage, HashMapStorage, NullStorage};
 
 /// All the components of a player. Grouped together so they can be easily copied to and from
 /// worlds. The reason this struct exists is because specs doesn't provide a way to copy all the
@@ -25,7 +25,18 @@ pub struct PlayerComponents {
 /// Represents the amount of health left for a given entity
 #[derive(Debug, Clone, Component)]
 #[storage(VecStorage)]
-pub struct HealthPoints(pub usize);
+pub struct HealthPoints(pub usize); // unit: HP
+
+/// Represents the strength of this entity's attack
+#[derive(Debug, Clone, Component)]
+#[storage(VecStorage)]
+pub struct Attack(pub usize); // unit: HP
+
+/// Represents the amount of time (if at all) that the entity waits when hit before being able to
+/// move/attack again
+#[derive(Debug, Clone, Component)]
+#[storage(VecStorage)]
+pub struct HitWait(pub usize); // unit: frames
 
 /// The keyboard controlled player. Only one entity should hold this at a given time.
 #[derive(Debug, Clone, Copy, Default, Component)]
@@ -46,5 +57,7 @@ pub struct Player;
 
 /// Entities with this component will attempt to attack entities with the Player component
 #[derive(Debug, Default, Component)]
-#[storage(NullStorage)]
-pub struct Enemy;
+#[storage(HashMapStorage)]
+pub struct Enemy {
+    pub speed: i32, // movements per second
+}

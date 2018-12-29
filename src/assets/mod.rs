@@ -12,10 +12,15 @@ use crate::components::AnimationManager;
 use crate::map_sprites::MapSprites;
 use crate::ui::SDLError;
 
+pub struct EnemyAnimations {
+    pub rat: AnimationManager,
+}
+
 pub struct AssetManager<'a, T> {
     pub textures: TextureManager<'a, T>,
     pub map_sprites: MapSprites,
     pub player_animations: AnimationManager,
+    pub enemy_animations: EnemyAnimations,
     pub sprites: SpriteManager,
 }
 
@@ -27,13 +32,21 @@ impl<'a, T> AssetManager<'a, T> {
         let map_texture = textures.create_png_texture("assets/dungeon.png")?;
         let map_sprites = MapSprites::from_dungeon_spritesheet(map_texture, &mut sprites, tile_size);
 
-        let player_texture = textures.create_png_texture("assets/hero.png")?;
-        let player_animations = AnimationManager::standard_character_animations(fps, player_texture, &mut sprites);
+        let mut character_animations = |path| {
+            let texture = textures.create_png_texture(path)?;
+            Ok(AnimationManager::standard_character_animations(fps, texture, &mut sprites))
+        };
+
+        let player_animations = character_animations("assets/hero.png")?;
+        let rat = character_animations("assets/enemies/rat.png")?;
 
         Ok(Self {
             textures,
             map_sprites,
             player_animations,
+            enemy_animations: EnemyAnimations {
+                rat,
+            },
             sprites,
         })
     }

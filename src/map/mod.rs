@@ -110,6 +110,14 @@ impl FloorMap {
         &self.rooms[room_id.0]
     }
 
+    /// Returns the exact area of the room, not just the width * height
+    /// Counts the number of tiles within the room area that are actually floor tiles in that room
+    pub fn room_exact_area(&self, room_id: RoomId) -> usize {
+        self.room(room_id).boundary().tile_positions()
+            .filter(|&pos| self.grid().get(pos).is_room_floor(room_id))
+            .count()
+    }
+
     /// Returns the room with the specified room ID
     /// Not for use after map generation is complete.
     pub(in super) fn room_mut(&mut self, room_id: RoomId) -> &mut Room {

@@ -56,6 +56,14 @@ impl Room {
         self.can_contain_to_next_level()
     }
 
+    /// Returns true if a room is allowed to contain generated enemies
+    pub fn can_generate_enemies(&self) -> bool {
+        match self.rtype {
+            RoomType::Normal => true,
+            _ => false,
+        }
+    }
+
     /// Returns true if this room is the room that the player starts in
     pub fn is_player_start(&self) -> bool {
         match self.rtype {
