@@ -20,7 +20,7 @@ struct LevelTextAnimation {
 
 impl LevelTextAnimation {
     //TODO: Remove the dependence of frames here, the animation should be about 3 seconds
-    const LEVEL_TEXT_FADE_LENGTH: usize = 90; // frames
+    const LEVEL_TEXT_FADE_LENGTH: usize = 30; // frames
 
     pub fn new(level: usize) -> Self {
         Self {level, timer: Self::LEVEL_TEXT_FADE_LENGTH}
@@ -30,7 +30,7 @@ impl LevelTextAnimation {
         if self.timer == 0 {
             return;
         }
-        self.timer -= frames_elapsed.0;
+        self.timer = self.timer.saturating_sub(frames_elapsed.0);
     }
 
     pub fn render<T: RenderTarget>(&self, ctx: &mut RenderContext<T>) -> Result<(), SDLError> {
