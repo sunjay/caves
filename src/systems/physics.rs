@@ -38,9 +38,9 @@ impl<'a> System<'a> for Physics {
             if let Some(wait) = waits.get_mut(entity) {
                 wait.frames_elapsed += frames_elapsed;
                 if wait.frames_elapsed >= wait.duration {
-                    updater.remove::<Wait>(entity);
+                    updater.remove::<Wait>(entity); // stop waiting at the next frame
                 }
-                continue;
+                continue; // do not continue updating since we are still waiting
             }
 
             let frames_elapsed = frames_elapsed as i32;
@@ -108,7 +108,6 @@ impl<'a> System<'a> for Physics {
                 }
 
                 updates.push((entity, next_pos));
-                break;
             }
         }
 
