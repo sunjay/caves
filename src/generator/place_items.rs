@@ -233,7 +233,7 @@ impl<'a> GameGenerator<'a> {
         //     oooooooo
         //
         // x would pass all of the previous checks but get caught by this one
-        if grid.adjacent_positions(inner_room_tile).any(|&pt| grid.is_room_entrance(pt)) {
+        if grid.adjacent_positions(inner_room_tile).find(|&pt| grid.is_room_entrance(pt)).is_some() {
             return None;
         }
 

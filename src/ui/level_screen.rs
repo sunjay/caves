@@ -48,7 +48,7 @@ impl<'a, 'b> LevelScreen<'a, 'b> {
         // Find the empty position adjacent to this staircase. There should only be one.
         let map = self.world.read_resource::<FloorMap>();
         let tile_pos = map.world_to_tile_pos(pos);
-        let empty = map.grid().adjacents(tile_pos).find(|t| !t.is_wall())
+        let empty = map.grid().adjacent_positions(tile_pos).find(|&p| !map.grid().get(p).is_wall())
             .expect("bug: should be one empty position adjacent to a staircase");
         empty.center(map.tile_size() as i32)
     }
@@ -64,7 +64,7 @@ impl<'a, 'b> LevelScreen<'a, 'b> {
         // Find the empty position adjacent to this staircase. There should only be one.
         let map = self.world.read_resource::<FloorMap>();
         let tile_pos = map.world_to_tile_pos(pos);
-        let empty = map.grid().adjacents(tile_pos).find(|t| !t.is_wall())
+        let empty = map.grid().adjacent_positions(tile_pos).find(|&p| !map.grid().get(p).is_wall())
             .expect("bug: should be one empty position adjacent to a staircase");
         empty.center(map.tile_size() as i32)
     }
