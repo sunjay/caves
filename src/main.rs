@@ -165,8 +165,10 @@ fn main() -> Result<(), SDLError> {
             ctx.canvas.clear();
             game_screen.render(&mut ctx)?;
             if debug {
+                let elapsed = timer.ticks() - ticks; // ms/frame
                 ui::render_debug_view(&mut ctx, ui::DebugInfo {
-                    fps: (1000.0 / (timer.ticks() - ticks) as f64) as u32,
+                    // (1000 ms / s) / (ms / frame) == (frames / s)
+                    fps: (1000.0 / elapsed as f64) as u32,
                 })?;
             }
             ctx.canvas.present();
