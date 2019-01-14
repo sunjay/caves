@@ -2,6 +2,7 @@
 
 use specs::{Component, VecStorage, HashMapStorage, NullStorage};
 use sdl2::rect::{Point, Rect};
+use rand::{Rng, distributions::{Distribution, Standard}};
 
 /// An entity with this component does not count in collisions and can thus be rendered over
 #[derive(Debug, Default, Component)]
@@ -54,6 +55,19 @@ pub enum MovementDirection {
     South,
     East,
     West,
+}
+
+impl Distribution<MovementDirection> for Standard {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> MovementDirection {
+        use self::MovementDirection::*;
+        match rng.gen_range(0, 4) {
+            0 => North,
+            1 => South,
+            2 => East,
+            3 => West,
+            _ => unreachable!(),
+        }
+    }
 }
 
 impl MovementDirection {

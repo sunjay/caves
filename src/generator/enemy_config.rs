@@ -1,10 +1,11 @@
 use rand::{Rng, seq::SliceRandom};
 
-use crate::components::{AnimationManager, BoundingBox};
+use crate::components::{AnimationManager, BoundingBox, EnemyBehaviour};
 
 /// The stats + animations for one enemy
 #[derive(Clone)]
 pub struct EnemyValues {
+    pub behaviour: EnemyBehaviour,
     pub animations: AnimationManager,
     pub attack: usize, // HP
     pub speed: i32, // movements per second

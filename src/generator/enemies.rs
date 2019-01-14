@@ -52,6 +52,7 @@ impl<'a> GameGenerator<'a> {
                 let enemy_pos = pos.center(self.tile_size as i32);
 
                 let EnemyValues {
+                    behaviour,
                     animations,
                     attack,
                     speed,
@@ -61,7 +62,7 @@ impl<'a> GameGenerator<'a> {
                 } = self.enemy_config.random_enemy(rng, level);
 
                 world.create_entity()
-                    .with(Enemy {speed})
+                    .with(Enemy {behaviour, speed})
                     .with(HealthPoints(health_points))
                     .with(Attack(attack))
                     .with(HitWait(hit_wait))

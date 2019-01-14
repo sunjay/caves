@@ -55,9 +55,16 @@ pub struct CameraFocus;
 #[storage(NullStorage)]
 pub struct Player;
 
+/// Behavioural pattern of the enemy AI
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EnemyBehaviour {
+    Random,
+}
+
 /// Entities with this component will attempt to attack entities with the Player component
-#[derive(Debug, Default, Component)]
+#[derive(Debug, Component)]
 #[storage(HashMapStorage)]
 pub struct Enemy {
     pub speed: i32, // movements per second
+    pub behaviour: EnemyBehaviour,
 }

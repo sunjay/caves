@@ -1,6 +1,7 @@
+use rand::{Rng, thread_rng};
 use specs::{System, Join, ReadExpect, ReadStorage, WriteStorage, Entities};
 
-use crate::components::{Movement, BoundingBox, Position, Player, Enemy, Wait};
+use crate::components::{Movement, BoundingBox, Position, Player, Enemy, EnemyBehaviour, Wait};
 use crate::map::FloorMap;
 
 #[derive(SystemData)]
@@ -32,8 +33,18 @@ impl<'a> System<'a> for AI {
             waits,
         } = data;
 
-        for (entity, movement, _, ()) in (&entities, &mut movements, &enemies, !&waits).join() {
-            //TODO: Do not move if Wait is applied
+        let mut rng = thread_rng();
+
+        for (entity, enemy, movement, ()) in (&entities, &enemies, &mut movements, !&waits).join() {
+            match enemy.behaviour {
+                EnemyBehaviour::Random => {
+                    // favor keeping the movement direction the same
+                    if rng.gen_range(0, 10) == 0 {
+                        movement.direction = rng.gen();
+                    }
+                    movement.speed = enemy.speed;
+                }
+            }
         }
     }
 }

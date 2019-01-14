@@ -34,6 +34,7 @@ use crate::components::{
     CameraFocus,
     Sprite,
     Player,
+    EnemyBehaviour,
 };
 use crate::assets::{AssetManager, EnemyAnimations};
 use crate::resources::{FramesElapsed, ChangeGameState, ActionQueue, EventQueue, Event, Key};
@@ -59,11 +60,12 @@ fn game_generator<'a>(
         max_overlap: 0.35,
         doors: (1, 3).into(),
         next_prev_tiles: 2,
-        room_enemies: (2, 8).into(),
+        room_enemies: (0, 5).into(),
         max_room_enemy_area: 0.4,
         sprites: map_sprites,
         enemy_config: EnemyConfig {
             rat: EnemyValues {
+                behaviour: EnemyBehaviour::Random,
                 animations: enemy_animations.rat,
                 attack: 5,
                 speed: 3,
