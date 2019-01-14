@@ -42,6 +42,8 @@ use crate::ui::{Window, GameScreen, SDLError, RenderContext};
 use crate::generator::{GameGenerator, GenGame, EnemyConfig, EnemyType, EnemyValues};
 use crate::map_sprites::MapSprites;
 
+const MAX_FRAMES_PER_UPDATE: usize = 2;
+
 fn game_generator<'a>(
     tile_size: u32,
     map_sprites: &'a MapSprites,
@@ -204,6 +206,8 @@ fn main() -> Result<(), SDLError> {
 
         let frames_elapsed = (ticks as f64 / 1000.0 * fps) as usize;
         let frames_elapsed_delta = frames_elapsed - last_frames_elapsed;
+        // limit the maximum number of frames we update at a given time
+        let frames_elapsed_delta = frames_elapsed_delta.min(MAX_FRAMES_PER_UPDATE);
 
         // At least one frame must have passed for us to do anything
         if frames_elapsed_delta >= 1 {
