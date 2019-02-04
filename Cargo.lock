@@ -52,7 +52,7 @@ dependencies = [
  "lazy_static 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.6.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "rayon 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "rusttype 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rusttype 0.7.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "sdl2 0.32.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "shred 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "shred-derive 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -567,7 +567,7 @@ dependencies = [
 
 [[package]]
 name = "rusttype"
-version = "0.7.3"
+version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "approx 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -815,7 +815,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum rayon-core 1.4.1 (registry+https://github.com/rust-lang/crates.io-index)" = "b055d1e92aba6877574d8fe604a63c8b5df60f60e5982bf7ccbb1338ea527356"
 "checksum rdrand 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "678054eb77286b51581ba43620cc911abf02758c91f93f479767aed0f90458b2"
 "checksum rustc_version 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "138e3e0acb6c9fb258b19b67cb8abd63c00679d2851805ea151465464fe9030a"
-"checksum rusttype 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)" = "436c67ae0d0d24f14e1177c3ed96780ee16db82b405f0fba1bb80b46c9a30625"
+"checksum rusttype 0.7.4 (registry+https://github.com/rust-lang/crates.io-index)" = "ae90f66c7ca5fb2c566d373c9ccb3ce1ae1aeebf236b74ad0d413196facb31b3"
 "checksum scopeguard 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "94258f53601af11e6a49f722422f6e3425c52b06245a5cf9bc09908b174f5e27"
 "checksum sdl2 0.32.1 (registry+https://github.com/rust-lang/crates.io-index)" = "0ebf85f207d42e4da59fa31fff977be5ff0b224873506c4bd70cc1c94b331593"
 "checksum sdl2-sys 0.32.5 (registry+https://github.com/rust-lang/crates.io-index)" = "e82803e85c2e6178d28886cef25b2c53afc2eecaeff739f2247f23ed3352e6c1"
