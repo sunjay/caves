@@ -59,11 +59,18 @@ impl<'a> InteractionsData<'a> {
             if self.doors.get(other_entity).is_some() {
                 self.entities.delete(other_entity)
                     .expect("bug: unable to delete door");
+                continue;
             }
 
             //TODO: Attack any nearby entities in the given direction. Lower the HealthPoints
             // component of anything that gets hit. Anyone nearby in the direction of the method
             // should be hit.
+            if self.healths.get_mut(other_entity).is_some() {
+                //TODO: Replace this with the more advanced behaviour based on health
+                self.entities.delete(other_entity)
+                    .expect("bug: unable to delete entity");
+                continue;
+            }
         }
     }
 
