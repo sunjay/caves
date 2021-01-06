@@ -81,7 +81,7 @@ dependencies = [
  "rusttype",
  "sdl2",
  "shred",
- "shred-derive",
+ "shred-derive 0.6.2",
  "specs",
  "specs-derive",
 ]
@@ -743,6 +743,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "shred-derive"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a1f37080f2751fbf091dbdebaa95bd6cf9dbf74ad1d50396b1908518a1747fdf"
+dependencies = [
+ "proc-macro2 1.0.8",
+ "quote 1.0.2",
+ "syn 1.0.14",
+]
+
+[[package]]
 name = "shrev"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -773,7 +784,7 @@ dependencies = [
  "nonzero_signed",
  "rayon",
  "shred",
- "shred-derive",
+ "shred-derive 0.5.1",
  "shrev",
  "tuple_utils",
 ]
