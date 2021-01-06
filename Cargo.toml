@@ -15,7 +15,7 @@ lazy_static = "1.4"
 colored = "2.0"
 rayon = "1.5"
 component_group = "1.0"
-rusttype = "0.7"
+rusttype = "0.9"
 
 [dependencies.sdl2]
 version = "*"
