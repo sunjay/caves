@@ -1,10 +1,10 @@
-mod texture_manager;
-mod sprite_manager;
 mod sprite;
+mod sprite_manager;
+mod texture_manager;
 
-pub use self::texture_manager::*;
-pub use self::sprite_manager::*;
 pub use self::sprite::*;
+pub use self::sprite_manager::*;
+pub use self::texture_manager::*;
 
 use sdl2::render::TextureCreator;
 
@@ -25,16 +25,25 @@ pub struct AssetManager<'a, T> {
 }
 
 impl<'a, T> AssetManager<'a, T> {
-    pub fn load(texture_creator: &'a TextureCreator<T>, fps: usize, tile_size: u32) -> Result<Self, SDLError> {
+    pub fn load(
+        texture_creator: &'a TextureCreator<T>,
+        fps: usize,
+        tile_size: u32,
+    ) -> Result<Self, SDLError> {
         let mut textures = TextureManager::new(&texture_creator);
         let mut sprites = SpriteManager::default();
 
         let map_texture = textures.create_png_texture("assets/dungeon.png")?;
-        let map_sprites = MapSprites::from_dungeon_spritesheet(map_texture, &mut sprites, tile_size);
+        let map_sprites =
+            MapSprites::from_dungeon_spritesheet(map_texture, &mut sprites, tile_size);
 
         let mut character_animations = |path| {
             let texture = textures.create_png_texture(path)?;
-            Ok(AnimationManager::standard_character_animations(fps, texture, &mut sprites))
+            Ok(AnimationManager::standard_character_animations(
+                fps,
+                texture,
+                &mut sprites,
+            ))
         };
 
         let player_animations = character_animations("assets/hero.png")?;
@@ -44,9 +53,7 @@ impl<'a, T> AssetManager<'a, T> {
             textures,
             map_sprites,
             player_animations,
-            enemy_animations: EnemyAnimations {
-                rat,
-            },
+            enemy_animations: EnemyAnimations { rat },
             sprites,
         })
     }

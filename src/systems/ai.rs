@@ -1,8 +1,8 @@
-use rand::{Rng, thread_rng};
-use specs::{System, Join, ReadExpect, ReadStorage, WriteStorage, Entities};
-
-use crate::components::{Movement, BoundingBox, Position, Player, Enemy, EnemyBehaviour, Wait};
+use crate::components::{BoundingBox, Enemy, EnemyBehaviour, Movement, Player, Position, Wait};
 use crate::map::FloorMap;
+use rand::{thread_rng, Rng};
+use specs::prelude::ResourceId;
+use specs::{Entities, Join, ReadExpect, ReadStorage, System, SystemData, World, WriteStorage};
 
 #[derive(SystemData)]
 pub struct AIData<'a> {

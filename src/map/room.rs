@@ -1,4 +1,4 @@
-use super::{TileRect};
+use super::TileRect;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RoomType {
@@ -29,7 +29,10 @@ pub struct Room {
 impl Room {
     /// Create a new normal room
     pub fn new(boundary: TileRect) -> Self {
-        Self {rtype: RoomType::Normal, boundary}
+        Self {
+            rtype: RoomType::Normal,
+            boundary,
+        }
     }
 
     pub fn room_type(&self) -> RoomType {

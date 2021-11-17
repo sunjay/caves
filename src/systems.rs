@@ -1,14 +1,14 @@
-mod shared;
-mod animator;
-mod physics;
-mod interactions;
 mod ai;
+mod animator;
+mod interactions;
+mod physics;
+mod shared;
 
-pub use self::shared::*;
-pub use self::animator::*;
-pub use self::physics::*;
-pub use self::interactions::*;
 pub use self::ai::*;
+pub use self::animator::*;
+pub use self::interactions::*;
+pub use self::physics::*;
+pub use self::shared::*;
 
 mod keyboard;
 pub type Keyboard = SharedSystem<keyboard::Keyboard>;

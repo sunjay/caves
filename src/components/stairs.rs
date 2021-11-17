@@ -23,9 +23,13 @@ pub enum Stairs {
 impl fmt::Display for Stairs {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use self::Stairs::*;
-        write!(f, "{}", match *self {
-            ToNextLevel {..} => "\u{2193}",
-            ToPrevLevel {..} => "\u{2191}",
-        })
+        write!(
+            f,
+            "{}",
+            match *self {
+                ToNextLevel { .. } => "\u{2193}",
+                ToPrevLevel { .. } => "\u{2191}",
+            }
+        )
     }
 }

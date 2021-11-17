@@ -2,7 +2,7 @@
 
 use component_group::ComponentGroup;
 
-use specs::{Component, VecStorage, HashMapStorage, NullStorage};
+use specs::{Component, HashMapStorage, NullStorage, VecStorage};
 
 /// All the components of a player. Grouped together so they can be easily copied to and from
 /// worlds. The reason this struct exists is because specs doesn't provide a way to copy all the

@@ -1,9 +1,12 @@
 use sdl2::rect::Rect;
-use specs::{System, Join, ReadExpect, ReadStorage, WriteStorage, Entities, LazyUpdate};
+use specs::prelude::ResourceId;
+use specs::{
+    Entities, Join, LazyUpdate, ReadExpect, ReadStorage, System, SystemData, World, WriteStorage,
+};
 
-use crate::components::{Movement, Position, Wait, BoundingBox, Ghost};
-use crate::resources::FramesElapsed;
+use crate::components::{BoundingBox, Ghost, Movement, Position, Wait};
 use crate::map::FloorMap;
+use crate::resources::FramesElapsed;
 
 // Collisions within this threshold will be *ignored*
 const COLLISION_THRESHOLD: u32 = 1;
@@ -27,13 +30,25 @@ impl<'a> System<'a> for Physics {
     type SystemData = PhysicsData<'a>;
 
     fn run(&mut self, data: Self::SystemData) {
-        let PhysicsData {entities, frames, map, movements, bounding_boxes, ghosts, mut positions, mut waits, updater} = data;
+        let PhysicsData {
+            entities,
+            frames,
+            map,
+            movements,
+            bounding_boxes,
+            ghosts,
+            mut positions,
+            mut waits,
+            updater,
+        } = data;
         let FramesElapsed(frames_elapsed) = *frames;
         let tile_size = map.tile_size();
 
         // Need to do updating in a separate phase so we can read all the positions in a nested loop
         let mut updates = Vec::new();
-        for (entity, Position(pos), &Movement {direction, speed}) in (&entities, &positions, &movements).join() {
+        for (entity, Position(pos), &Movement { direction, speed }) in
+            (&entities, &positions, &movements).join()
+        {
             // Entity is waiting for a given amount of frames to elapse
             if let Some(wait) = waits.get_mut(entity) {
                 wait.frames_elapsed += frames_elapsed;
@@ -53,25 +68,25 @@ impl<'a> System<'a> for Physics {
                 let bounds = bounds_box.to_rect(next_pos);
 
                 // Check if any of the tiles that this new position intersects with is a wall
-                let potential_collisions = map.tiles_within(bounds)
+                let potential_collisions = map
+                    .tiles_within(bounds)
                     .filter(|(_, _, tile)| tile.is_wall())
-                    .map(|(pos, _, _)| Rect::new(
-                        pos.x(),
-                        pos.y(),
-                        tile_size,
-                        tile_size,
-                    ));
-                let potential_collisions = potential_collisions
-                    .chain((&entities, &positions, &bounding_boxes, !&ghosts).join()
-                    .filter_map(|(other, &Position(other_pos), &bounds_box, ())| {
-                        // Do not collide with self
-                        if entity == other { return None; }
+                    .map(|(pos, _, _)| Rect::new(pos.x(), pos.y(), tile_size, tile_size));
+                let potential_collisions = potential_collisions.chain(
+                    (&entities, &positions, &bounding_boxes, !&ghosts)
+                        .join()
+                        .filter_map(|(other, &Position(other_pos), &bounds_box, ())| {
+                            // Do not collide with self
+                            if entity == other {
+                                return None;
+                            }
 
-                        // Shrink by the threshold so we don't detect collisions too eagerly
-                        let bounds_box = bounds_box.shrink(COLLISION_THRESHOLD);
+                            // Shrink by the threshold so we don't detect collisions too eagerly
+                            let bounds_box = bounds_box.shrink(COLLISION_THRESHOLD);
 
-                        Some(bounds_box.to_rect(other_pos))
-                    }));
+                            Some(bounds_box.to_rect(other_pos))
+                        }),
+                );
 
                 for other in potential_collisions {
                     // Recalculate bounds based on latest next_pos

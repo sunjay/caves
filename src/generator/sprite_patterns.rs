@@ -1,14 +1,14 @@
-use rand::{rngs::StdRng, Rng, seq::SliceRandom};
-use specs::{World, Builder};
+use rand::{rngs::StdRng, seq::SliceRandom, Rng};
+use specs::{Builder, World, WorldExt};
 
-use super::{GameGenerator, TileRect, TilePos, GridSize};
 use super::world_helpers::world_contains_any_entity;
-use crate::map_sprites::{WallSprite, WallSpriteAlternate, FLOOR_PATTERNS};
+use super::{GameGenerator, GridSize, TilePos, TileRect};
 use crate::components::{Position, Sprite};
 use crate::map::*;
+use crate::map_sprites::{WallSprite, WallSpriteAlternate, FLOOR_PATTERNS};
 
 impl<'a> GameGenerator<'a> {
-    pub(in super) fn layout_floor_wall_sprites(&self, rng: &mut StdRng, map: &mut FloorMap) {
+    pub(super) fn layout_floor_wall_sprites(&self, rng: &mut StdRng, map: &mut FloorMap) {
         self.layout_wall_sprites(rng, map);
         self.layout_floor_sprites(rng, map);
     }
@@ -36,7 +36,9 @@ impl<'a> GameGenerator<'a> {
                     (0, a) if a < 0 => wall_sprite.wall_east = true,
                     (a, 0) if a < 0 => wall_sprite.wall_south = true,
                     (0, a) if a > 0 => wall_sprite.wall_west = true,
-                    _ => unreachable!("bug: position and its adjacent were not in the same row/column"),
+                    _ => unreachable!(
+                        "bug: position and its adjacent were not in the same row/column"
+                    ),
                 }
             }
 
@@ -94,23 +96,24 @@ impl<'a> GameGenerator<'a> {
         }
     }
 
-    pub(in super) fn layout_wall_torch_sprites(&self, map: &mut FloorMap, world: &mut World) {
+    pub(super) fn layout_wall_torch_sprites(&self, map: &mut FloorMap, world: &mut World) {
         // For every span of wall tiles of this size, we will try to put a torch approximately in
         // the middle of them. Only wall tiles where a torch could actually be placed count towards
         // this total.
         let torch_frequency = 4;
         // No need to add torches to last row of walls
-        for row in 0..map.grid().rows_len()-1 {
+        for row in 0..map.grid().rows_len() - 1 {
             // Count of walls that could have a torch
             let mut can_torch = 0;
 
             for col in 0..map.grid().cols_len() {
-                let pos = TilePos {row, col};
+                let pos = TilePos { row, col };
                 if !map.grid().get(pos).is_wall() {
                     continue;
                 }
 
-                let has_south_floor = pos.adjacent_south(map.grid().rows_len())
+                let has_south_floor = pos
+                    .adjacent_south(map.grid().rows_len())
                     .map(|pt| (pt.tile_rect(map.tile_size()), map.grid().get(pt)))
                     .map(|(bounds, t)| t.is_floor() && !world_contains_any_entity(world, bounds))
                     .unwrap_or(false);
@@ -120,13 +123,16 @@ impl<'a> GameGenerator<'a> {
 
                 can_torch += 1;
                 if can_torch % torch_frequency == torch_frequency / 2 {
-                    map.grid_mut().get_mut(pos).wall_sprite_mut().alt = WallSpriteAlternate::TorchLit;
+                    map.grid_mut().get_mut(pos).wall_sprite_mut().alt =
+                        WallSpriteAlternate::TorchLit;
 
                     let pos = pos.center(map.tile_size() as i32);
                     let mut torch_animation = self.sprites.torch_animation().clone();
                     // Able to use the thread rng here because this does NOT need to be deterministic
-                    torch_animation.current_step = rand::thread_rng().gen_range(0, torch_animation.steps.len());
-                    world.create_entity()
+                    torch_animation.current_step =
+                        rand::thread_rng().gen_range(0, torch_animation.steps.len());
+                    world
+                        .create_entity()
                         .with(Position(pos))
                         .with(Sprite(torch_animation.current_sprite()))
                         .with(torch_animation)

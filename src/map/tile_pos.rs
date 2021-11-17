@@ -1,4 +1,4 @@
-use std::ops::{Add, Sub, Mul};
+use std::ops::{Add, Mul, Sub};
 
 use sdl2::rect::{Point, Rect};
 
@@ -16,18 +16,14 @@ impl TilePos {
     /// Maps columns to x-coordinates and rows to y-coordinates
     pub fn tile_rect(self, tile_size: u32) -> Rect {
         let top_left = self.top_left(tile_size as i32);
-        Rect::new(
-            top_left.x(),
-            top_left.y(),
-            tile_size,
-            tile_size,
-        )
+        Rect::new(top_left.x(), top_left.y(), tile_size, tile_size)
     }
 
     /// Returns the position in world coordinates of the center of this tile
     /// Maps columns to x-coordinates and rows to y-coordinates
     pub fn center(self, tile_size: i32) -> Point {
-        self.top_left(tile_size).offset(tile_size / 2, tile_size / 2)
+        self.top_left(tile_size)
+            .offset(tile_size / 2, tile_size / 2)
     }
 
     /// Returns the position in world coordinates of the bottom right of this tile
@@ -41,15 +37,14 @@ impl TilePos {
     pub fn top_left(self, tile_size: i32) -> Point {
         // It's easy to mix up the ordering in this Point constructor, so this method
         // helps avoid that in some cases.
-        Point::new(
-            self.col as i32 * tile_size,
-            self.row as i32 * tile_size,
-        )
+        Point::new(self.col as i32 * tile_size, self.row as i32 * tile_size)
     }
 
     /// Returns the position one tile north of this position, if any
     pub fn adjacent_north(self) -> Option<TilePos> {
-        self.row.checked_sub(1).map(|row| TilePos {row, col: self.col})
+        self.row
+            .checked_sub(1)
+            .map(|row| TilePos { row, col: self.col })
     }
 
     /// Returns the position one tile east of this position, if any
@@ -78,14 +73,19 @@ impl TilePos {
 
     /// Returns the position one tile west of this position, if any
     pub fn adjacent_west(self) -> Option<TilePos> {
-        self.col.checked_sub(1).map(|col| TilePos {row: self.row, col})
+        self.col
+            .checked_sub(1)
+            .map(|col| TilePos { row: self.row, col })
     }
 
     /// Returns the difference between this position and another position
     /// This is like self - other, but negative values are allowed
     /// Returns (delta row, delta col)
     pub fn difference(self, other: Self) -> (isize, isize) {
-        (self.row as isize - other.row as isize, self.col as isize - other.col as isize)
+        (
+            self.row as isize - other.row as isize,
+            self.col as isize - other.col as isize,
+        )
     }
 }
 

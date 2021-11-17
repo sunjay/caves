@@ -3,7 +3,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use sdl2::{image::LoadTexture, render::{TextureCreator, Texture}};
+use sdl2::{
+    image::LoadTexture,
+    render::{Texture, TextureCreator},
+};
 
 use crate::ui::SDLError;
 
@@ -39,13 +42,14 @@ impl<'a, T> TextureManager<'a, T> {
     pub fn create_png_texture<P: AsRef<Path>>(&mut self, path: P) -> Result<TextureId, SDLError> {
         let path = path.as_ref();
         if self.path_textures.contains_key(path) {
-            return Ok(self.path_textures[path])
+            return Ok(self.path_textures[path]);
         }
 
         let texture = self.texture_creator.load_texture(path).map_err(SDLError)?;
         self.textures.push(texture);
         let id = TextureId(self.textures.len() - 1);
-        let path = path.canonicalize()
+        let path = path
+            .canonicalize()
             .expect("Failed to canonicalize path for loaded texture");
         self.path_textures.insert(path, id);
 

@@ -4,7 +4,7 @@ use specs::{Component, HashMapStorage};
 pub enum Item {
     TreasureKey,
     RoomKey,
-    Potion {stength: u32},
+    Potion { stength: u32 },
 }
 
 #[derive(Debug, Clone, PartialEq, Component)]
