@@ -109,12 +109,18 @@ impl ChangeGameState {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GameState {
     /// Game should change to the next level (and move the player and its components there)
-    GoToNextLevel {id: usize},
+    GoToNextLevel { id: usize },
     /// Game should change to the previous level (and move the player and its components there)
-    GoToPrevLevel {id: usize},
+    GoToPrevLevel { id: usize },
     /// Game should pause, but stay on the same level
     Pause,
     //TODO: PauseToShowMessage or something for when we want to show some info
+}
+
+impl Default for GameState {
+    fn default() -> Self {
+        GameState::Pause
+    }
 }
 
 /// Resource that represents any actions that have happened during the current frame.

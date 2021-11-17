@@ -1,8 +1,8 @@
 use rusttype::{point, Font, FontCollection, PositionedGlyph, Scale};
 use sdl2::{
-    rect::Point,
-    render::{Canvas, RenderTarget, BlendMode},
     pixels::Color,
+    rect::Point,
+    render::{BlendMode, Canvas, RenderTarget},
 };
 
 use super::SDLError;
@@ -10,7 +10,10 @@ use super::SDLError;
 pub fn load_font() -> Font<'static> {
     let font_data = include_bytes!("../../assets/fonts/Kenney Pixel Square.ttf");
     let collection = FontCollection::from_bytes(font_data as &[u8]).unwrap_or_else(|e| {
-        panic!("bug: unable to construct a FontCollection from bytes: {}", e);
+        panic!(
+            "bug: unable to construct a FontCollection from bytes: {}",
+            e
+        );
     });
     // only succeeds if collection consists of one font
     collection.into_font().unwrap_or_else(|e| {
@@ -42,7 +45,10 @@ impl<'a> Text<'a> {
         // Adapted from: https://github.com/redox-os/rusttype/blob/master/examples/simple.rs
 
         // Use this to adjust the x:y aspect ratio of the rendered text
-        let scale = Scale {x: height, y: height};
+        let scale = Scale {
+            x: height,
+            y: height,
+        };
 
         // The origin of a line of text is at the baseline (roughly where
         // non-descending letters sit). We don't want to clip the text, so we shift
@@ -58,11 +64,16 @@ impl<'a> Text<'a> {
         // Glyphs to draw the given text
         let glyphs: Vec<PositionedGlyph<'a>> = font.layout(text, scale, offset).collect();
 
-        let width = glyphs.iter()
+        let width = glyphs
+            .iter()
             .map(|g| g.position().x as f32 + g.unpositioned().h_metrics().advance_width)
             .fold(0.0, f32::max);
 
-        Self {glyphs, width, line_height}
+        Self {
+            glyphs,
+            width,
+            line_height,
+        }
     }
 
     pub fn width(&self) -> f32 {
@@ -90,12 +101,14 @@ impl<'a> Text<'a> {
                     canvas_width / 2 - width / 2,
                     canvas_height / 2 - line_height / 2,
                 )
-            },
+            }
             TopLeftAt(top_left) => {
-                assert!(top_left.x() >= 0 && top_left.y() >= 0,
-                    "bug: attempt to layout text off the screen");
+                assert!(
+                    top_left.x() >= 0 && top_left.y() >= 0,
+                    "bug: attempt to layout text off the screen"
+                );
                 point(top_left.x() as u32, top_left.y() as u32)
-            },
+            }
         };
 
         canvas.set_blend_mode(BlendMode::Blend);

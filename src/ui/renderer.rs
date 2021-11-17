@@ -1,19 +1,19 @@
 use std::cmp;
-use std::iter::once;
 use std::collections::HashSet;
+use std::iter::once;
 
+use super::{SDLError, Text, TextLayout};
+use crate::assets::{SpriteImage, SpriteManager, TextureManager};
+use crate::components::{CameraFocus, Door, Ghost, Position, Sprite};
+use crate::map::{FloorMap, Tile, TileGrid, TilePos};
+use crate::map_sprites::MapSprites;
+use rusttype::Font;
 use sdl2::{
     rect::{Point, Rect},
     render::{Canvas, RenderTarget},
 };
-use rusttype::Font;
-use specs::{Join, ReadStorage, Resources, SystemData, Read};
-
-use crate::assets::{TextureManager, SpriteManager, SpriteImage};
-use crate::components::{Position, Sprite, CameraFocus, Door, Ghost};
-use crate::map::{FloorMap, TileGrid, Tile, TilePos};
-use crate::map_sprites::MapSprites;
-use super::{SDLError, Text, TextLayout};
+use specs::prelude::ResourceId;
+use specs::{Join, Read, ReadStorage, SystemData, World};
 
 pub struct RenderContext<'a, T: RenderTarget> {
     pub font: Font<'static>,
@@ -30,12 +30,18 @@ impl<'a, T: RenderTarget> RenderContext<'a, T> {
         sprites: &'a SpriteManager,
         map_sprites: &'a MapSprites,
     ) -> Self {
-        Self {font: super::text::load_font(), canvas, textures, sprites, map_sprites}
+        Self {
+            font: super::text::load_font(),
+            canvas,
+            textures,
+            sprites,
+            map_sprites,
+        }
     }
 }
 
 #[derive(SystemData)]
-pub(in super) struct RenderData<'a> {
+pub(super) struct RenderData<'a> {
     map: Option<Read<'a, FloorMap>>,
     camera_focuses: ReadStorage<'a, CameraFocus>,
     positions: ReadStorage<'a, Position>,
@@ -50,8 +56,8 @@ impl<'a> AsRef<RenderData<'a>> for RenderData<'a> {
     }
 }
 
-pub fn setup(res: &mut Resources) {
-    RenderData::setup(res);
+pub fn setup(world: &mut World) {
+    RenderData::setup(world);
 }
 
 pub struct DebugInfo {
@@ -72,31 +78,45 @@ pub fn render_debug_view<T: RenderTarget>(
     let box_x = (canvas_width - box_width) as i32;
     let box_y = (canvas_height - box_height) as i32;
     ctx.canvas.set_draw_color((60, 60, 60));
-    ctx.canvas.fill_rect(Rect::new(box_x, box_y, box_width, box_height)).map_err(SDLError)?;
+    ctx.canvas
+        .fill_rect(Rect::new(box_x, box_y, box_width, box_height))
+        .map_err(SDLError)?;
 
-    text.render(ctx.canvas, (128, 128, 128), TextLayout::TopLeftAt(Point::new(
-        box_x + padding as i32,
-        box_y + padding as i32,
-    )))?;
+    text.render(
+        ctx.canvas,
+        (128, 128, 128),
+        TextLayout::TopLeftAt(Point::new(box_x + padding as i32, box_y + padding as i32)),
+    )?;
 
     Ok(())
 }
 
 /// Renders the area of the world that is visible to the player
-pub(in super) fn render_player_visible<T: RenderTarget>(
+pub(super) fn render_player_visible<T: RenderTarget>(
     data: RenderData<'_>,
     ctx: &mut RenderContext<T>,
 ) -> Result<(), SDLError> {
-    let RenderData {map, positions, camera_focuses, doors, ..} = &data;
-    let map = map.as_ref().expect("bug: map must be added as a resource to render area visible to player");
+    let RenderData {
+        map,
+        positions,
+        camera_focuses,
+        doors,
+        ..
+    } = &data;
+    let map = map
+        .as_ref()
+        .expect("bug: map must be added as a resource to render area visible to player");
     let tile_size = map.tile_size() as i32;
     let grid = map.grid();
 
     let mut camera_focuses = (positions, camera_focuses).join();
-    let (&Position(camera_focus), _) = camera_focuses.next()
+    let (&Position(camera_focus), _) = camera_focuses
+        .next()
         .expect("Renderer was not told which entity to focus on");
-    assert!(camera_focuses.next().is_none(),
-        "Renderer was asked to focus on more than one thing");
+    assert!(
+        camera_focuses.next().is_none(),
+        "Renderer was asked to focus on more than one thing"
+    );
 
     let (screen_width, screen_height) = ctx.canvas.logical_size();
     let screen_center = Point::new(screen_width as i32 / 2, screen_height as i32 / 2);
@@ -110,8 +130,14 @@ pub(in super) fn render_player_visible<T: RenderTarget>(
     let level_boundary = map.level_boundary();
 
     // The valid ranges for the top-left corner of the screen
-    let (min_x, max_x) = (0, level_boundary.x() + level_boundary.width() as i32 - screen_width as i32);
-    let (min_y, max_y) = (0, level_boundary.y() + level_boundary.height() as i32 - screen_height as i32);
+    let (min_x, max_x) = (
+        0,
+        level_boundary.x() + level_boundary.width() as i32 - screen_width as i32,
+    );
+    let (min_y, max_y) = (
+        0,
+        level_boundary.y() + level_boundary.height() as i32 - screen_height as i32,
+    );
     let clamp = |min, x, max| cmp::min(cmp::max(min, x), max);
     let render_top_left = Point::new(
         clamp(min_x, render_top_left.x, max_x),
@@ -155,8 +181,9 @@ fn find_visible_tiles(
 ) -> HashSet<TilePos> {
     let find_door = |target: TilePos| {
         let target_center = target.center(tile_size);
-        (positions, doors).join()
-            .find(|(&Position(pos), Door {..})| pos == target_center)
+        (positions, doors)
+            .join()
+            .find(|(&Position(pos), Door { .. })| pos == target_center)
     };
 
     // If the position center is at a door, start one tile back away from it
@@ -179,14 +206,19 @@ fn find_visible_tiles(
     })
 }
 
-pub(in super) fn render_area<'a, T: RenderTarget>(
+pub(super) fn render_area<'a, T: RenderTarget>(
     data: impl AsRef<RenderData<'a>>,
     map: &FloorMap,
     region: Rect,
     ctx: &mut RenderContext<T>,
     should_render: impl Fn(TilePos, &Tile) -> bool + Clone,
 ) -> Result<(), SDLError> {
-    let RenderData {positions, sprites: esprites, ghosts, ..} = data.as_ref();
+    let RenderData {
+        positions,
+        sprites: esprites,
+        ghosts,
+        ..
+    } = data.as_ref();
     let render_top_left = region.top_left();
 
     // Rendering strategy: For each row, first render all the backgrounds, then render all of
@@ -202,7 +234,8 @@ pub(in super) fn render_area<'a, T: RenderTarget>(
         // tile south of this wall. Reason: Objects within a room should only be visible
         // when that room is visible
         if grid.get(tile_pos).is_wall() {
-            let should_render_south = tile_pos.adjacent_south(grid.rows_len())
+            let should_render_south = tile_pos
+                .adjacent_south(grid.rows_len())
                 .map(|south| should_render(south, grid.get(south)))
                 .unwrap_or(false);
             if !should_render_south {
@@ -213,17 +246,29 @@ pub(in super) fn render_area<'a, T: RenderTarget>(
         should_render(tile_pos, grid.get(tile_pos))
     };
 
-    render_entities((positions, esprites, ghosts).join().map(|(p, s, _)| (p, s)),
-        map.tile_size(), render_top_left, ctx, should_render_pos)?;
-    render_entities((positions, esprites, !ghosts).join().map(|(p, s, _)| (p, s)),
-        map.tile_size(), render_top_left, ctx, should_render_pos)?;
+    render_entities(
+        (positions, esprites, ghosts).join().map(|(p, s, _)| (p, s)),
+        map.tile_size(),
+        render_top_left,
+        ctx,
+        should_render_pos,
+    )?;
+    render_entities(
+        (positions, esprites, !ghosts)
+            .join()
+            .map(|(p, s, _)| (p, s)),
+        map.tile_size(),
+        render_top_left,
+        ctx,
+        should_render_pos,
+    )?;
 
     Ok(())
 }
 
 /// Renders the tiles of the background (map) within the given region
 fn render_entities<'a, T: RenderTarget>(
-    components: impl Iterator<Item=(&'a Position, &'a Sprite)>,
+    components: impl Iterator<Item = (&'a Position, &'a Sprite)>,
     tile_size: u32,
     render_top_left: Point,
     ctx: &mut RenderContext<T>,
@@ -261,8 +306,13 @@ fn render_background<T: RenderTarget>(
 
     let (top_left, size) = map.grid_area_within(region);
     for (row, row_tiles) in grid.rows().enumerate().skip(top_left.row).take(size.rows) {
-        for (col, tile) in row_tiles.iter().enumerate().skip(top_left.col).take(size.cols) {
-            let tile_pos = TilePos {row, col};
+        for (col, tile) in row_tiles
+            .iter()
+            .enumerate()
+            .skip(top_left.col)
+            .take(size.cols)
+        {
+            let tile_pos = TilePos { row, col };
             let pos = tile_pos.center(tile_size);
 
             if !should_render(tile_pos, tile) {
@@ -272,8 +322,8 @@ fn render_background<T: RenderTarget>(
                 continue;
             }
 
-            let tile_layers = once(default_floor)
-                .chain(once(tile.background_sprite(ctx.map_sprites)));
+            let tile_layers =
+                once(default_floor).chain(once(tile.background_sprite(ctx.map_sprites)));
 
             for sprite in tile_layers {
                 let sprite = ctx.sprites.get(sprite);
@@ -320,13 +370,15 @@ fn render_sprite<T: RenderTarget>(
     let dest_offset = sprite.dest_offset;
     dest_rect.offset(dest_offset.x(), dest_offset.y());
 
-    ctx.canvas.copy_ex(
-        texture,
-        source_rect,
-        dest_rect,
-        0.0,
-        None,
-        sprite.flip_horizontal,
-        sprite.flip_vertical,
-    ).map_err(SDLError)
+    ctx.canvas
+        .copy_ex(
+            texture,
+            source_rect,
+            dest_rect,
+            0.0,
+            None,
+            sprite.flip_horizontal,
+            sprite.flip_vertical,
+        )
+        .map_err(SDLError)
 }

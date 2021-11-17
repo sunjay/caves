@@ -3,26 +3,26 @@
 // with one another. These groups of methods usually correspond to the phases of level generation
 // that take place. The code was designed this way to make sharing the configuration as easy as
 // possible (via &self).
-mod rooms;
-mod sprite_patterns;
-mod place_items;
 mod doorways;
 mod enemies;
+mod place_items;
+mod rooms;
+mod sprite_patterns;
 
-mod map_key;
 mod bounds;
 mod enemy_config;
+mod map_key;
 
 mod world_helpers;
 
-pub use self::map_key::*;
 pub use self::bounds::*;
 pub use self::enemy_config::*;
+pub use self::map_key::*;
 
 use rand::{random, rngs::StdRng, Rng, SeedableRng};
-use specs::{World, Dispatcher};
-use sdl2::rect::Point;
 use rayon::prelude::*;
+use sdl2::rect::Point;
+use specs::{Dispatcher, Read, World, WorldExt};
 
 use crate::map::*;
 use crate::map_sprites::MapSprites;
@@ -42,26 +42,35 @@ pub struct GenGame<'a, 'b> {
 
 fn find_player_start<'a, 'b>(levels: &[GenLevel<'a, 'b>]) -> Point {
     let first_level = levels.first().expect("bug: should be at least one level");
-    let map = first_level.world.read_resource::<FloorMap>();
+    let map = first_level.world.system_data::<Read<'_, FloorMap>>();
 
-    let (room_id, level_start_room) = map.rooms()
+    let (room_id, level_start_room) = map
+        .rooms()
         .find(|(_, room)| room.is_player_start())
         .expect("bug: should have had a player start room on the first level");
     // Start in the middle of the level start room
     let center = level_start_room.boundary().center_tile();
-    assert!(map.grid().get(center).is_room_floor(room_id),
-        "bug: the center of the player start room was not a tile in that room");
+    assert!(
+        map.grid().get(center).is_room_floor(room_id),
+        "bug: the center of the player start room was not a tile in that room"
+    );
 
     let tile_size = map.tile_size() as i32;
     // Start in the middle of the tile
-    center.top_left(tile_size).offset(tile_size/2, tile_size/2)
+    center
+        .top_left(tile_size)
+        .offset(tile_size / 2, tile_size / 2)
 }
 
 impl<'a, 'b> GenGame<'a, 'b> {
     fn new(key: MapKey, levels: Vec<GenLevel<'a, 'b>>) -> Self {
         // Calculate the player start position
         let player_start = find_player_start(&levels);
-        GenGame {key, levels, player_start}
+        GenGame {
+            key,
+            levels,
+            player_start,
+        }
     }
 }
 
@@ -116,44 +125,70 @@ pub struct GameGenerator<'a> {
 }
 
 impl<'a> GameGenerator<'a> {
-    pub fn generate<'b, 'c>(self, setup_world: impl Fn() -> (Dispatcher<'b, 'c>, World)) -> GenGame<'b, 'c> {
+    pub fn generate<'b, 'c>(
+        self,
+        setup_world: impl Fn() -> (Dispatcher<'b, 'c>, World),
+    ) -> GenGame<'b, 'c> {
         self.generate_with_key(random(), setup_world)
     }
 
-    pub fn generate_with_key<'b, 'c>(self, key: MapKey, setup_world: impl Fn() -> (Dispatcher<'b, 'c>, World)) -> GenGame<'b, 'c> {
+    pub fn generate_with_key<'b, 'c>(
+        self,
+        key: MapKey,
+        setup_world: impl Fn() -> (Dispatcher<'b, 'c>, World),
+    ) -> GenGame<'b, 'c> {
         let mut rng = key.to_rng();
 
         // If this takes more than 10 attempts, we can conclude that it was essentially impossible
         // to generate the map.
         for _ in 0..10 {
-            let (rngs_worlds, dispatchers): (Vec<_>, Vec<_>) = (1..=self.levels).map(|level| {
-                let (dispatcher, world) = setup_world();
-                ((self.clone(), level, StdRng::from_seed(rng.gen()), world), dispatcher)
-            }).unzip();
-            let levels: Result<Vec<_>, _> = rngs_worlds.into_par_iter()
-                .map(|(generator, level, mut rng, world)| generator.populate_level(&mut rng, level, world))
+            let (rngs_worlds, dispatchers): (Vec<_>, Vec<_>) = (1..=self.levels)
+                .map(|level| {
+                    let (dispatcher, world) = setup_world();
+                    (
+                        (self.clone(), level, StdRng::from_seed(rng.gen()), world),
+                        dispatcher,
+                    )
+                })
+                .unzip();
+            let levels: Result<Vec<_>, _> = rngs_worlds
+                .into_par_iter()
+                .map(|(generator, level, mut rng, world)| {
+                    generator.populate_level(&mut rng, level, world)
+                })
                 .collect();
-            let levels = levels.map(|levels| levels.into_iter()
-                .zip(dispatchers.into_iter())
-                .map(|(world, dispatcher)| GenLevel {world, dispatcher})
-                .collect());
+            let levels = levels.map(|levels| {
+                levels
+                    .into_iter()
+                    .zip(dispatchers.into_iter())
+                    .map(|(world, dispatcher)| GenLevel { world, dispatcher })
+                    .collect()
+            });
 
             match levels {
                 Ok(levels) => return GenGame::new(key, levels),
                 // Reseed the rng using itself
                 Err(RanOutOfAttempts) => {
                     rng = StdRng::from_seed(rng.gen());
-                },
+                }
             }
         }
 
         panic!("Never succeeded in generating a map with key `{}`!", key);
     }
 
-    fn populate_level(&self, rng: &mut StdRng, level: usize, mut world: World) -> Result<World, RanOutOfAttempts> {
+    fn populate_level(
+        &self,
+        rng: &mut StdRng,
+        level: usize,
+        mut world: World,
+    ) -> Result<World, RanOutOfAttempts> {
         // Levels are generated in "phases". The following calls runs each of those in succession.
         let mut map = FloorMap::new(
-            GridSize {rows: self.rows, cols: self.cols},
+            GridSize {
+                rows: self.rows,
+                cols: self.cols,
+            },
             self.tile_size,
         );
 

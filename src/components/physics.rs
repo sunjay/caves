@@ -1,8 +1,11 @@
 //! Components for physics-related uses
 
-use specs::{Component, VecStorage, HashMapStorage, NullStorage};
+use rand::{
+    distributions::{Distribution, Standard},
+    Rng,
+};
 use sdl2::rect::{Point, Rect};
-use rand::{Rng, distributions::{Distribution, Standard}};
+use specs::{Component, HashMapStorage, NullStorage, VecStorage};
 
 /// An entity with this component does not count in collisions and can thus be rendered over
 #[derive(Debug, Default, Component)]
@@ -91,16 +94,10 @@ impl MovementDirection {
 #[storage(VecStorage)]
 pub enum BoundingBox {
     /// A full bounding box centered around the entity's position
-    Full {
-        width: u32,
-        height: u32,
-    },
+    Full { width: u32, height: u32 },
     /// A "half" bounding box where the position is the top-middle of the box formed by the given
     /// width and height
-    BottomHalf {
-        width: u32,
-        height: u32,
-    },
+    BottomHalf { width: u32, height: u32 },
 }
 
 impl BoundingBox {
@@ -111,11 +108,11 @@ impl BoundingBox {
     pub fn shrink(self, value: u32) -> Self {
         use self::BoundingBox::*;
         match self {
-            Full {width, height} => Full {
+            Full { width, height } => Full {
                 width: width - value * 2,
                 height: height - value * 2,
             },
-            BottomHalf {width, height} => BottomHalf {
+            BottomHalf { width, height } => BottomHalf {
                 width: width - value * 2,
                 height: height - value,
             },
@@ -128,12 +125,12 @@ impl BoundingBox {
     pub fn to_rect(self, pos: Point) -> Rect {
         use self::BoundingBox::*;
         match self {
-            Full {width, height} => Rect::from_center(pos, width, height),
-            BottomHalf {width, height} => Rect::from_center(
+            Full { width, height } => Rect::from_center(pos, width, height),
+            BottomHalf { width, height } => Rect::from_center(
                 // Make pos be at the top middle of the bounding box
-                pos.offset(0, height as i32/2),
+                pos.offset(0, height as i32 / 2),
                 width,
-                height
+                height,
             ),
         }
     }
@@ -143,8 +140,8 @@ impl BoundingBox {
     pub fn to_full_rect(self, pos: Point) -> Rect {
         use self::BoundingBox::*;
         match self {
-            Full {width, height} => Rect::from_center(pos, width, height),
-            BottomHalf {width, height} => Rect::from_center(pos, width, height * 2),
+            Full { width, height } => Rect::from_center(pos, width, height),
+            BottomHalf { width, height } => Rect::from_center(pos, width, height * 2),
         }
     }
 }

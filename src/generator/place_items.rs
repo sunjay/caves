@@ -1,12 +1,12 @@
 use rand::{rngs::StdRng, seq::SliceRandom};
-use specs::{World, Builder, ReadStorage, Join};
+use specs::{Builder, Join, ReadStorage, World, WorldExt};
 
-use super::{GameGenerator, RanOutOfAttempts};
 use super::world_helpers::world_contains_any_entity;
+use super::{GameGenerator, RanOutOfAttempts};
+use crate::components::{BoundingBox, Ghost, Position, Sprite, Stairs};
 use crate::map::TilePos;
-use crate::map_sprites::WallSprite;
-use crate::components::{Position, Ghost, BoundingBox, Sprite, Stairs};
 use crate::map::*;
+use crate::map_sprites::WallSprite;
 
 fn validate_chosen_staircase(grid: &TileGrid, world: &World, pos: TilePos, tile_size: u32) -> bool {
     // The staircase cannot be directly beside another staircase. It also cannot be beside
@@ -15,8 +15,10 @@ fn validate_chosen_staircase(grid: &TileGrid, world: &World, pos: TilePos, tile_
 
     let has_staircase = |pos: TilePos| {
         let bounds = pos.tile_rect(tile_size);
-        let (positions, stairs) = world.system_data::<(ReadStorage<'_, Position>, ReadStorage<'_, Stairs>)>();
-        (&positions, &stairs).join()
+        let (positions, stairs) =
+            world.system_data::<(ReadStorage<'_, Position>, ReadStorage<'_, Stairs>)>();
+        (&positions, &stairs)
+            .join()
             .any(|(&Position(pos), _)| bounds.contains_point(pos))
     };
 
@@ -32,7 +34,10 @@ fn validate_chosen_staircase(grid: &TileGrid, world: &World, pos: TilePos, tile_
             return false;
         }
 
-        if grid.adjacent_positions(adj).any(|adj2| grid.is_room_entrance(adj2)) {
+        if grid
+            .adjacent_positions(adj)
+            .any(|adj2| grid.is_room_entrance(adj2))
+        {
             return false;
         }
     }
@@ -41,7 +46,7 @@ fn validate_chosen_staircase(grid: &TileGrid, world: &World, pos: TilePos, tile_
 }
 
 impl<'a> GameGenerator<'a> {
-    pub(in super) fn place_to_next_level_tiles(
+    pub(super) fn place_to_next_level_tiles(
         &self,
         rng: &mut StdRng,
         map: &mut FloorMap,
@@ -52,15 +57,23 @@ impl<'a> GameGenerator<'a> {
         let next_pos = |rng: &mut StdRng, rect: TileRect| rect.random_right_vertical_edge_tile(rng);
 
         let place_object = |world: &mut World, map: &mut FloorMap, obj_pos, wall_pos, id| {
-            self.place_stairs(world, map, obj_pos, wall_pos, Stairs::ToNextLevel {id});
+            self.place_stairs(world, map, obj_pos, wall_pos, Stairs::ToNextLevel { id });
             self.surround_stairways(obj_pos, map);
         };
-        self.place_object_in_rooms(rng, map, world, valid_rooms, self.next_prev_tiles,
-            next_pos, validate_chosen_staircase, place_object)?;
+        self.place_object_in_rooms(
+            rng,
+            map,
+            world,
+            valid_rooms,
+            self.next_prev_tiles,
+            next_pos,
+            validate_chosen_staircase,
+            place_object,
+        )?;
         Ok(())
     }
 
-    pub(in super) fn place_to_prev_level_tiles(
+    pub(super) fn place_to_prev_level_tiles(
         &self,
         rng: &mut StdRng,
         map: &mut FloorMap,
@@ -71,11 +84,19 @@ impl<'a> GameGenerator<'a> {
         let next_pos = |rng: &mut StdRng, rect: TileRect| rect.random_left_vertical_edge_tile(rng);
 
         let place_object = |world: &mut World, map: &mut FloorMap, obj_pos, wall_pos, id| {
-            self.place_stairs(world, map, obj_pos, wall_pos, Stairs::ToPrevLevel {id});
+            self.place_stairs(world, map, obj_pos, wall_pos, Stairs::ToPrevLevel { id });
             self.surround_stairways(obj_pos, map);
         };
-        self.place_object_in_rooms(rng, map, world, valid_rooms, self.next_prev_tiles,
-            next_pos, validate_chosen_staircase, place_object)?;
+        self.place_object_in_rooms(
+            rng,
+            map,
+            world,
+            valid_rooms,
+            self.next_prev_tiles,
+            next_pos,
+            validate_chosen_staircase,
+            place_object,
+        )?;
         Ok(())
     }
 
@@ -95,17 +116,25 @@ impl<'a> GameGenerator<'a> {
             _ => unreachable!("bug: stairs only support facing left or right"),
         };
         let sprite = match stairs {
-            Stairs::ToNextLevel {..} if stairs_entrance_to_right => self.sprites.staircase_down_right(),
-            Stairs::ToNextLevel {..} => self.sprites.staircase_down_left(),
-            Stairs::ToPrevLevel {..} if stairs_entrance_to_right => self.sprites.staircase_up_right(),
-            Stairs::ToPrevLevel {..} => self.sprites.staircase_up_left(),
+            Stairs::ToNextLevel { .. } if stairs_entrance_to_right => {
+                self.sprites.staircase_down_right()
+            }
+            Stairs::ToNextLevel { .. } => self.sprites.staircase_down_left(),
+            Stairs::ToPrevLevel { .. } if stairs_entrance_to_right => {
+                self.sprites.staircase_up_right()
+            }
+            Stairs::ToPrevLevel { .. } => self.sprites.staircase_up_left(),
         };
         // Make the stairs a little bit smaller so the player really needs to walk on top to enter
         let stair_size = self.tile_size / 2;
-        world.create_entity()
+        world
+            .create_entity()
             .with(Ghost) // Allow the player to walk on top of stairs
             .with(Position(pos))
-            .with(BoundingBox::Full {width: stair_size, height: stair_size})
+            .with(BoundingBox::Full {
+                width: stair_size,
+                height: stair_size,
+            })
             .with(stairs)
             .with(Sprite(sprite))
             .build();
@@ -136,7 +165,8 @@ impl<'a> GameGenerator<'a> {
     ) -> Result<(), RanOutOfAttempts> {
         // To do this using choose we would need to allocate anyway, so we might as well just use
         // shuffle to do all the random choosing at once
-        let mut rooms: Vec<_> = map.rooms()
+        let mut rooms: Vec<_> = map
+            .rooms()
             .filter(room_filter)
             .map(|(id, r)| (id, *r.boundary()))
             .collect();
@@ -196,7 +226,14 @@ impl<'a> GameGenerator<'a> {
     }
 
     /// Attempts to find a room tile adjacent to the given tile that we can place the object in
-    fn find_place(&self, grid: &TileGrid, world: &World, pos: TilePos, tile_size: u32, room_id: RoomId) -> Option<TilePos> {
+    fn find_place(
+        &self,
+        grid: &TileGrid,
+        world: &World,
+        pos: TilePos,
+        tile_size: u32,
+        room_id: RoomId,
+    ) -> Option<TilePos> {
         let tile = grid.get(pos);
 
         // Must be a wall with a single room tile of the given room_id adjacent to it. The
@@ -205,7 +242,8 @@ impl<'a> GameGenerator<'a> {
         if !tile.is_wall() {
             return None;
         }
-        let adj_room_tiles: Vec<_> = grid.adjacent_positions(pos)
+        let adj_room_tiles: Vec<_> = grid
+            .adjacent_positions(pos)
             .filter(|&pt| grid.get(pt).is_room_floor(room_id))
             .collect();
         let inner_room_tile = match &adj_room_tiles[..] {
@@ -214,8 +252,10 @@ impl<'a> GameGenerator<'a> {
             _ => return None,
         };
 
-        assert!(grid.get(inner_room_tile).is_room_floor(room_id),
-            "bug: can only place items within rooms on room tiles");
+        assert!(
+            grid.get(inner_room_tile).is_room_floor(room_id),
+            "bug: can only place items within rooms on room tiles"
+        );
 
         // Cannot place on a tile that already has an item
         let inner_room_tile_bounds = inner_room_tile.tile_rect(tile_size);
@@ -233,7 +273,10 @@ impl<'a> GameGenerator<'a> {
         //     oooooooo
         //
         // x would pass all of the previous checks but get caught by this one
-        if grid.adjacent_positions(inner_room_tile).any(|pt| grid.is_room_entrance(pt)) {
+        if grid
+            .adjacent_positions(inner_room_tile)
+            .any(|pt| grid.is_room_entrance(pt))
+        {
             return None;
         }
 

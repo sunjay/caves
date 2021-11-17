@@ -12,7 +12,10 @@ pub struct GridSize {
 impl GridSize {
     /// Creates a new GridSize that represents a square of the given size
     pub fn square(size: usize) -> Self {
-        Self {rows: size, cols: size}
+        Self {
+            rows: size,
+            cols: size,
+        }
     }
 
     /// Converts the given grid size to a rectangle in world coordinates.

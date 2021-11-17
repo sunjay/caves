@@ -1,7 +1,9 @@
-use specs::{System, Join, ReadExpect, WriteExpect, ReadStorage, WriteStorage, Entities};
-
-use crate::components::{Movement, MovementDirection, KeyboardControlled, Wait};
-use crate::resources::{EventQueue, Event, ActionQueue, Action, Key};
+use crate::components::{KeyboardControlled, Movement, MovementDirection, Wait};
+use crate::resources::{Action, ActionQueue, Event, EventQueue, Key};
+use specs::prelude::ResourceId;
+use specs::{
+    Entities, Join, ReadExpect, ReadStorage, System, SystemData, World, WriteExpect, WriteStorage,
+};
 
 const MOVEMENT_SPEED: i32 = 3;
 
@@ -42,7 +44,9 @@ impl Keyboard {
     /// found. If the KeyUp and KeyDown events are fired in their logical sequence, this should
     /// never happen.
     fn remove_direction(&mut self, direction: MovementDirection) {
-        let index = self.direction_stack.iter()
+        let index = self
+            .direction_stack
+            .iter()
             .position(|&d| d == direction)
             .expect("bug: attempt to remove a direction that was never added to the stack");
         self.direction_stack.remove(index);
@@ -53,9 +57,9 @@ impl<'a> System<'a> for Keyboard {
     type SystemData = KeyboardData<'a>;
 
     fn run(&mut self, data: Self::SystemData) {
-        use self::MovementDirection::*;
         use self::Event::*;
         use self::Key::*;
+        use self::MovementDirection::*;
 
         let KeyboardData {
             entities,
@@ -88,11 +92,13 @@ impl<'a> System<'a> for Keyboard {
                 KeyUp(DownArrow) => self.remove_direction(South),
                 KeyUp(LeftArrow) => self.remove_direction(West),
 
-                _ => {},
+                _ => {}
             }
         }
 
-        for (entity, movement, _, ()) in (&entities, &mut movements, &keyboard_controlled, !&waits).join() {
+        for (entity, movement, _, ()) in
+            (&entities, &mut movements, &keyboard_controlled, !&waits).join()
+        {
             if interact {
                 actions.0.entry(entity).or_default().push(Action::Interact);
             }

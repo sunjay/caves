@@ -1,14 +1,15 @@
 use std::collections::HashSet;
 
-use rand::{rngs::StdRng};
-use specs::{World, Builder};
+use rand::rngs::StdRng;
+use specs::{Builder, World, WorldExt};
 
-use super::{GameGenerator, RanOutOfAttempts, EnemyValues};
-use crate::components::{Position, Sprite, Enemy, HealthPoints, Attack, HitWait, Movement};
+use super::{EnemyValues, GameGenerator, RanOutOfAttempts};
+use crate::components::{Attack, Enemy, HealthPoints, HitWait, Movement, Position, Sprite};
 use crate::map::*;
 
 impl<'a> GameGenerator<'a> {
-    pub(in super) fn add_enemies(&self,
+    pub(super) fn add_enemies(
+        &self,
         rng: &mut StdRng,
         map: &FloorMap,
         world: &mut World,
@@ -45,7 +46,10 @@ impl<'a> GameGenerator<'a> {
                     continue;
                 }
                 // Though we got an "inner" tile, we may still be near a wall or entrance
-                if grid.adjacent_positions(pos).any(|pt| grid.get(pt).is_wall() || grid.is_room_entrance(pt)) {
+                if grid
+                    .adjacent_positions(pos)
+                    .any(|pt| grid.get(pt).is_wall() || grid.is_room_entrance(pt))
+                {
                     continue;
                 }
 
@@ -61,8 +65,9 @@ impl<'a> GameGenerator<'a> {
                     bounding_box,
                 } = self.enemy_config.random_enemy(rng, level);
 
-                world.create_entity()
-                    .with(Enemy {behaviour, speed})
+                world
+                    .create_entity()
+                    .with(Enemy { behaviour, speed })
                     .with(HealthPoints(health_points))
                     .with(Attack(attack))
                     .with(HitWait(hit_wait))

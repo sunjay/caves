@@ -1,9 +1,11 @@
 use std::borrow::Cow;
 
-use specs::{System, Join, ReadExpect, ReadStorage, WriteStorage, Entities};
-
-use crate::components::{Movement, MovementDirection::*, Sprite, Animation, AnimationManager, Wait};
-use crate::resources::{ActionQueue, Action::*, FramesElapsed};
+use crate::components::{
+    Animation, AnimationManager, Movement, MovementDirection::*, Sprite, Wait,
+};
+use crate::resources::{Action::*, ActionQueue, FramesElapsed};
+use specs::prelude::ResourceId;
+use specs::{Entities, Join, ReadExpect, ReadStorage, System, SystemData, World, WriteStorage};
 
 /// The number of frames that an entity can be idle before the idle animation starts
 const IDLE_LENGTH: usize = 300;
@@ -46,7 +48,14 @@ impl<'a> System<'a> for Animator {
 
         // Set the current animation based on an entity's movements or based on actions that have
         // occurred during this frame
-        for (entity, movement, animation, manager) in (&entities, &movements, &mut animations, &mut animation_managers).join() {
+        for (entity, movement, animation, manager) in (
+            &entities,
+            &movements,
+            &mut animations,
+            &mut animation_managers,
+        )
+            .join()
+        {
             // No point in continuing if we can't interrupt the animation that is currently running
             // This also prevents the idle counter from being incremented during an animation
             if !animation.can_interrupt && !animation.is_complete() {
@@ -57,7 +66,10 @@ impl<'a> System<'a> for Animator {
 
             // Don't want to copy the events that occurred but also don't want to deal with the
             // option type
-            let actions: Cow<'_, Vec<_>> = action_queue.get(&entity).map(|q| Cow::Borrowed(q)).unwrap_or_default();
+            let actions: Cow<'_, Vec<_>> = action_queue
+                .get(&entity)
+                .map(|q| Cow::Borrowed(q))
+                .unwrap_or_default();
 
             // Update the idle counter so we can decide whether to play the idle animation
             match (movement.is_moving(), &actions[..]) {
@@ -83,7 +95,7 @@ impl<'a> System<'a> for Animator {
                     }
 
                     continue;
-                },
+                }
                 // If we are moving, actions have occurred, or both of those are happening, we are
                 // no longer idle
                 _ => manager.idle_counter = 0,
@@ -126,7 +138,8 @@ impl<'a> System<'a> for Animator {
                     *animation = action_animation.clone();
                     if !animation.can_interrupt && !animation.should_loop {
                         // If another wait was already there, this will overwrite it
-                        waits.insert(entity, Wait::new(animation.len()))
+                        waits
+                            .insert(entity, Wait::new(animation.len()))
                             .expect("bug: unable to insert wait for animation");
                     }
                 }

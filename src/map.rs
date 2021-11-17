@@ -1,21 +1,21 @@
-mod grid_size;
 mod grid;
+mod grid_size;
 mod room;
+mod tile;
 mod tile_pos;
 mod tile_rect;
-mod tile;
 
-pub use self::grid_size::*;
 pub use self::grid::*;
+pub use self::grid_size::*;
 pub use self::room::*;
+pub use self::tile::*;
 pub use self::tile_pos::*;
 pub use self::tile_rect::*;
-pub use self::tile::*;
 
-use std::fmt;
 use std::cmp;
+use std::fmt;
 
-use sdl2::rect::{Rect, Point};
+use sdl2::rect::{Point, Rect};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct RoomId(usize);
@@ -27,7 +27,7 @@ impl fmt::Display for RoomId {
 }
 
 /// A type that represents the static floor plan of a map
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Default)]
 pub struct FloorMap {
     grid: TileGrid,
     /// The RoomId is the index into this field
@@ -42,7 +42,8 @@ impl fmt::Debug for FloorMap {
         // does not look super bad on CI.
         if !f.alternate() {
             // Return the normal debug output
-            return f.debug_struct("FloorMap")
+            return f
+                .debug_struct("FloorMap")
                 .field("grid", &self.grid)
                 .field("rooms", &self.rooms)
                 .field("tile_size", &self.tile_size)
@@ -54,18 +55,22 @@ impl fmt::Debug for FloorMap {
         for row in self.grid().rows() {
             for tile in row {
                 use self::Tile::*;
-                write!(f, "{}", match tile {
-                    &Floor {room_id, ..} => {
-                        match self.room(room_id).room_type() {
-                            RoomType::Normal => " ".on_blue(),
-                            RoomType::Challenge => " ".on_red(),
-                            RoomType::PlayerStart => " ".on_bright_blue(),
-                            RoomType::TreasureChamber => " ".on_yellow(),
+                write!(
+                    f,
+                    "{}",
+                    match tile {
+                        &Floor { room_id, .. } => {
+                            match self.room(room_id).room_type() {
+                                RoomType::Normal => " ".on_blue(),
+                                RoomType::Challenge => " ".on_red(),
+                                RoomType::PlayerStart => " ".on_bright_blue(),
+                                RoomType::TreasureChamber => " ".on_yellow(),
+                            }
                         }
-                    },
-                    Wall {..} => "\u{25a2}".on_black(),
-                    Empty => " ".on_black(),
-                })?;
+                        Wall { .. } => "\u{25a2}".on_black(),
+                        Empty => " ".on_black(),
+                    }
+                )?;
                 write!(f, "{}", " ".on_black())?;
             }
             writeln!(f)?;
@@ -101,8 +106,11 @@ impl FloorMap {
     }
 
     /// Returns an iterator over the rooms in the map and their IDs
-    pub fn rooms(&self) -> impl Iterator<Item=(RoomId, &Room)> {
-        self.rooms.iter().enumerate().map(|(i, room)| (RoomId(i), room))
+    pub fn rooms(&self) -> impl Iterator<Item = (RoomId, &Room)> {
+        self.rooms
+            .iter()
+            .enumerate()
+            .map(|(i, room)| (RoomId(i), room))
     }
 
     /// Returns the room with the specified room ID
@@ -113,26 +121,31 @@ impl FloorMap {
     /// Returns the exact area of the room, not just the width * height
     /// Counts the number of tiles within the room area that are actually floor tiles in that room
     pub fn room_exact_area(&self, room_id: RoomId) -> usize {
-        self.room(room_id).boundary().tile_positions()
+        self.room(room_id)
+            .boundary()
+            .tile_positions()
             .filter(|&pos| self.grid().get(pos).is_room_floor(room_id))
             .count()
     }
 
     /// Returns the room with the specified room ID
     /// Not for use after map generation is complete.
-    pub(in super) fn room_mut(&mut self, room_id: RoomId) -> &mut Room {
+    pub(super) fn room_mut(&mut self, room_id: RoomId) -> &mut Room {
         &mut self.rooms[room_id.0]
     }
 
     /// Returns an iterator over mutable references to all of the rooms.
     /// Not for use after map generation is complete.
-    pub(in super) fn rooms_mut(&mut self) -> impl Iterator<Item=(RoomId, &mut Room)> {
-        self.rooms.iter_mut().enumerate().map(|(i, room)| (RoomId(i), room))
+    pub(super) fn rooms_mut(&mut self) -> impl Iterator<Item = (RoomId, &mut Room)> {
+        self.rooms
+            .iter_mut()
+            .enumerate()
+            .map(|(i, room)| (RoomId(i), room))
     }
 
     /// Add a room with the given boundary rectangle to the map.
     /// Rooms should not be added after map generation is complete.
-    pub(in super) fn add_room(&mut self, boundary: TileRect) -> RoomId {
+    pub(super) fn add_room(&mut self, boundary: TileRect) -> RoomId {
         let room = Room::new(boundary);
         self.rooms.push(room);
         RoomId(self.rooms.len() - 1)
@@ -151,8 +164,10 @@ impl FloorMap {
     /// Returns the rectangle in world coordinates contained by the given top-left and bottom-right
     /// tiles. The entirity of both corners will be included in the rectangle.
     pub fn tile_rect(&self, top_left: TilePos, bottom_right: TilePos) -> Rect {
-        debug_assert!(top_left.row <= bottom_right.row && top_left.col <= bottom_right.col,
-            "bug: expected top_left to be above and to the left of bottom right");
+        debug_assert!(
+            top_left.row <= bottom_right.row && top_left.col <= bottom_right.col,
+            "bug: expected top_left to be above and to the left of bottom right"
+        );
         let top_left = top_left.top_left(self.tile_size as i32);
         let bottom_right = bottom_right.bottom_right(self.tile_size as i32);
 
@@ -175,20 +190,28 @@ impl FloorMap {
         let row = y as usize / self.tile_size as usize;
         let col = x as usize / self.tile_size as usize;
 
-        assert!(row < self.grid().rows_len() && col < self.grid().cols_len(),
-            "bug: point was not on the grid");
+        assert!(
+            row < self.grid().rows_len() && col < self.grid().cols_len(),
+            "bug: point was not on the grid"
+        );
 
-        TilePos {row, col}
+        TilePos { row, col }
     }
 
     /// Returns the tiles within (or around) the region defined by bounds
-    pub fn tiles_within(&self, bounds: Rect) -> impl Iterator<Item=(Point, TilePos, &Tile)> {
+    pub fn tiles_within(&self, bounds: Rect) -> impl Iterator<Item = (Point, TilePos, &Tile)> {
         let (pos, size) = self.grid_area_within(bounds);
 
-        self.grid().tile_positions_within(pos, size).map(move |pos| {
-            // The position of the tile in world coordinates
-            (pos.top_left(self.tile_size as i32), pos, self.grid().get(pos))
-        })
+        self.grid()
+            .tile_positions_within(pos, size)
+            .map(move |pos| {
+                // The position of the tile in world coordinates
+                (
+                    pos.top_left(self.tile_size as i32),
+                    pos,
+                    self.grid().get(pos),
+                )
+            })
     }
 
     /// Returns the top left tile position and grid size of the area within (or around) the region
@@ -203,8 +226,8 @@ impl FloorMap {
         let width = bounds.width() as usize;
         let height = bounds.height() as usize;
 
-        let clamp_row = |row| cmp::min(cmp::max(row, 0), self.grid().rows_len()-1);
-        let clamp_col = |col| cmp::min(cmp::max(col, 0), self.grid().cols_len()-1);
+        let clamp_row = |row| cmp::min(cmp::max(row, 0), self.grid().rows_len() - 1);
+        let clamp_col = |col| cmp::min(cmp::max(col, 0), self.grid().cols_len() - 1);
 
         let start_row = clamp_row(y / self.tile_size as usize);
         let start_col = clamp_col(x / self.tile_size as usize);
@@ -216,8 +239,11 @@ impl FloorMap {
         let cols = end_col - start_col + 1;
 
         (
-            TilePos {row: start_row, col: start_col},
-            GridSize {rows, cols},
+            TilePos {
+                row: start_row,
+                col: start_col,
+            },
+            GridSize { rows, cols },
         )
     }
 }

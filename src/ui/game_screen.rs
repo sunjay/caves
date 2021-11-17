@@ -1,14 +1,14 @@
 use std::path::Path;
 
-use sdl2::render::RenderTarget;
 use component_group::ComponentGroup;
+use sdl2::render::RenderTarget;
 
-use crate::generator::GenLevel;
 use crate::components::PlayerComponents;
-use crate::resources::{FramesElapsed, Event, GameState};
+use crate::generator::GenLevel;
+use crate::resources::{Event, FramesElapsed, GameState};
 
 use super::text::{Text, TextLayout};
-use super::{SDLError, LevelScreen, RenderContext};
+use super::{LevelScreen, RenderContext, SDLError};
 
 /// An animation of text that tells the user which level they are on
 struct LevelTextAnimation {
@@ -23,7 +23,10 @@ impl LevelTextAnimation {
     const LEVEL_TEXT_FADE_LENGTH: usize = 30; // frames
 
     pub fn new(level: usize) -> Self {
-        Self {level, timer: Self::LEVEL_TEXT_FADE_LENGTH}
+        Self {
+            level,
+            timer: Self::LEVEL_TEXT_FADE_LENGTH,
+        }
     }
 
     pub fn dispatch(&mut self, frames_elapsed: FramesElapsed) {
@@ -39,8 +42,11 @@ impl LevelTextAnimation {
         }
         // fade out gradually (linearly) as the animation goes on
         let alpha = (self.timer * 255) / Self::LEVEL_TEXT_FADE_LENGTH;
-        Text::new(&ctx.font, format!("Floor {}", self.level + 1), 30.0)
-            .render(ctx.canvas, (255, 255, 255, alpha as u8), TextLayout::Centered)
+        Text::new(&ctx.font, format!("Floor {}", self.level + 1), 30.0).render(
+            ctx.canvas,
+            (255, 255, 255, alpha as u8),
+            TextLayout::Centered,
+        )
     }
 }
 
@@ -54,7 +60,8 @@ impl<'a, 'b> GameScreen<'a, 'b> {
     pub fn new(player: PlayerComponents, mut levels: Vec<GenLevel<'a, 'b>>) -> Self {
         // Add player
         {
-            let first_world = &mut levels.first_mut()
+            let first_world = &mut levels
+                .first_mut()
                 .expect("bug: should be at least one level")
                 .world;
             player.create(first_world);
@@ -73,7 +80,7 @@ impl<'a, 'b> GameScreen<'a, 'b> {
     }
 
     /// Returns an iterator of the level screens
-    pub fn levels(&self) -> impl Iterator<Item=&LevelScreen<'a, 'b>> {
+    pub fn levels(&self) -> impl Iterator<Item = &LevelScreen<'a, 'b>> {
         self.levels.iter()
     }
 
@@ -83,15 +90,15 @@ impl<'a, 'b> GameScreen<'a, 'b> {
         if let Some(newstate) = newstate {
             use self::GameState::*;
             match newstate {
-                GoToNextLevel {id} => self.to_next_level(id),
-                GoToPrevLevel {id} => self.to_prev_level(id),
-                Pause => unimplemented!(),
+                GoToNextLevel { id } => self.to_next_level(id),
+                GoToPrevLevel { id } => self.to_prev_level(id),
+                Pause => {}
             }
             match newstate {
-                GoToNextLevel {..} | GoToPrevLevel {..} => {
+                GoToNextLevel { .. } | GoToPrevLevel { .. } => {
                     self.level_text_animation = LevelTextAnimation::new(self.current_level);
-                },
-                _ => {},
+                }
+                _ => {}
             }
         } else {
             self.level_text_animation.dispatch(frames_elapsed);
@@ -118,7 +125,10 @@ impl<'a, 'b> GameScreen<'a, 'b> {
 
         // Go to the next level
         self.current_level += 1;
-        assert!(self.current_level < self.levels.len(), "bug: advanced too many levels");
+        assert!(
+            self.current_level < self.levels.len(),
+            "bug: advanced too many levels"
+        );
 
         // When going to the next level, we need to connect back to the corresponding gate that
         // will take you back to the previous level
@@ -133,7 +143,9 @@ impl<'a, 'b> GameScreen<'a, 'b> {
         let mut player = self.current_level().player_components();
 
         // Go the previous level
-        self.current_level = self.current_level.checked_sub(1)
+        self.current_level = self
+            .current_level
+            .checked_sub(1)
             .expect("bug: went back too many levels");
 
         // When going to the previous level, we need to connect back to the corresponding gate that

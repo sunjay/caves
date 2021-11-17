@@ -1,46 +1,38 @@
 #![deny(unused_must_use)]
 
 #[macro_use]
-extern crate specs_derive;
-#[macro_use]
-extern crate shred_derive;
-#[macro_use]
 extern crate lazy_static;
 
 use sdl2;
-use shred;
 
-mod systems;
+mod assets;
 mod components;
 mod generator;
-mod resources;
 mod map;
-mod ui;
 mod map_sprites;
-mod assets;
+mod resources;
+mod systems;
+mod ui;
 
-use std::{thread,time::Duration};
+use std::{thread, time::Duration};
 
-use sdl2::{event::Event as SDLEvent, keyboard::{Keycode, Scancode}};
-use specs::{DispatcherBuilder, World};
-
-use crate::components::{
-    PlayerComponents,
-    Position,
-    HealthPoints,
-    Movement,
-    BoundingBox,
-    KeyboardControlled,
-    CameraFocus,
-    Sprite,
-    Player,
-    EnemyBehaviour,
+use sdl2::{
+    event::Event as SDLEvent,
+    keyboard::{Keycode, Scancode},
 };
+use specs::{DispatcherBuilder, World, WorldExt};
+
 use crate::assets::{AssetManager, EnemyAnimations};
-use crate::resources::{FramesElapsed, ChangeGameState, ActionQueue, EventQueue, Event, Key};
-use crate::ui::{Window, GameScreen, SDLError, RenderContext};
-use crate::generator::{GameGenerator, GenGame, EnemyConfig, EnemyType, EnemyValues};
+use crate::components::{
+    BoundingBox, CameraFocus, EnemyBehaviour, HealthPoints, KeyboardControlled, Movement, Player,
+    PlayerComponents, Position, Sprite,
+};
+use crate::generator::{EnemyConfig, EnemyType, EnemyValues, GameGenerator, GenGame};
 use crate::map_sprites::MapSprites;
+use crate::resources::{
+    ActionQueue, ChangeGameState, Event, EventQueue, FramesElapsed, GameState, Key,
+};
+use crate::ui::{GameScreen, RenderContext, SDLError, Window};
 
 const MAX_FRAMES_PER_UPDATE: usize = 2;
 
@@ -73,7 +65,10 @@ fn game_generator<'a>(
                 speed: 3,
                 health_points: 15,
                 hit_wait: 12,
-                bounding_box: BoundingBox::Full {width: 16, height: 16},
+                bounding_box: BoundingBox::Full {
+                    width: 16,
+                    height: 16,
+                },
             },
             // Allowed enemies on each level
             levels: &[
@@ -119,17 +114,18 @@ fn main() -> Result<(), SDLError> {
     } = AssetManager::load(&texture_creator, fps as usize, tile_size)?;
 
     let keyboard_system = systems::Keyboard::default();
-    let GenGame {key, levels, player_start} = game_generator(
-        tile_size,
-        &map_sprites,
-        enemy_animations,
-    ).generate(|| {
+    let GenGame {
+        key,
+        levels,
+        player_start,
+    } = game_generator(tile_size, &map_sprites, enemy_animations).generate(|| {
         let mut world = World::new();
 
-        world.add_resource(FramesElapsed(1));
-        world.add_resource(ChangeGameState::default());
-        world.add_resource(EventQueue::default());
-        world.add_resource(ActionQueue::default());
+        world.insert(FramesElapsed(1));
+        world.insert(ChangeGameState::default());
+        world.insert(EventQueue::default());
+        world.insert(ActionQueue::default());
+        world.insert(GameState::default());
 
         let mut dispatcher = DispatcherBuilder::new()
             .with(keyboard_system.clone(), "Keyboard", &[])
@@ -139,10 +135,10 @@ fn main() -> Result<(), SDLError> {
             .with(systems::Animator, "Animator", &["Interactions"])
             .build();
 
-        dispatcher.setup(&mut world.res);
+        dispatcher.setup(&mut world);
         // Renderer is not called in the dispatcher, so we need to separately set up the component
         // storages for anything it uses.
-        ui::setup(&mut world.res);
+        ui::setup(&mut world);
 
         (dispatcher, world)
     });
@@ -156,7 +152,10 @@ fn main() -> Result<(), SDLError> {
         player: Player,
         health_points: HealthPoints(20),
         position: Position(player_start),
-        bounding_box: BoundingBox::BottomHalf {width: 16, height: 8},
+        bounding_box: BoundingBox::BottomHalf {
+            width: 16,
+            height: 8,
+        },
         movement: Movement::default(),
         sprite: Sprite(player_animations.default_sprite()),
         animation: player_animations.default_animation(),
@@ -166,7 +165,7 @@ fn main() -> Result<(), SDLError> {
     let mut game_screen = GameScreen::new(player, levels);
 
     for (i, level) in game_screen.levels().enumerate() {
-        level.render_to_file(format!("level{}.png", i+1))?;
+        level.render_to_file(format!("level{}.png", i + 1))?;
     }
 
     let mut timer = window.timer()?;
@@ -183,24 +182,44 @@ fn main() -> Result<(), SDLError> {
 
         for event in event_pump.poll_iter() {
             match event {
-                SDLEvent::Quit {..} | SDLEvent::KeyDown {keycode: Some(Keycode::Escape), ..} => {
+                SDLEvent::Quit { .. }
+                | SDLEvent::KeyDown {
+                    keycode: Some(Keycode::Escape),
+                    ..
+                } => {
                     running = false;
-                },
-                SDLEvent::KeyDown {scancode: Some(Scancode::D), repeat: false, ..} => {},
-                SDLEvent::KeyUp {scancode: Some(Scancode::D), repeat: false, ..} => {
+                }
+                SDLEvent::KeyDown {
+                    scancode: Some(Scancode::D),
+                    repeat: false,
+                    ..
+                } => {}
+                SDLEvent::KeyUp {
+                    scancode: Some(Scancode::D),
+                    repeat: false,
+                    ..
+                } => {
                     debug = !debug;
-                },
-                SDLEvent::KeyDown {scancode: Some(scancode), repeat: false, ..} => {
+                }
+                SDLEvent::KeyDown {
+                    scancode: Some(scancode),
+                    repeat: false,
+                    ..
+                } => {
                     if let Some(scancode) = Key::from_scancode(scancode) {
                         events.push(Event::KeyDown(scancode));
                     }
-                },
-                SDLEvent::KeyUp {scancode: Some(scancode), repeat: false, ..} => {
+                }
+                SDLEvent::KeyUp {
+                    scancode: Some(scancode),
+                    repeat: false,
+                    ..
+                } => {
                     if let Some(scancode) = Key::from_scancode(scancode) {
                         events.push(Event::KeyUp(scancode));
                     }
-                },
-                _ => {},
+                }
+                _ => {}
             }
         }
 
@@ -211,16 +230,22 @@ fn main() -> Result<(), SDLError> {
 
         // At least one frame must have passed for us to do anything
         if frames_elapsed_delta >= 1 {
-            game_screen.dispatch(FramesElapsed(frames_elapsed_delta), events.drain(..).collect());
+            game_screen.dispatch(
+                FramesElapsed(frames_elapsed_delta),
+                events.drain(..).collect(),
+            );
 
             ctx.canvas.clear();
             game_screen.render(&mut ctx)?;
             if debug {
                 let elapsed = timer.ticks() - ticks; // ms/frame
-                ui::render_debug_view(&mut ctx, ui::DebugInfo {
-                    // (1000 ms / s) / (ms / frame) == (frames / s)
-                    fps: (1000.0 / elapsed as f64) as u32,
-                })?;
+                ui::render_debug_view(
+                    &mut ctx,
+                    ui::DebugInfo {
+                        // (1000 ms / s) / (ms / frame) == (frames / s)
+                        fps: (1000.0 / elapsed as f64) as u32,
+                    },
+                )?;
             }
             ctx.canvas.present();
 

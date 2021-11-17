@@ -1,9 +1,6 @@
 use rand::{
+    distributions::{Distribution, Standard},
     Rng,
-    distributions::{
-        Distribution,
-        Standard,
-    },
 };
 
 /// Used to decouple SpriteImage from a specific SpriteTable

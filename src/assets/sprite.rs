@@ -113,22 +113,17 @@ impl SpriteImage {
         // Each of these calculations is calculating the anchor point on dest and then offsetting
         // by the width and height of the sprite to get the top left corner of the result rectangle
         let top_left = match self.anchor {
-            Anchor::N => Point::new(center.x(), dest.top()).offset(-width/2, 0),
+            Anchor::N => Point::new(center.x(), dest.top()).offset(-width / 2, 0),
             Anchor::NE => dest.top_right().offset(-width, 0),
-            Anchor::E => Point::new(dest.right(), center.y()).offset(-width, -height/2),
+            Anchor::E => Point::new(dest.right(), center.y()).offset(-width, -height / 2),
             Anchor::SE => dest.bottom_right().offset(-width, -height),
-            Anchor::S => Point::new(center.x(), dest.bottom()).offset(-width/2, -height),
+            Anchor::S => Point::new(center.x(), dest.bottom()).offset(-width / 2, -height),
             Anchor::SW => dest.bottom_left().offset(0, -height),
-            Anchor::W => Point::new(dest.left(), center.y()).offset(0, -height/2),
+            Anchor::W => Point::new(dest.left(), center.y()).offset(0, -height / 2),
             Anchor::NW => dest.top_left(),
-            Anchor::Center => center.offset(-width/2, -height/2),
+            Anchor::Center => center.offset(-width / 2, -height / 2),
         };
 
-        Rect::new(
-            top_left.x(),
-            top_left.y(),
-            width as u32,
-            height as u32,
-        )
+        Rect::new(top_left.x(), top_left.y(), width as u32, height as u32)
     }
 }

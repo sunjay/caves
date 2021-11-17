@@ -1,16 +1,12 @@
-use std::str::FromStr;
 use std::fmt;
+use std::str::FromStr;
 
-use rand::{
-    Rng,
-    SeedableRng,
-    rngs::StdRng,
-    distributions::{
-        Distribution,
-        Standard,
-    },
-};
 use base64::{self, DecodeError};
+use rand::{
+    distributions::{Distribution, Standard},
+    rngs::StdRng,
+    Rng, SeedableRng,
+};
 
 lazy_static! {
     /// The configuration of the encoder/decoder for the seed
@@ -61,7 +57,7 @@ type Seed = <StdRng as SeedableRng>::Seed;
 pub struct MapKey(Seed);
 
 impl MapKey {
-    pub(in super) fn to_rng(self) -> StdRng {
+    pub(super) fn to_rng(self) -> StdRng {
         StdRng::from_seed(self.0)
     }
 }
@@ -80,7 +76,11 @@ impl fmt::Debug for MapKey {
 
 impl fmt::Display for MapKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", base64::encode_config(&self.0, *SEED_ENCODER_CONFIG))
+        write!(
+            f,
+            "{}",
+            base64::encode_config(&self.0, *SEED_ENCODER_CONFIG)
+        )
     }
 }
 

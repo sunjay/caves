@@ -1,22 +1,17 @@
 //! Manages interactions between entities and adjacent tiles
 
-use sdl2::rect::{Point, Rect};
-use specs::{Entity, System, Join, ReadExpect, WriteExpect, ReadStorage, WriteStorage, Entities};
-
 use crate::components::{
-    Position,
-    BoundingBox,
-    Movement,
-    MovementDirection,
-    Player,
-    Stairs,
-    Door,
-    HealthPoints,
-    Attack,
-    HitWait,
+    Attack, BoundingBox, Door, HealthPoints, HitWait, Movement, MovementDirection, Player,
+    Position, Stairs,
 };
-use crate::resources::{ActionQueue, Action, ChangeGameState, GameState};
 use crate::map::FloorMap;
+use crate::resources::{Action, ActionQueue, ChangeGameState, GameState};
+use sdl2::rect::{Point, Rect};
+use specs::prelude::ResourceId;
+use specs::{
+    Entities, Entity, Join, ReadExpect, ReadStorage, System, SystemData, World, WriteExpect,
+    WriteStorage,
+};
 
 #[derive(SystemData)]
 pub struct InteractionsData<'a> {
@@ -43,7 +38,8 @@ impl<'a> InteractionsData<'a> {
         let range = self.map.tile_size() as i32 / 4;
         for (other_entity, _) in self.nearest_in_direction(entity, pos, direction, bounds, range) {
             if self.doors.get(other_entity).is_some() {
-                self.entities.delete(other_entity)
+                self.entities
+                    .delete(other_entity)
                     .expect("bug: unable to delete door");
                 break; // stop at the first interaction
             }
@@ -55,9 +51,12 @@ impl<'a> InteractionsData<'a> {
         let (pos, direction, bounds) = self.position_movement_bounds(entity);
         // Most attacks take up an entire tile length in a given direction
         let range = self.map.tile_size() as i32;
-        for (other_entity, other_pos) in self.nearest_in_direction(entity, pos, direction, bounds, range) {
+        for (other_entity, other_pos) in
+            self.nearest_in_direction(entity, pos, direction, bounds, range)
+        {
             if self.doors.get(other_entity).is_some() {
-                self.entities.delete(other_entity)
+                self.entities
+                    .delete(other_entity)
                     .expect("bug: unable to delete door");
                 continue;
             }
@@ -67,7 +66,8 @@ impl<'a> InteractionsData<'a> {
             // should be hit.
             if self.healths.get_mut(other_entity).is_some() {
                 //TODO: Replace this with the more advanced behaviour based on health
-                self.entities.delete(other_entity)
+                self.entities
+                    .delete(other_entity)
                     .expect("bug: unable to delete entity");
                 continue;
             }
@@ -90,7 +90,7 @@ impl<'a> InteractionsData<'a> {
         direction: MovementDirection,
         bounds: BoundingBox,
         range: i32,
-    ) -> impl Iterator<Item=(Entity, Point)> {
+    ) -> impl Iterator<Item = (Entity, Point)> {
         //TODO: Maybe instead of a (tile_size)x(tile_size) box we should consider a custom radius.
         // This might be useful because we know that attacks don't necessary take up the entire
         // adjacent tile. We also don't want to interact with things that are too far away.
@@ -137,7 +137,9 @@ impl<'a> InteractionsData<'a> {
             // Using the full boundary (regardless of the bounding box type) because we want
             // entities to be found regardless of whether their full height is used in collision
             // detection
-            let other_bounds = self.bounding_boxes.get(other)
+            let other_bounds = self
+                .bounding_boxes
+                .get(other)
                 .map(|b| b.to_full_rect(other_pos))
                 .unwrap_or_else(|| Rect::from_center(other_pos, 0, 0));
 
@@ -163,7 +165,8 @@ impl<'a> InteractionsData<'a> {
             }),
         }
 
-        near.into_iter().map(|(other, other_pos, _)| (other, other_pos))
+        near.into_iter()
+            .map(|(other, other_pos, _)| (other, other_pos))
     }
 }
 
@@ -184,7 +187,7 @@ impl<'a> System<'a> for Interactions {
                     Interact => data.interact_with_adjacent(entity),
                     Attack => data.attack_adjacent(entity),
                     // None of these require interaction with an adjacent tile
-                    Hit | Victory | Defeat => {},
+                    Hit | Victory | Defeat => {}
                 }
             }
         }
@@ -202,14 +205,16 @@ impl<'a> System<'a> for Interactions {
         // If the player is intersecting with anything interesting, we may be need to do something
         for (&Position(pos), bounds, _) in (&positions, &bounding_boxes, &players).join() {
             let player_box = bounds.to_rect(pos);
-            for (other_entity, &Position(other_pos), other_bounds, ()) in (&*entities, &positions, &bounding_boxes, !&players).join() {
+            for (other_entity, &Position(other_pos), other_bounds, ()) in
+                (&*entities, &positions, &bounding_boxes, !&players).join()
+            {
                 let other_box = other_bounds.to_rect(other_pos);
                 if player_box.has_intersection(other_box) {
                     // If player entered a staircase, we need to move to the next/prev level
                     if let Some(staircase) = stairs.get(other_entity) {
                         let change = match staircase {
-                            &Stairs::ToNextLevel {id} => GameState::GoToNextLevel {id},
-                            &Stairs::ToPrevLevel {id} => GameState::GoToPrevLevel {id},
+                            &Stairs::ToNextLevel { id } => GameState::GoToNextLevel { id },
+                            &Stairs::ToPrevLevel { id } => GameState::GoToPrevLevel { id },
                         };
                         change_game_state.replace(change);
                     }

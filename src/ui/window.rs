@@ -2,13 +2,11 @@ use std::env;
 
 use sdl2::{
     self,
-    Sdl,
-    TimerSubsystem,
-    EventPump,
-    image::{Sdl2ImageContext, InitFlag},
+    image::{InitFlag, Sdl2ImageContext},
     pixels::Color,
-    render::{TextureCreator, Canvas},
+    render::{Canvas, TextureCreator},
     video::{Window as SDLWindow, WindowContext},
+    EventPump, Sdl, TimerSubsystem,
 };
 
 use super::SDLError;
@@ -34,14 +32,16 @@ impl Window {
         //FIXME: Remove this unwrap() when we start using proper error types
         let window_width = (width as f32 * display_scale) as u32;
         let window_height = (height as f32 * display_scale) as u32;
-        let window = video_subsystem.window("Caves", window_width, window_height)
+        let window = video_subsystem
+            .window("Caves", window_width, window_height)
             .position_centered()
             .resizable()
             .build()
             .unwrap();
 
         //FIXME: Remove this unwrap() when we start using proper error types
-        let mut canvas = window.into_canvas()
+        let mut canvas = window
+            .into_canvas()
             .accelerated()
             .present_vsync()
             .build()
@@ -54,7 +54,9 @@ impl Window {
         let zoom = 2;
 
         //FIXME: Remove this unwrap() when we start using proper error types
-        canvas.set_logical_size(width / zoom, height / zoom).unwrap();
+        canvas
+            .set_logical_size(width / zoom, height / zoom)
+            .unwrap();
 
         Ok(Self {
             sdl_context,

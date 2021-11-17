@@ -31,11 +31,7 @@ pub static FLOOR_PATTERNS: &[&[&[FloorSprite]]] = &[
         &[Floor9, Floor10, Floor11, Floor12],
         &[Floor1, Floor5, Floor8, Floor1],
     ],
-    &[
-        &[Floor5, Floor8],
-        &[Floor9, Floor12],
-        &[Floor5, Floor8],
-    ],
+    &[&[Floor5, Floor8], &[Floor9, Floor12], &[Floor5, Floor8]],
     &[
         &[Floor1, Floor5, Floor8, Floor1],
         &[Floor1, Floor2, Floor3, Floor1],
@@ -43,15 +39,8 @@ pub static FLOOR_PATTERNS: &[&[&[FloorSprite]]] = &[
         &[Floor1, Floor9, Floor12, Floor1],
         &[Floor1, Floor5, Floor8, Floor1],
     ],
-    &[
-        &[Floor5, Floor8],
-        &[Floor9, Floor12],
-    ],
-    &[
-        &[Floor5, Floor8],
-        &[Floor2, Floor3],
-        &[Floor5, Floor8],
-    ],
+    &[&[Floor5, Floor8], &[Floor9, Floor12]],
+    &[&[Floor5, Floor8], &[Floor2, Floor3], &[Floor5, Floor8]],
     &[
         &[Floor1, Floor2, Floor3, Floor1, Floor1],
         &[Floor5, Floor6, Floor6, Floor8, Floor1],

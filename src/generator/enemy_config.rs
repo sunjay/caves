@@ -1,4 +1,4 @@
-use rand::{Rng, seq::SliceRandom};
+use rand::{seq::SliceRandom, Rng};
 
 use crate::components::{AnimationManager, BoundingBox, EnemyBehaviour};
 
@@ -7,10 +7,10 @@ use crate::components::{AnimationManager, BoundingBox, EnemyBehaviour};
 pub struct EnemyValues {
     pub behaviour: EnemyBehaviour,
     pub animations: AnimationManager,
-    pub attack: usize, // HP
-    pub speed: i32, // movements per second
+    pub attack: usize,        // HP
+    pub speed: i32,           // movements per second
     pub health_points: usize, // HP
-    pub hit_wait: usize, // frames
+    pub hit_wait: usize,      // frames
     pub bounding_box: BoundingBox,
 }
 
@@ -33,9 +33,12 @@ impl EnemyConfig {
     /// Generates a random enemy for the given level
     pub fn random_enemy<R: Rng>(&self, rng: &mut R, level: usize) -> EnemyValues {
         // Levels start at 1
-        let types = self.levels.get(level - 1)
+        let types = self
+            .levels
+            .get(level - 1)
             .expect("bug: enemy config must have as many items as levels");
-        let enemy_type = *types.choose(rng)
+        let enemy_type = *types
+            .choose(rng)
             .expect("bug: every level must have at least one type of enemy that can be generated");
         self.values(enemy_type)
     }

@@ -3,11 +3,11 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use rand::{rngs::StdRng, Rng};
 
 use super::{GameGenerator, RanOutOfAttempts};
-use crate::map_sprites::{FloorSprite, WallSprite};
 use crate::map::*;
+use crate::map_sprites::{FloorSprite, WallSprite};
 
 impl<'a> GameGenerator<'a> {
-    pub(in super) fn generate_rooms(
+    pub(super) fn generate_rooms(
         &self,
         rng: &mut StdRng,
         map: &mut FloorMap,
@@ -112,8 +112,7 @@ impl<'a> GameGenerator<'a> {
             let tl2 = rect2.top_left();
             let br = rect.bottom_right();
             let br2 = rect2.bottom_right();
-            if tl.row == tl2.row || tl.col == tl2.col
-                || br.row == br2.row || br.col == br2.col {
+            if tl.row == tl2.row || tl.col == tl2.col || br.row == br2.row || br.col == br2.col {
                 return None;
             }
         }
@@ -154,7 +153,10 @@ impl<'a> GameGenerator<'a> {
         }
 
         // Keep the maximum component
-        let (max, _) = components.iter().enumerate().max_by_key(|(_, c)| c.len())
+        let (max, _) = components
+            .iter()
+            .enumerate()
+            .max_by_key(|(_, c)| c.len())
             .expect("bug: expected at least one component");
         components.remove(max);
 
@@ -186,7 +188,7 @@ impl<'a> GameGenerator<'a> {
                         // Check if adjacent
                         match other_edge.difference(edge) {
                             (-1, 0) | (1, 0) | (0, -1) | (0, 1) => remove = true,
-                            _ => {},
+                            _ => {}
                         }
                     }
                 }
@@ -219,7 +221,7 @@ impl<'a> GameGenerator<'a> {
     }
 
     fn is_invalid_rect(&self, room: &TileRect, room_rects: &[TileRect]) -> bool {
-        let GridSize {rows, cols} = room.dimensions();
+        let GridSize { rows, cols } = room.dimensions();
         // true = tile is uncovered by another room.
         // false = tile is covered by another room.
         // All positions in this 2D vector are offset by the top-left of the ith room. That
@@ -271,9 +273,11 @@ impl<'a> GameGenerator<'a> {
         // of true items there are still remaining tiles with true in them, there must be two
         // components since the remaining ones weren't reachable during the search.
 
-        let first_uncovered = room_tiles.iter().enumerate()
-            .find_map(|(row, r)| r.iter().enumerate()
-                .find_map(|(col, &t)| if t { Some(TilePos {row, col}) } else { None }));
+        let first_uncovered = room_tiles.iter().enumerate().find_map(|(row, r)| {
+            r.iter()
+                .enumerate()
+                .find_map(|(col, &t)| if t { Some(TilePos { row, col }) } else { None })
+        });
         if let Some(first_uncovered) = first_uncovered {
             // Find the first connected component of uncovered tiles
             let rows = room_tiles.len();
@@ -289,7 +293,9 @@ impl<'a> GameGenerator<'a> {
                 }
                 seen.insert(node);
 
-                let adjacents = node.adjacent_north().into_iter()
+                let adjacents = node
+                    .adjacent_north()
+                    .into_iter()
                     .chain(node.adjacent_east(cols))
                     .chain(node.adjacent_south(rows))
                     .chain(node.adjacent_west());
@@ -315,7 +321,9 @@ impl<'a> GameGenerator<'a> {
             let max_row = seen.iter().map(|pt| pt.row).max().unwrap();
             let min_col = seen.iter().map(|pt| pt.col).min().unwrap();
             let max_col = seen.iter().map(|pt| pt.col).max().unwrap();
-            if (max_row - min_row + 1) < self.room_rows.min || (max_col - min_col + 1) < self.room_cols.min {
+            if (max_row - min_row + 1) < self.room_rows.min
+                || (max_col - min_col + 1) < self.room_cols.min
+            {
                 return true; // invalid room
             }
 
@@ -328,7 +336,11 @@ impl<'a> GameGenerator<'a> {
         false // room is valid
     }
 
-    fn rect_graph_breadth_first_search(&self, graph: &HashMap<usize, Vec<usize>>, start: usize) -> HashSet<usize> {
+    fn rect_graph_breadth_first_search(
+        &self,
+        graph: &HashMap<usize, Vec<usize>>,
+        start: usize,
+    ) -> HashSet<usize> {
         let mut open = VecDeque::new();
         open.push_back(start);
 
@@ -389,7 +401,8 @@ impl<'a> GameGenerator<'a> {
             // This can never make another room unreachable because it is already the end of a
             // path. If that doesn't work, all rooms must have at least 2 adjacents, so we can pick
             // the largest room and every other room will always have at least one way to get to it.
-            let largest_room = graph.into_iter()
+            let largest_room = graph
+                .into_iter()
                 .filter_map(|(id, adjacents)| if adjacents.len() == 1 { Some(id) } else { None })
                 .max_by_key(|&id| map.room(id).boundary().area());
 
@@ -415,12 +428,15 @@ impl<'a> GameGenerator<'a> {
     fn place_rect(&self, map: &mut FloorMap, room_id: RoomId) {
         // First cover the room in floor tiles
         for pos in map.room(room_id).boundary().tile_positions() {
-            map.grid_mut().place_tile(pos, Tile::new_floor(room_id, FloorSprite::default()));
+            map.grid_mut()
+                .place_tile(pos, Tile::new_floor(room_id, FloorSprite::default()));
         }
 
         // Turn the edges of the room into walls
         for edge in map.room(room_id).boundary().edge_positions() {
-            map.grid_mut().get_mut(edge).become_wall(WallSprite::default());
+            map.grid_mut()
+                .get_mut(edge)
+                .become_wall(WallSprite::default());
         }
     }
 }
